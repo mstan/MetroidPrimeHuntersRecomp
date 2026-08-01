@@ -16,9 +16,24 @@ screen_layout = "separate"
 supersampling = 1
 antialiasing = 0
 
-# Adaptive widening remains disabled until Prime Hunters' projection, culling,
-# HUD, movie, and screen-routing behavior has its own capability audit.
-adaptive_widescreen = "none"
+# The shared host-side adaptive renderer expands only the upper 3D viewport to
+# 21:9. The lower touchscreen remains native 256x192 and independently
+# clickable. The exact game SHA-1 above gates this title-owned capability.
+adaptive_widescreen = "top"
+adaptive_capability = "top"
+adaptive_width = 448
+# SM64DS needs a cylindrical-sky repair heuristic. Prime Hunters does not opt
+# into that title-specific treatment; uncovered geometry remains visible
+# during the MPH projection/culling audit.
+adaptive_skybox_fill = false
+# Gameplay enables three transparent text-tile planes for the visor and HUD.
+# Anchor their authored left/center/right bands over the widened 3D world
+# instead of falling back to a pillarboxed native composite.
+adaptive_hud_anchor = true
+# MPH's centered location banner and energy assembly are wider than the
+# framework's conservative 64-pixel default. Preserve source X=64..191 as one
+# centered unit so text and bars never cross an anchor seam.
+adaptive_hud_center_width = 128
 
 [system]
 # Exercise the authentic BIOS/firmware/card path and automatically launch the
@@ -46,7 +61,7 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp-mph"
-pin = "8c587032f602f07fde3540b05748df83ac355275"
+pin = "94a4a2dcd56496a8bc153382c4fcb7dc489d71f5"
 branch = "codex/metroid-prime-hunters"
 
 [reference.mphread]

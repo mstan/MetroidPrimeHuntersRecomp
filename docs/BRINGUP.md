@@ -82,8 +82,10 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [x] Generalize cartridge save type/size beyond SM64DS's 8 KiB EEPROM
 - [x] Add deterministic Prime Hunters navigation and gameplay-entry scenario
 - [ ] Add sustained traversal, combat, pause, death, and reload scenarios
-- [ ] Audit Prime Hunters projection/culling/HUD before enabling adaptive wide
-- [ ] Add launcher/mod packaging after the runtime path is stable
+- [x] Enable an exact-ROM upper-screen adaptive-wide bring-up baseline
+- [ ] Audit Prime Hunters projection/culling/HUD across sustained gameplay
+- [x] Add an MPH recomp-ui development launcher and enhancement toggle
+- [ ] Add release launcher/mod packaging after the runtime path is stable
 
 ## Design constraints
 
@@ -104,4 +106,6 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - MphRead's recreation uses a 78-degree camera FOV and derives projection and
   frustum planes from the live output aspect ratio. That is a useful semantic
   reference, but it does not prove which AMHE0 guest structures and GX command
-  sites must be patched; adaptive output therefore remains disabled.
+  sites must be patched. The host adaptive viewport is enabled as an explicit
+  bring-up baseline, but it is not considered visually complete until those
+  title-side behaviors pass sustained gameplay review.

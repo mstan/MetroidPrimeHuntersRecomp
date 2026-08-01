@@ -51,9 +51,18 @@ configuration. AMHE declares its 256 KiB flash instead of inheriting SM64DS's
 8 KiB EEPROM.
 
 This proves campaign entry, not gameplay completeness. Runtime ARM7 code,
-ARM9 overlay generations, sustained traversal/combat scenarios, packaging,
-and adaptive widescreen remain explicit next gates in
+ARM9 overlay generations, sustained traversal/combat scenarios, and packaging
+remain explicit next gates in
 [`docs/BRINGUP.md`](docs/BRINGUP.md).
+
+The exact-ROM `game.toml` now opts the upper screen into the shared 448x192
+(21:9) adaptive renderer. The lower touchscreen stays native 256x192. This is
+an enhancement bring-up baseline: projection, game-side culling, HUD anchoring,
+movies, fades, and screen routing still need sustained gameplay auditing.
+
+An MPH-specific recomp-ui development launcher lives in
+`launcher/recomp-ui`. Its Adaptive Widescreen mod is enabled by default and
+maps to the same runner CLI used by the SM64DS preview.
 
 ## Project shape
 

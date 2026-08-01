@@ -50,17 +50,22 @@ def main() -> int:
     parser.add_argument("--native", type=Path, required=True)
     parser.add_argument("--oracle", type=Path, required=True)
     parser.add_argument("--out", type=Path)
+    parser.add_argument(
+        "--pattern",
+        default="vblank-*.png",
+        help="checkpoint filename glob (default: vblank-*.png)",
+    )
     args = parser.parse_args()
 
     native_files = {
-        path.name: path for path in args.native.glob("vblank-*.png")
+        path.name: path for path in args.native.glob(args.pattern)
     }
     oracle_files = {
-        path.name: path for path in args.oracle.glob("vblank-*.png")
+        path.name: path for path in args.oracle.glob(args.pattern)
     }
     names = sorted(native_files.keys() & oracle_files.keys())
     if not names:
-        raise SystemExit("no matching vblank-*.png checkpoints")
+        raise SystemExit(f"no matching {args.pattern} checkpoints")
 
     report = {
         name: compare(native_files[name], oracle_files[name])

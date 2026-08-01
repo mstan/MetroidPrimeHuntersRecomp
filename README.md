@@ -29,6 +29,13 @@ title at VBlank 7800, continues its title animation at VBlank 8400, returns to
 the hunter reel by VBlank 9000, and remains alive through VBlank 12000 without
 a terminal dispatch miss.
 
+The deterministic `scenarios/adventure_start.json` replay now continues from
+that title through Adventure Mode, creates mission file A, skips the opening
+briefing, lands at Celestial Archives, and reaches the live first-person HUD.
+The minimized replay reaches gameplay at VBlank 10859 without relying on
+host-time input sleeps. All 15 native checkpoints in the route are
+byte-identical to ndsref across both physical screens.
+
 Native and ndsref scheduler/event counts agree through the loop. Captures of
 both physical screens at title and post-title checkpoints are byte-identical
 after correcting two shared reset/presentation assumptions: the runner now
@@ -43,9 +50,9 @@ standard ARM7 load address—and cartridge backup type/capacity are game-owned
 configuration. AMHE declares its 256 KiB flash instead of inheriting SM64DS's
 8 KiB EEPROM.
 
-This is an attract-mode bring-up result, not a gameplay-completeness claim.
-Runtime ARM7 code, ARM9 overlay generations, deterministic input scenarios,
-packaging, and adaptive widescreen remain explicit next gates in
+This proves campaign entry, not gameplay completeness. Runtime ARM7 code,
+ARM9 overlay generations, sustained traversal/combat scenarios, packaging,
+and adaptive widescreen remain explicit next gates in
 [`docs/BRINGUP.md`](docs/BRINGUP.md).
 
 ## Project shape
@@ -117,6 +124,34 @@ two backends traverse the same path. Long targets transparently continue
 across the debug server's per-command safety-round limit and refuse to save a
 mislabeled checkpoint if the machine stalls. Compare matching images with
 `tools/compare_mph_checkpoints.py`.
+
+## Gameplay input discovery and replay
+
+`tools/fuzz_mph_gameplay.py` performs seeded touch/button exploration after
+the title screen. Every action is followed by an absolute-VBlank checkpoint,
+physical-screen capture, perceptual signature, and machine-readable
+`trace.json`, so a lucky path can be minimized and replayed.
+
+Run the minimized Adventure trace against the native runner:
+
+```bash
+./.venv/Scripts/python.exe tools/fuzz_mph_gameplay.py \
+  --runner ../ndsrecomp-mph/runner/build-mph-title/nds_runner.exe \
+  --bios ../ndsrecomp/bios --rom "Metroid Prime Hunters.nds" \
+  --config game.toml --out generated/fuzz/native-adventure \
+  --actions scenarios/adventure_start.json --steps 0
+```
+
+Replace `--runner` with `--oracle ../ndsref/build-native/ndsref.exe` to
+produce the independent reference trace. Add `--steps 100 --seed <number>`
+to continue deterministic exploration after the scripted prefix.
+Compare the complete action routes with:
+
+```bash
+./.venv/Scripts/python.exe tools/compare_mph_checkpoints.py \
+  --native generated/fuzz/native-adventure \
+  --oracle generated/fuzz/oracle-adventure --pattern "0*.png"
+```
 
 To inspect the verified cartridge without launching it:
 

@@ -50,6 +50,21 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 11. The checkpoint helper now names screens explicitly and continues after a
     server safety-round exhaustion. It refuses to label or save a frame unless
     the requested absolute VBlank was actually reached.
+12. A seeded, trace-preserving input search discovered the first campaign
+    path. Its minimized replay is:
+    - tap the title and Adventure Mode
+    - create and confirm mission file A
+    - select file A again to start the campaign
+    - skip the mission briefing
+    - wait for the Celestial Archives gunship screen and confirm landing
+    The native and reference runs reach the live first-person HUD at VBlank
+    10859.
+13. `tools/fuzz_mph_gameplay.py` records every action, absolute VBlank,
+    screenshot, perceptual signature, RGB hash, and event-count snapshot.
+    `scenarios/adventure_start.json` is the replayable minimized result.
+14. All 15 matching native/oracle checkpoints in the minimized route are
+    byte-identical across both physical screens: zero differing pixels and
+    zero maximum channel delta, including the first gameplay frame.
 
 ## Bring-up gates
 
@@ -65,7 +80,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [x] Compile and register AMHE0 main ARM9/ARM7 banks by ROM capability
 - [ ] Capture content-validated runtime ARM7 code and ARM9 overlay generations
 - [x] Generalize cartridge save type/size beyond SM64DS's 8 KiB EEPROM
-- [ ] Add deterministic Prime Hunters navigation and attract scenarios
+- [x] Add deterministic Prime Hunters navigation and gameplay-entry scenario
+- [ ] Add sustained traversal, combat, pause, death, and reload scenarios
 - [ ] Audit Prime Hunters projection/culling/HUD before enabling adaptive wide
 - [ ] Add launcher/mod packaging after the runtime path is stable
 

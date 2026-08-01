@@ -112,5 +112,6 @@ int main(int argc, char** argv) {
     std::puts("reference=NoneGiven/MphRead (AMHE0-aware; non-matching recreation)");
     std::puts("boot_status=authentic-firmware-and-cartridge");
     std::puts("attract_status=full-no-input-loop");
+    std::puts("gameplay_status=celestial-archives-entry");
     return 0;
 }

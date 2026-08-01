@@ -1,0 +1,10 @@
+{
+  "description": "Discovery trace: enter Adventure Mode from the main menu.",
+  "actions": [
+    {
+      "kind": "touch",
+      "x": 84,
+      "y": 92
+    }
+  ]
+}

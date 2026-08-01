@@ -1,0 +1,61 @@
+{
+  "description": "Create file A, skip the briefing, land, and enter Celestial Archives gameplay.",
+  "actions": [
+    {
+      "kind": "touch",
+      "x": 84,
+      "y": 92
+    },
+    {
+      "kind": "wait",
+      "frames": 180
+    },
+    {
+      "kind": "touch",
+      "x": 48,
+      "y": 80
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 180
+    },
+    {
+      "kind": "touch",
+      "x": 48,
+      "y": 80
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 236,
+      "y": 184
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "wait",
+      "frames": 800
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    }
+  ]
+}

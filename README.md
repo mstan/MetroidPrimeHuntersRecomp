@@ -22,25 +22,31 @@ screenshots, saves, or other Nintendo material.
 
 ## Current boundary
 
-The clean interpreter baseline boots through the authentic firmware/cartridge
-path, starts both game CPUs, displays the ActImagine splash, and advances into
-the opening cinematic without a terminal dispatch miss. ROM-gated static
-ARM9/ARM7 banks now reach VBlank 3600, well into the hunter-introduction
-sequence, with both CPUs alive.
+The ROM-gated static ARM9/ARM7 main banks boot through the authentic
+firmware/cartridge path and complete the game's no-input attract loop with
+interpreter fallback for code that is not compiled yet. The run reaches the
+title at VBlank 7800, continues its title animation at VBlank 8400, returns to
+the hunter reel by VBlank 9000, and remains alive through VBlank 12000 without
+a terminal dispatch miss.
 
-The first cross-title framework defect is already isolated and fixed in the
-paired `../ndsrecomp-mph` worktree: an SM64DS ARM7 bank was registered for
-every cartridge. Prime Hunters shares the standard ARM7 load address, so the
-wrong title's code ran against Prime Hunters memory and corrupted execution.
-Title banks are now gated by exact ROM identity.
+Native and ndsref scheduler/event counts agree through the loop. Captures of
+both physical screens at title and post-title checkpoints are byte-identical
+after correcting two shared reset/presentation assumptions: the runner now
+starts from the retail `POWCNT1 = 0x820F` state, and screen routing is applied
+as scanlines are produced rather than retroactively when a completed frame is
+read.
 
-The second cross-title assumption was the save device: the runner instantiated
-SM64DS's 8 KiB EEPROM for every cartridge. AMHE is a 256 KiB flash title, so
-save type/capacity now come from `game.toml` and the shared runtime implements
-the corresponding flash command path.
+The paired `../ndsrecomp-mph` worktree also removes two SM64DS-specific
+cross-title assumptions. Static title banks are now registered only for the
+exact ROM they were generated from—important because both games use the
+standard ARM7 load address—and cartridge backup type/capacity are game-owned
+configuration. AMHE declares its 256 KiB flash instead of inheriting SM64DS's
+8 KiB EEPROM.
 
-Full attract-mode completion is not yet claimed. The next gates are recorded
-in [`docs/BRINGUP.md`](docs/BRINGUP.md).
+This is an attract-mode bring-up result, not a gameplay-completeness claim.
+Runtime ARM7 code, ARM9 overlay generations, deterministic input scenarios,
+packaging, and adaptive widescreen remain explicit next gates in
+[`docs/BRINGUP.md`](docs/BRINGUP.md).
 
 ## Project shape
 
@@ -102,12 +108,14 @@ For deterministic headless checkpoints:
   --runner ../ndsrecomp-mph/runner/build-mph-title/nds_runner.exe \
   --bios ../ndsrecomp/bios --rom "Metroid Prime Hunters.nds" \
   --config game.toml --out generated/captures/checkpoints \
-  --targets 300 900 2400 3600
+  --targets 300 900 2400 3600 6000 7200 7800 8400 9000 12000
 ```
 
 The same tool accepts `--oracle <ndsref.exe>` in place of `--runner`; it
 creates an ignored private firmware copy with Automatic Slot-1 startup so the
-two backends traverse the same path. Compare matching images with
+two backends traverse the same path. Long targets transparently continue
+across the debug server's per-command safety-round limit and refuse to save a
+mislabeled checkpoint if the machine stalls. Compare matching images with
 `tools/compare_mph_checkpoints.py`.
 
 To inspect the verified cartridge without launching it:

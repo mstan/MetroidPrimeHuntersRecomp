@@ -4,7 +4,7 @@
 
 - Cartridge: USA revision 0 (`AMHE`, `MP HUNTERS`)
 - ROM SHA-1: `90164d1ac127ee5f9815ea4ae7de798c7b5fc629`
-- Framework base: `d7bb602f7a227a615f5567da799279e9e228eb75`
+- Framework base: `8c587032f602f07fde3540b05748df83ac355275`
 - MphRead reference: `26cd8a6fe93dc5e525d1a1bb304fe96001111e55`
 - Public matching disassembly: none found
 
@@ -32,9 +32,24 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
    cycle machine state as the clean interpreter runner.
 6. AMHE uses melonDS SaveMemType 5: 256 KiB flash. Save type/capacity are now
    game-owned configuration instead of an SM64DS runner constant.
-7. Native and ndsref event/cycle counts agree through VBlank 5400. Combined
-   top/bottom framebuffers are byte-identical at VBlank 3000, 3600, 4200,
-   4800, and 5400.
+7. Native and ndsref event/cycle counts agree through the no-input return to
+   the hunter reel and onward to VBlank 12000.
+8. The title split exposed a cold-boot screen-routing defect hidden by the
+   mirrored intro video: ndsrecomp reset POWCNT1 to `0x0001` instead of the
+   retail/melonDS `0x820F`. The reset and 3D power defaults are corrected.
+9. A second routing defect appeared only when Prime Hunters changed the LCD
+   assignment during VBlank. The native renderer stored engine-relative
+   frames and applied the current POWCNT1 only when the completed frame was
+   read, which could retroactively swap it. Routing is now applied while each
+   scanline is produced, matching melonDS framebuffer assignment.
+10. The no-input title/loop checkpoints are:
+    - VBlank 7800: title logo and `TOUCH TO START`
+    - VBlank 8400: title animation
+    - VBlank 9000: return to the hunter reel
+    Native top/bottom captures are byte-identical to ndsref at all three.
+11. The checkpoint helper now names screens explicitly and continues after a
+    server safety-round exhaustion. It refuses to label or save a frame unless
+    the requested absolute VBlank was actually reached.
 
 ## Bring-up gates
 
@@ -44,9 +59,9 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [x] Public reverse-engineering resource audit and pinned MphRead checkout
 - [x] Safe interpreter boot through the opening cinematic
 - [x] Remove the cross-title SM64DS bank-registration assumption
-- [ ] Reach and capture the title screen
-- [ ] Observe one complete no-input attract loop
-- [ ] Compare the same attract checkpoints against the ndsref oracle
+- [x] Reach and capture the title screen
+- [x] Observe one complete no-input attract loop
+- [x] Compare the same attract checkpoints against the ndsref oracle
 - [x] Compile and register AMHE0 main ARM9/ARM7 banks by ROM capability
 - [ ] Capture content-validated runtime ARM7 code and ARM9 overlay generations
 - [x] Generalize cartridge save type/size beyond SM64DS's 8 KiB EEPROM
@@ -59,6 +74,9 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - A title bank must never be selected by address alone. Registration is gated
   by exact cartridge identity, and mutable/overlay banks also validate live
   bytes.
+- The runner also validates `[game].sha1` before applying title-owned config,
+  so a Prime Hunters save-device declaration cannot silently affect another
+  cartridge.
 - Each overlay generation remains a separate content-validated bank. Prime
   Hunters reuses virtual ranges, so combining entry points from different
   overlay images would be unsound.

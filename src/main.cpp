@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     std::printf("arm9_size=0x%08x arm7_size=0x%08x\n",
                 read_u32(rom, 0x2Cu), read_u32(rom, 0x3Cu));
     std::puts("reference=NoneGiven/MphRead (AMHE0-aware; non-matching recreation)");
-    std::puts("boot_status=opening-cinematic-interpreter-baseline");
-    std::puts("attract_status=in-progress");
+    std::puts("boot_status=authentic-firmware-and-cartridge");
+    std::puts("attract_status=full-no-input-loop");
     return 0;
 }

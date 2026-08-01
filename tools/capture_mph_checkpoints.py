@@ -48,7 +48,7 @@ def automatic_firmware(source: Path, destination: Path) -> None:
 
 
 class DebugClient:
-    def __init__(self, port: int, timeout: float = 600.0):
+    def __init__(self, port: int, timeout: float = 1800.0):
         self.socket = socket.create_connection(("127.0.0.1", port), timeout)
         self.buffer = b""
 
@@ -83,7 +83,7 @@ def wait_for_server(port: int, process: subprocess.Popen[bytes]) -> None:
     raise TimeoutError(f"runner did not listen on port {port}")
 
 
-def framebuffer(client: DebugClient, engine: int) -> Image.Image:
+def framebuffer(client: DebugClient, engine: str) -> Image.Image:
     response = client.command("framebuffer", engine=engine)
     assert isinstance(response, dict)
     return Image.frombytes(
@@ -93,11 +93,39 @@ def framebuffer(client: DebugClient, engine: int) -> Image.Image:
     )
 
 
-def capture(client: DebugClient, output: Path, count: int) -> dict[str, object]:
-    hit = client.command(
-        "run_to_event", event="vblank9", count=count, stall=300_000
-    )
-    screens = [framebuffer(client, engine) for engine in (0, 1)]
+def capture(
+    client: DebugClient,
+    output: Path,
+    count: int,
+    include_native_stats: bool,
+) -> dict[str, object]:
+    previous_vblank = -1
+    while True:
+        hit = client.command(
+            "run_to_event", event="vblank9", count=count, stall=300_000
+        )
+        assert isinstance(hit, dict)
+        if hit.get("reached"):
+            break
+        counts = hit.get("counts")
+        current_vblank = (
+            int(counts.get("vblank9", -1))
+            if isinstance(counts, dict)
+            else -1
+        )
+        if hit.get("terminal") or hit.get("stalled"):
+            raise RuntimeError(
+                f"failed to reach VBlank {count}: {json.dumps(hit)}"
+            )
+        if not hit.get("exhausted") or current_vblank <= previous_vblank:
+            raise RuntimeError(
+                f"no progress toward VBlank {count}: {json.dumps(hit)}"
+            )
+        # A long authentic-firmware run can exceed one server command's
+        # safety-round budget. Continue from the live machine rather than
+        # saving a misleading image under the requested checkpoint name.
+        previous_vblank = current_vblank
+    screens = [framebuffer(client, engine) for engine in ("A", "B")]
     image = Image.new(
         "RGB",
         (max(screen.width for screen in screens),
@@ -111,13 +139,30 @@ def capture(client: DebugClient, output: Path, count: int) -> dict[str, object]:
 
     arm9 = client.command("regs", cpu=9)
     arm7 = client.command("regs", cpu=7)
+    powercontrol9 = client.command(
+        "read_io", cpu=9, addr=0x04000304, width=16
+    )
+    dispcnt_a = client.command(
+        "read_io", cpu=9, addr=0x04000000, width=32
+    )
+    dispcnt_b = client.command(
+        "read_io", cpu=9, addr=0x04001000, width=32
+    )
     assert isinstance(arm9, dict) and isinstance(arm7, dict)
+    assert isinstance(powercontrol9, dict)
+    assert isinstance(dispcnt_a, dict) and isinstance(dispcnt_b, dict)
     result = {
         "vblank9": count,
         "hit": hit,
         "arm9_pc": f"0x{int(arm9['r'][15]):08x}",
         "arm7_pc": f"0x{int(arm7['r'][15]):08x}",
+        "powercontrol9": f"0x{int(powercontrol9['value']):04x}",
+        "dispcnt_a": f"0x{int(dispcnt_a['value']):08x}",
+        "dispcnt_b": f"0x{int(dispcnt_b['value']):08x}",
     }
+    if include_native_stats:
+        result["dispatch"] = client.command("dispatch_stats")
+        result["cartridge_save"] = client.command("cart_save_info")
     print(json.dumps(result), flush=True)
     return result
 
@@ -194,7 +239,12 @@ def main() -> int:
             try:
                 client.command("reset")
                 report = [
-                    capture(client, output, count)
+                    capture(
+                        client,
+                        output,
+                        count,
+                        include_native_stats=args.runner is not None,
+                    )
                     for count in sorted(set(args.targets))
                 ]
                 (output / "report.json").write_text(

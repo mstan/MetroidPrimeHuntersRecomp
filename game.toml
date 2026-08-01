@@ -1,0 +1,55 @@
+[game]
+name = "Metroid Prime Hunters"
+id = "AMHE"
+region = "USA"
+revision = 0
+status = "interpreter baseline reaches opening cinematic; static banks scaffolded"
+rom = "Metroid Prime Hunters.nds"
+rom_size = 0x04000000
+sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
+sha256 = "7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855"
+
+[display]
+# Prime Hunters uses both screens heavily. Keep them independently presentable
+# from the beginning, matching the established SM64DS host layout.
+screen_layout = "separate"
+supersampling = 1
+antialiasing = 0
+
+# Adaptive widening remains disabled until Prime Hunters' projection, culling,
+# HUD, movie, and screen-routing behavior has its own capability audit.
+adaptive_widescreen = "none"
+
+[system]
+# Exercise the authentic BIOS/firmware/card path and automatically launch the
+# inserted cartridge after the normal firmware sequence.
+startup_mode = "automatic"
+
+[cartridge]
+# melonDS ROMList entry AMHE: SaveMemType 5 (256 KiB flash).
+save_type = "flash"
+save_size = 262144
+
+[arm9]
+rom_offset = 0x00004000
+entry_pc = 0x02004800
+load_address = 0x02004000
+compressed_size = 0x0007e6c4
+decompressed_size = 0x000dd9d8
+overlay_count = 18
+
+[arm7]
+rom_offset = 0x0013aa00
+entry_pc = 0x02380000
+load_address = 0x02380000
+size = 0x00028464
+
+[framework]
+path = "../ndsrecomp-mph"
+pin = "d7bb602f7a227a615f5567da799279e9e228eb75"
+branch = "codex/metroid-prime-hunters"
+
+[reference.mphread]
+url = "https://github.com/NoneGiven/MphRead.git"
+pin = "26cd8a6fe93dc5e525d1a1bb304fe96001111e55"
+use = "AMHE0-aware gameplay, save, room/entity, model, animation, collision, audio, and file-format research"

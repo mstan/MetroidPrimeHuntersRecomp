@@ -1,0 +1,29 @@
+# User-owned Nintendo DS images and ROM-derived outputs.
+*.nds
+/generated/
+/extracted/
+
+# Optional reverse-engineering references.
+/third_party/
+
+# Build trees, runtime state, and captures.
+/build/
+/build-*/
+/saves/
+/captures/
+*.sav
+*.log
+/rom.cfg
+/settings.toml
+
+# Local Python environment and tool output.
+/.venv/
+__pycache__/
+*.pyc
+
+# Editor and OS output.
+.vs/
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

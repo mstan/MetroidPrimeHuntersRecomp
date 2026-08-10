@@ -68,8 +68,8 @@ move the mouse for unbounded relative aim, and use Mouse 1 to fire through the
 game's default right-handed `L` trigger. `Escape`, changing focus, or closing a
 window safely releases both the cursor and any held fire input; the bottom
 window remains an ordinary clickable touchscreen. Sensitivity and inverted-Y
-settings are available in MODS and persist in
-`%APPDATA%\MetroidPrimeHuntersRecomp\mods.ini`.
+settings are available in MODS, with a `1.00x` sensitivity default, and
+persist in `%APPDATA%\MetroidPrimeHuntersRecomp\mods.ini`.
 
 ## Project shape
 

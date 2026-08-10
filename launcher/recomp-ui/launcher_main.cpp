@@ -27,11 +27,29 @@ constexpr char kDefaultRom[] =
 struct ModState {
     bool adaptive_widescreen = true;
     bool mouse_aim = true;
-    int mouse_sensitivity = 30;
+    int mouse_sensitivity = 100;
     bool mouse_invert_y = false;
     std::filesystem::path settings_path;
     std::string last_error;
 };
+
+struct SensitivityChoice {
+    int percent;
+    const char* label;
+};
+
+constexpr std::array<SensitivityChoice, 10> kSensitivityChoices{{
+    {25, "0.25x"},
+    {30, "0.30x (legacy)"},
+    {50, "0.50x"},
+    {75, "0.75x"},
+    {100, "1.00x"},
+    {125, "1.25x"},
+    {150, "1.50x"},
+    {200, "2.00x"},
+    {300, "3.00x"},
+    {400, "4.00x"},
+}};
 
 template <size_t N>
 void copy_text(char (&target)[N], const char* source) {
@@ -186,16 +204,14 @@ int mod_feature_option_get(void* context, const char* package_id,
     copy_text(output->group, "Mouse Aim");
     if (index == 0) {
         copy_text(output->id, "sensitivity");
-        copy_text(output->label, "Sensitivity (%)");
+        copy_text(output->label, "Sensitivity");
         copy_text(output->description,
-                  "Relative mouse scaling for the native MPH aim delta.");
+                  "Multiplier for the native MPH relative-aim delta.");
         std::snprintf(output->value, sizeof(output->value), "%d",
                       state->mouse_sensitivity);
-        copy_text(output->default_value, "30");
-        output->type = RECOMP_MOD_OPTION_INTEGER;
-        output->min_value = 10;
-        output->max_value = 400;
-        output->step = 5;
+        copy_text(output->default_value, "100");
+        output->type = RECOMP_MOD_OPTION_CHOICE;
+        output->choice_count = static_cast<int>(kSensitivityChoices.size());
     } else {
         copy_text(output->id, "invert-y");
         copy_text(output->label, "Invert Y axis");
@@ -206,6 +222,23 @@ int mod_feature_option_get(void* context, const char* package_id,
         copy_text(output->default_value, "false");
         output->type = RECOMP_MOD_OPTION_BOOLEAN;
     }
+    return 1;
+}
+
+int mod_feature_choice_get(void*, const char* package_id,
+                           const char* feature_id, const char* option_id,
+                           int index, RecompLauncherCModChoice* output) {
+    if (!package_id || !feature_id || !option_id || !output || index < 0 ||
+        index >= static_cast<int>(kSensitivityChoices.size()) ||
+        std::strcmp(package_id, "mph-mouse-aim") != 0 ||
+        std::strcmp(feature_id, "mouse-aim") != 0 ||
+        std::strcmp(option_id, "sensitivity") != 0) {
+        return 0;
+    }
+    std::memset(output, 0, sizeof(*output));
+    const SensitivityChoice& choice = kSensitivityChoices[index];
+    std::snprintf(output->value, sizeof(output->value), "%d", choice.percent);
+    copy_text(output->label, choice.label);
     return 1;
 }
 
@@ -252,6 +285,7 @@ RecompLauncherCModProvider make_mod_provider(ModState* state) {
     provider.feature_count = mod_feature_count;
     provider.feature_get = mod_feature_get;
     provider.feature_option_get = mod_feature_option_get;
+    provider.feature_choice_get = mod_feature_choice_get;
     provider.feature_enable = mod_feature_enable;
     provider.feature_set_option = mod_feature_set_option;
     provider.archive_extension = ".ndsmod";

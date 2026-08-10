@@ -61,7 +61,7 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp-mph"
-pin = "ddcca1ef2ad9629a3016a8372d17f602ff828cad"
+pin = "6b9a88859ded02496b320aab4d0ae20bee6ab3ba"
 branch = "codex/metroid-prime-hunters"
 
 [reference.mphread]

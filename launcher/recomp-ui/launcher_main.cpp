@@ -27,7 +27,7 @@ constexpr char kDefaultRom[] =
 struct ModState {
     bool adaptive_widescreen = true;
     bool mouse_aim = true;
-    int mouse_sensitivity = 100;
+    int mouse_sensitivity = 30;
     bool mouse_invert_y = false;
     std::filesystem::path settings_path;
     std::string last_error;
@@ -188,10 +188,10 @@ int mod_feature_option_get(void* context, const char* package_id,
         copy_text(output->id, "sensitivity");
         copy_text(output->label, "Sensitivity (%)");
         copy_text(output->description,
-                  "Relative mouse motion scaling in native DS touch pixels.");
+                  "Relative mouse scaling for the native MPH aim delta.");
         std::snprintf(output->value, sizeof(output->value), "%d",
                       state->mouse_sensitivity);
-        copy_text(output->default_value, "100");
+        copy_text(output->default_value, "30");
         output->type = RECOMP_MOD_OPTION_INTEGER;
         output->min_value = 10;
         output->max_value = 400;

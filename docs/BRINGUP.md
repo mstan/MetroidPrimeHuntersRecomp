@@ -4,7 +4,7 @@
 
 - Cartridge: USA revision 0 (`AMHE`, `MP HUNTERS`)
 - ROM SHA-1: `90164d1ac127ee5f9815ea4ae7de798c7b5fc629`
-- Framework main integration: `76ac592b5c84e54f5a7ea8c62b432cf5af756115`
+- Framework main integration: `778e74385aa223179a5d9534c2201ed1096a3df7`
 - MphRead reference: `26cd8a6fe93dc5e525d1a1bb304fe96001111e55`
 - Public matching disassembly: none found
 
@@ -110,6 +110,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [x] Add deterministic Prime Hunters navigation and gameplay-entry scenario
 - [ ] Add sustained traversal, combat, pause, death, and reload scenarios
 - [x] Enable an exact-ROM upper-screen adaptive-wide bring-up baseline
+- [x] Latch adaptive/direct presentation state to the published frame so
+      boot logos and capture transitions do not flicker at high host scaling
 - [ ] Audit Prime Hunters projection/culling/HUD across sustained gameplay
 - [x] Add an MPH recomp-ui development launcher and enhancement toggle
 - [x] Add top-window relative mouse aim, Mouse 1 fire, and persisted controls

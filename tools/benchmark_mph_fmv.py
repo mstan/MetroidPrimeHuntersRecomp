@@ -105,6 +105,12 @@ def main() -> int:
     parser.add_argument("--rip-to", type=int)
     parser.add_argument("--rip-interval-us", type=int, default=1000)
     parser.add_argument("--adaptive", choices=("none", "top"), default="top")
+    parser.add_argument("--supersampling", type=int, choices=(1, 2, 4), default=1)
+    parser.add_argument("--antialiasing", type=int, choices=(0, 2, 4, 8), default=0)
+    parser.add_argument(
+        "--direct-present", choices=("auto", "on", "off"), default="auto",
+        help="override the compute renderer's visible top-screen presenter",
+    )
     args = parser.parse_args()
 
     targets = sorted(set(args.targets))
@@ -137,9 +143,9 @@ def main() -> int:
         "--adaptive-widescreen",
         args.adaptive,
         "--supersampling",
-        "1",
+        str(args.supersampling),
         "--antialiasing",
-        "0",
+        str(args.antialiasing),
     ]
     if args.discover_static_misses:
         command.append("--discover-static-misses")
@@ -147,6 +153,10 @@ def main() -> int:
     environment = os.environ.copy()
     environment["PATH"] = r"C:\msys64\mingw64\bin;" + environment.get("PATH", "")
     environment["NDS_FRONTEND_STATS"] = "1"
+    if args.direct_present != "auto":
+        environment["NDS_COMPUTE_DIRECT_PRESENT"] = (
+            "1" if args.direct_present == "on" else "0"
+        )
     if args.instrument:
         environment["NDS_PROFILE_GPU"] = "1"
         environment["NDS_PROFILE_SCHED"] = "1"

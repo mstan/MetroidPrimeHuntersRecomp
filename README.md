@@ -61,8 +61,14 @@ an enhancement bring-up baseline: projection, game-side culling, HUD anchoring,
 movies, fades, and screen routing still need sustained gameplay auditing.
 
 An MPH-specific recomp-ui development launcher lives in
-`launcher/recomp-ui`. Its Adaptive Widescreen mod is enabled by default and
-maps to the same runner CLI used by the SM64DS preview.
+`launcher/recomp-ui`. Its Adaptive Widescreen and Mouse Aim mods are enabled
+by default and map to the same runner CLI used by the SM64DS preview. Mouse
+Aim forces the two-screen layout: click the top window to capture the cursor,
+move the mouse to aim, and use Mouse 1 to fire through the game's default
+right-handed `L` trigger. `Escape`, changing focus, or closing a window safely
+releases both the cursor and any held fire input; the bottom window remains an
+ordinary clickable touchscreen. Sensitivity and inverted-Y settings are
+available in MODS and persist in `%APPDATA%\MetroidPrimeHuntersRecomp\mods.ini`.
 
 ## Project shape
 

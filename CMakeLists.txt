@@ -111,14 +111,58 @@ add_custom_command(
     DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
     COMMENT "Discovering and recompiling the AMHE0 ARM7 initial closure")
 
+set(MPH_FMV_RUNTIME_CONFIG
+    "${CMAKE_CURRENT_SOURCE_DIR}/config/mph_arm9_fmv_runtime.toml")
+set(MPH_FMV_RUNTIME_IMAGE
+    "${MPH_GENERATED_DIR}/capture/mph_arm9_fmv_runtime.bin"
+    CACHE FILEPATH "Deterministic MPH FMV ITCM+main-RAM capture")
+set(MPH_FMV_RUNTIME_SOURCES)
+set(MPH_FMV_RUNTIME_STAMP)
+if(EXISTS "${MPH_FMV_RUNTIME_CONFIG}" AND EXISTS "${MPH_FMV_RUNTIME_IMAGE}")
+    foreach(shard RANGE 0 31)
+        if(shard LESS 10)
+            set(shard_name "0${shard}")
+        else()
+            set(shard_name "${shard}")
+        endif()
+        list(APPEND MPH_FMV_RUNTIME_SOURCES
+            "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime_${shard_name}.c")
+    endforeach()
+    list(APPEND MPH_FMV_RUNTIME_SOURCES
+        "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime_dispatch.c")
+    set(MPH_FMV_RUNTIME_STAMP
+        "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime.stamp")
+    add_custom_command(
+        OUTPUT "${MPH_FMV_RUNTIME_STAMP}"
+        BYPRODUCTS ${MPH_FMV_RUNTIME_SOURCES}
+            "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime.h"
+        COMMAND $<TARGET_FILE:nds_recompile>
+                --config "${MPH_FMV_RUNTIME_CONFIG}"
+                --bin "${MPH_FMV_RUNTIME_IMAGE}"
+                --out "${MPH_RECOMP_DIR}"
+                --bank mph_arm9_fmv_runtime
+                --shards 32
+                --stable-address-shards
+                --max-function-bytes 512
+                --validate-live-bytes
+        COMMAND ${CMAKE_COMMAND} -E touch "${MPH_FMV_RUNTIME_STAMP}"
+        DEPENDS nds_recompile "${MPH_FMV_RUNTIME_CONFIG}"
+            "${MPH_FMV_RUNTIME_IMAGE}"
+        COMMENT "Recompiling content-validated AMHE0 ARM9 FMV runtime code")
+else()
+    message(STATUS
+        "MPH FMV runtime bank disabled: capture image is not present")
+endif()
+
 add_custom_target(mph_generate_banks
-    DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}")
+    DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}"
+        ${MPH_FMV_RUNTIME_STAMP})
 add_library(mph_recompiled_banks STATIC
-    ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES})
+    ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES} ${MPH_FMV_RUNTIME_SOURCES})
 add_dependencies(mph_recompiled_banks mph_generate_banks)
 ndsrecomp_limit_generated_compiles(mph_recompiled_banks)
 ndsrecomp_limit_link(mph_recompiled_banks)
-set_source_files_properties(${MPH_ARM9_SOURCES}
+set_source_files_properties(${MPH_ARM9_SOURCES} ${MPH_FMV_RUNTIME_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=0")
 set_source_files_properties(${MPH_ARM7_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=1")

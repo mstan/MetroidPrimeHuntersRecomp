@@ -48,6 +48,46 @@ with all 13 action checkpoints retaining identical event counts and RGB
 hashes. This is a coverage improvement, not yet a wall-clock performance
 claim; generated banks still compile with the bring-up `-O0` policy.
 
+The opening FMVs have a separate, measured runtime bank. A static-only
+interactive run falls from 59.8 FPS to 26-28 FPS after VBlank 2400 because
+the video decoder executes roughly 620,000 ARM9 Tier-3 instructions per
+frame from ITCM and the active overlay. The content-validated
+`mph_arm9_fmv_runtime` bank compiles the call/indirect closure observed only
+between VBlanks 2400 and 3000. On canonical `ndsrecomp` main, a complete
+VBlank 2400-4800 run sustains 59.73-59.84 FPS at 8.37-9.31 ms emulation per
+frame with zero audio underruns. The optimized and static-only runners retain
+identical CPU/event counts and zero differing pixels on both screens at
+VBlanks 2400, 3000, 3600, 4200, and 4800.
+
+The runtime capture is ROM-derived and remains under ignored `generated/`.
+To reproduce it, first build a static-only title runner, then capture the
+pre-FMV and FMV endpoints and regenerate the committed config:
+
+```powershell
+./.venv/Scripts/python.exe tools/benchmark_mph_fmv.py `
+  --runner ../ndsrecomp/runner/build-mph-main-integration/nds_runner.exe `
+  --bios ../ndsrecomp/bios --rom "Metroid Prime Hunters.nds" `
+  --config game.toml --out generated/perf/fmv-pre --targets 2400 `
+  --discover-static-misses
+./.venv/Scripts/python.exe tools/benchmark_mph_fmv.py `
+  --runner ../ndsrecomp/runner/build-mph-main-integration/nds_runner.exe `
+  --bios ../ndsrecomp/bios --rom "Metroid Prime Hunters.nds" `
+  --config game.toml --out generated/perf/fmv-capture `
+  --targets 2400 3000 --discover-static-misses `
+  --capture-runtime generated/capture/mph_arm9_fmv_runtime.bin
+./.venv/Scripts/python.exe tools/promote_mph_runtime_coverage.py `
+  --benchmark generated/perf/fmv-capture/benchmark.json `
+  --before-benchmark generated/perf/fmv-pre/benchmark.json `
+  --image generated/capture/mph_arm9_fmv_runtime.bin `
+  --out config/mph_arm9_fmv_runtime.toml
+```
+
+Reconfigure the game build after the capture exists, generate the banks, and
+then reconfigure/rebuild the title runner. The capture must hash to
+`2f4a2ba36886fb9152781f5829dedfd4b836a73b`; dispatch still compares every
+compiled function with the guest's live bytes, so later overlay generations
+fall through safely.
+
 Native and ndsref scheduler/event counts agree through the loop. Captures of
 both physical screens at title and post-title checkpoints are byte-identical
 after correcting two shared reset/presentation assumptions: the runner now
@@ -63,8 +103,8 @@ configuration. AMHE declares its 256 KiB flash instead of inheriting SM64DS's
 8 KiB EEPROM.
 
 This proves campaign entry, not gameplay completeness. Runtime ARM7 code,
-ARM9 overlay generations, sustained traversal/combat scenarios, and packaging
-remain explicit next gates in
+the remaining ARM9 overlay generations, sustained traversal/combat scenarios,
+and packaging remain explicit next gates in
 [`docs/BRINGUP.md`](docs/BRINGUP.md).
 
 The exact-ROM `game.toml` now opts the upper screen into the shared 448x192

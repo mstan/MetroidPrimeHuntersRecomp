@@ -73,6 +73,24 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
     instructions from 3,866,962,843 to 3,638,379,652 (5.91%). All 13 action
     checkpoints retain identical event counts and RGB hashes. This does not
     yet establish a wall-clock speedup while generated code remains `-O0`.
+16. The opening FMV slowdown was isolated with
+    `tools/benchmark_mph_fmv.py`. Static-only FMV windows ran at 26-28 FPS:
+    presentation stayed below 1 ms/frame while emulation rose to 34-37
+    ms/frame and ARM9 executed roughly 620,000 Tier-3 instructions per frame.
+    The hot code is the runtime ITCM mirror plus the active overlay near
+    `0x02102D74`.
+17. A deterministic VBlank-3000 ITCM+main-RAM capture is pinned by SHA-1
+    `2f4a2ba36886fb9152781f5829dedfd4b836a73b`. The separate
+    `mph_arm9_fmv_runtime` bank uses only call/indirect roots observed in the
+    VBlank 2400-3000 delta and validates live guest bytes before dispatch.
+    Seeding scheduler-resume PCs was rejected because it split hot loops into
+    one-instruction functions and generated about 589,000 fallthrough
+    dispatches/frame; the retained bank records about 5,400/frame.
+18. The retained interactive run sustains 59.73-59.84 FPS from VBlank
+    2400-4800 at 8.37-9.31 ms emulation/frame with zero audio underruns.
+    Static-only and optimized runners have identical event, instruction, and
+    cycle counts and zero differing pixels at VBlanks 2400, 3000, 3600, 4200,
+    and 4800.
 
 ## Bring-up gates
 
@@ -86,7 +104,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [x] Observe one complete no-input attract loop
 - [x] Compare the same attract checkpoints against the ndsref oracle
 - [x] Compile and register AMHE0 main ARM9/ARM7 banks by ROM capability
-- [ ] Capture content-validated runtime ARM7 code and ARM9 overlay generations
+- [ ] Capture remaining runtime ARM7 code and ARM9 overlay generations (the
+      opening-FMV ARM9 generation is complete)
 - [x] Generalize cartridge save type/size beyond SM64DS's 8 KiB EEPROM
 - [x] Add deterministic Prime Hunters navigation and gameplay-entry scenario
 - [ ] Add sustained traversal, combat, pause, death, and reload scenarios

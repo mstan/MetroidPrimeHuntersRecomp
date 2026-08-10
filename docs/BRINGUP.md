@@ -115,7 +115,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [ ] Audit Prime Hunters projection/culling/HUD across sustained gameplay
 - [x] Add an MPH recomp-ui development launcher and enhancement toggle
 - [x] Add top-window relative mouse aim, Mouse 1 fire, and persisted controls
-- [ ] Add release launcher/mod packaging after the runtime path is stable
+- [x] Add portable Windows release launcher/mod packaging with a baked,
+      content-validated FMV runtime bank
 
 ## Design constraints
 

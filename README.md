@@ -7,13 +7,23 @@ framework into a multi-title Nintendo DS recompilation ecosystem.
 
 ## Release status
 
-Version 0.1.0 is a source development release for the exact USA revision-0
-ROM identified below. It demonstrates authentic boot, deterministic campaign
-entry, full-speed opening FMVs with a locally reproduced content-validated
-runtime bank, adaptive upper-screen widescreen, and mouse aiming. It is not a
-portable end-user package yet: the development launcher still requires local
-framework, BIOS/firmware, ROM, and generated-bank paths. No Nintendo content
-or ROM-derived generated artifacts are distributed by this repository.
+Version 0.1.0 is the first Windows development release for the exact USA
+revision-0 ROM identified below. Its ZIP contains a portable launcher, the
+title runner with the content-validated FMV bank compiled in, launcher assets,
+configuration, and required runtime libraries. No Nintendo ROM, BIOS,
+firmware, save data, raw capture, or generated source is distributed.
+
+## Quick start
+
+1. Download and fully extract
+   `MetroidPrimeHuntersRecomp-windows-x64-v0.1.0.zip` from Releases.
+2. Copy your own `biosnds9.rom`, `biosnds7.rom`, and `firmware.bin` dumps into
+   the extracted `bios` folder. `bios/README.txt` lists the required hashes.
+3. Run `MetroidPrimeHuntersRecomp.exe` and select your legally obtained
+   Metroid Prime Hunters (USA revision 0) ROM when prompted.
+
+The launcher remembers the ROM selection. The runner independently verifies
+the ROM, both BIOS images, and firmware before executing any title bank.
 
 ## Verified local target
 
@@ -70,6 +80,10 @@ identical CPU/event counts and zero differing pixels on both screens at
 VBlanks 2400, 3000, 3600, 4200, and 4800.
 
 The runtime capture is ROM-derived and remains under ignored `generated/`.
+Release builds compile its content-validated generated bank into
+`nds_runner.exe`, matching the ROM-free executable model used by the sibling
+SNES recompilation releases; neither the raw capture nor generated C is placed
+in the release ZIP.
 To reproduce it, first build a static-only title runner, then capture the
 pre-FMV and FMV endpoints and regenerate the committed config:
 
@@ -169,6 +183,19 @@ cmake --build build --target metroidprimehuntersrecomp
 The build verifies the ROM, expands the compressed ARM9, extracts overlay
 metadata/images, generates the initial ARM9 and ARM7 static closures, compiles
 the generated banks, and builds the ROM identity checker.
+
+## Windows release packaging
+
+Configure Release builds of the title runner and recomp-ui launcher, then run:
+
+```powershell
+powershell -File tools\make_release.ps1 -Version 0.1.0 `
+  -RunnerBuildDir ..\ndsrecomp\runner\build-mph-release `
+  -LauncherBuildDir launcher\recomp-ui\build-release
+```
+
+The packager refuses a runner that does not contain the FMV runtime bank and
+re-reads the resulting ZIP to reject unsafe or non-portable entry names.
 
 Build the runner with these generated banks and launch the authentic
 firmware/card path:

@@ -9,6 +9,7 @@
 # Build trees, runtime state, and captures.
 /build/
 /build-*/
+/release-stage/
 /launcher/recomp-ui/build*/
 /saves/
 /captures/

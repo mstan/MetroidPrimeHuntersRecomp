@@ -13,17 +13,6 @@
 
 namespace {
 
-constexpr wchar_t kRunner[] =
-    L"F:\\Projects\\ndsrecomp\\ndsrecomp\\runner\\build-mph-title\\nds_runner.exe";
-constexpr wchar_t kBios[] =
-    L"F:\\Projects\\ndsrecomp\\ndsrecomp\\bios";
-constexpr wchar_t kGameDir[] =
-    L"F:\\Projects\\ndsrecomp\\metroidprimehuntersrecomp";
-constexpr wchar_t kConfig[] =
-    L"F:\\Projects\\ndsrecomp\\metroidprimehuntersrecomp\\game.toml";
-constexpr char kDefaultRom[] =
-    "F:\\Projects\\ndsrecomp\\metroidprimehuntersrecomp\\Metroid Prime Hunters.nds";
-
 struct ModState {
     bool adaptive_widescreen = true;
     bool mouse_aim = true;
@@ -309,16 +298,43 @@ std::wstring quote(const std::wstring& value) {
     return L"\"" + value + L"\"";
 }
 
-bool launch_runner(const char* rom, int display_layout, bool adaptive,
+bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
+                   int display_layout, bool adaptive,
                    bool mouse_aim, int mouse_sensitivity,
                    bool mouse_invert_y, int supersampling, int antialiasing) {
     const std::wstring rom_wide = widen(rom);
     if (rom_wide.empty()) return false;
 
+    const std::filesystem::path runner = game_dir / "nds_runner.exe";
+    const std::filesystem::path bios = game_dir / "bios";
+    const std::filesystem::path config = game_dir / "game.toml";
+    const std::array<std::filesystem::path, 3> firmware_files{{
+        bios / "biosnds9.rom",
+        bios / "biosnds7.rom",
+        bios / "firmware.bin",
+    }};
+    if (!std::filesystem::is_regular_file(runner) ||
+        !std::filesystem::is_regular_file(config)) {
+        MessageBoxW(nullptr,
+            L"The release is incomplete: nds_runner.exe or game.toml is "
+            L"missing. Re-extract the full release ZIP.",
+            L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
+        return false;
+    }
+    for (const auto& file : firmware_files) {
+        if (std::filesystem::is_regular_file(file)) continue;
+        MessageBoxW(nullptr,
+            L"Nintendo DS BIOS/firmware dumps are missing. Copy your own "
+            L"verified biosnds9.rom, biosnds7.rom, and firmware.bin files "
+            L"into the release's bios folder, then launch again.",
+            L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONINFORMATION);
+        return false;
+    }
+
     std::wstring command =
-        quote(kRunner) + L" " + quote(kBios) +
+        quote(runner.wstring()) + L" " + quote(bios.wstring()) +
         L" --interactive --rom " + quote(rom_wide) +
-        L" --config " + quote(kConfig) +
+        L" --config " + quote(config.wstring()) +
         L" --screen-layout " +
         (adaptive || mouse_aim || display_layout == 1 ? L"separate"
                                                        : L"stacked") +
@@ -334,19 +350,12 @@ bool launch_runner(const char* rom, int display_layout, bool adaptive,
         L" --relative-mouse-fire-key l" +
         L" --startup-mode automatic";
 
-    wchar_t old_path[32768]{};
-    GetEnvironmentVariableW(L"PATH", old_path,
-                            static_cast<DWORD>(std::size(old_path)));
-    std::wstring path =
-        L"C:\\msys64\\mingw64\\bin;" + std::wstring(old_path);
-    SetEnvironmentVariableW(L"PATH", path.c_str());
-
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
     const BOOL ok = CreateProcessW(
-        kRunner, command.data(), nullptr, nullptr, FALSE,
-        CREATE_NO_WINDOW, nullptr, kGameDir, &startup, &process);
+        runner.c_str(), command.data(), nullptr, nullptr, FALSE,
+        CREATE_NO_WINDOW, nullptr, game_dir.c_str(), &startup, &process);
     if (!ok) {
         std::fprintf(stderr, "CreateProcessW failed: %lu\n",
                      static_cast<unsigned long>(GetLastError()));
@@ -402,19 +411,21 @@ int main(int argc, char** argv) {
     game.num_display_layouts = std::size(display_layouts);
     game.mods = &mod_provider;
 
-    const std::filesystem::path exe =
-        std::filesystem::absolute(argv[0]).parent_path();
+    const std::filesystem::path exe = std::filesystem::weakly_canonical(
+        std::filesystem::absolute(argv[0])).parent_path();
+    const std::filesystem::path default_rom =
+        exe / "Metroid Prime Hunters.nds";
     char selected_rom[1024]{};
     const int result = recomp_launcher_run_window(
         "Metroid Prime Hunters - Launcher", &settings, &game,
-        exe.string().c_str(), kDefaultRom,
+        exe.string().c_str(), default_rom.string().c_str(),
         selected_rom, sizeof(selected_rom));
     if (result == 1) return 0;
     if (result == 2) {
         std::fprintf(stderr, "recomp-ui unavailable\n");
         return 2;
     }
-    return launch_runner(selected_rom, settings.display_layout,
+    return launch_runner(exe, selected_rom, settings.display_layout,
                          mod_state.adaptive_widescreen,
                          mod_state.mouse_aim,
                          mod_state.mouse_sensitivity,

@@ -1,0 +1,142 @@
+<#
+Package a completed Metroid Prime Hunters Recomp Windows release.
+
+The ZIP contains the portable recomp-ui launcher, the title runner with the
+content-validated FMV runtime bank compiled in, launcher assets, game config,
+documentation, and MinGW/SDL dependencies. ROMs, BIOS/firmware, saves, raw
+captures, and generated source are never staged.
+
+Build the runner and launcher first, then run:
+
+  powershell -File tools\make_release.ps1 -Version 0.1.0 `
+    -RunnerBuildDir ..\ndsrecomp\runner\build-mph-release `
+    -LauncherBuildDir launcher\recomp-ui\build-release
+#>
+param(
+  [Parameter(Mandatory = $true)][string]$Version,
+  [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
+  [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
+  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin'
+)
+
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $PSScriptRoot
+$runnerBuild = [IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))
+$launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
+$runner = Join-Path $runnerBuild 'nds_runner.exe'
+$launcher = Join-Path $launcherBuild 'mph-recomp-ui.exe'
+$assets = Join-Path $launcherBuild 'assets'
+
+foreach ($required in @($runner, $launcher, $assets)) {
+  if (-not (Test-Path -LiteralPath $required)) {
+    throw "Release input missing: $required"
+  }
+}
+
+# A static-only runner is functional but drops the opening movies to roughly
+# half speed. Refuse to package one by checking the compiled bank identity.
+$runnerText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($runner))
+if (-not $runnerText.Contains('mph_arm9_fmv_runtime')) {
+  throw 'Runner does not contain the MPH FMV runtime bank.'
+}
+
+$projectText = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw
+if ($projectText -notmatch
+    "project\(MetroidPrimeHuntersRecomp VERSION $([regex]::Escape($Version)) ") {
+  throw "CMake project version does not match release $Version."
+}
+
+$out = Join-Path $root 'release-stage'
+$stageName = "MetroidPrimeHuntersRecomp-windows-x64-v$Version"
+$stage = Join-Path $out $stageName
+$zip = Join-Path $out "$stageName.zip"
+$outFull = [IO.Path]::GetFullPath($out).TrimEnd('\') + '\'
+$stageFull = [IO.Path]::GetFullPath($stage)
+$zipFull = [IO.Path]::GetFullPath($zip)
+if (-not $stageFull.StartsWith($outFull,
+      [StringComparison]::OrdinalIgnoreCase) -or
+    -not $zipFull.StartsWith($outFull,
+      [StringComparison]::OrdinalIgnoreCase)) {
+  throw 'Refusing to clean release paths outside release-stage.'
+}
+
+if (Test-Path -LiteralPath $stage) {
+  Remove-Item -LiteralPath $stage -Recurse -Force
+}
+if (Test-Path -LiteralPath $zip) {
+  Remove-Item -LiteralPath $zip -Force
+}
+New-Item -ItemType Directory -Path $stage -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $stage 'bios') -Force |
+  Out-Null
+
+Copy-Item -LiteralPath $launcher `
+  -Destination (Join-Path $stage 'MetroidPrimeHuntersRecomp.exe')
+Copy-Item -LiteralPath $runner -Destination $stage
+Copy-Item -LiteralPath $assets -Destination $stage -Recurse
+Copy-Item -LiteralPath (Join-Path $root 'game.toml') -Destination $stage
+Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $stage
+Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $stage
+Copy-Item -LiteralPath (Join-Path $root 'packaging\BIOS_README.txt') `
+  -Destination (Join-Path $stage 'bios\README.txt')
+
+$runtimeDlls = @(
+  'SDL2.dll',
+  'libgcc_s_seh-1.dll',
+  'libstdc++-6.dll',
+  'libwinpthread-1.dll'
+)
+foreach ($name in $runtimeDlls) {
+  $source = Join-Path $RuntimeBinDir $name
+  if (-not (Test-Path -LiteralPath $source)) {
+    throw "Required runtime DLL missing: $source"
+  }
+  Copy-Item -LiteralPath $source -Destination $stage
+}
+
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$stagePrefix = $stageFull.TrimEnd('\') + '\'
+$files = @(Get-ChildItem -LiteralPath $stage -File -Recurse |
+  Sort-Object FullName)
+$archive = [IO.Compression.ZipFile]::Open(
+  $zipFull, [IO.Compression.ZipArchiveMode]::Create)
+try {
+  foreach ($file in $files) {
+    $fileFull = [IO.Path]::GetFullPath($file.FullName)
+    if (-not $fileFull.StartsWith(
+        $stagePrefix, [StringComparison]::OrdinalIgnoreCase)) {
+      throw "Refusing to archive a file outside release stage: $fileFull"
+    }
+    $entryName = $fileFull.Substring($stagePrefix.Length).Replace('\', '/')
+    if ($entryName.StartsWith('/') -or
+        $entryName -match '(^|/)\.\.(/|$)') {
+      throw "Unsafe ZIP entry name: $entryName"
+    }
+    [IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+      $archive, $fileFull, $entryName,
+      [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+  }
+} finally {
+  $archive.Dispose()
+}
+
+$archive = [IO.Compression.ZipFile]::OpenRead($zipFull)
+try {
+  $badEntries = @($archive.Entries | Where-Object {
+    $_.FullName.Contains('\') -or $_.FullName.StartsWith('/') -or
+    $_.FullName -match '(^|/)\.\.(/|$)'
+  })
+  if ($badEntries.Count -ne 0) {
+    throw "ZIP contains unsafe entry names."
+  }
+  if ($archive.Entries.Count -ne $files.Count) {
+    throw "ZIP entry count mismatch: expected $($files.Count), got $($archive.Entries.Count)"
+  }
+} finally {
+  $archive.Dispose()
+}
+
+Write-Host "--- $stageName ---"
+Get-ChildItem -LiteralPath $stage | Select-Object Name, Length | Out-Host
+Get-FileHash -LiteralPath $zip -Algorithm SHA256 | Out-Host

@@ -5,6 +5,16 @@ Early Metroid Prime Hunters static-recompilation target for
 USA revision-0 game and is being used to turn the initial SM64DS-oriented
 framework into a multi-title Nintendo DS recompilation ecosystem.
 
+## Release status
+
+Version 0.1.0 is a source development release for the exact USA revision-0
+ROM identified below. It demonstrates authentic boot, deterministic campaign
+entry, full-speed opening FMVs with a locally reproduced content-validated
+runtime bank, adaptive upper-screen widescreen, and mouse aiming. It is not a
+portable end-user package yet: the development launcher still requires local
+framework, BIOS/firmware, ROM, and generated-bank paths. No Nintendo content
+or ROM-derived generated artifacts are distributed by this repository.
+
 ## Verified local target
 
 | field | value |

@@ -36,6 +36,18 @@ The minimized replay reaches gameplay at VBlank 10859 without relying on
 host-time input sleeps. All 15 native checkpoints in the route are
 byte-identical to ndsref across both physical screens.
 
+That replay also drives reproducible static-coverage promotion. The native
+debug endpoint records Tier-3 call and indirect targets when the fuzz helper's
+`--capture-static-coverage` mode enables `--discover-static-misses`;
+`tools/promote_mph_static_coverage.py`
+keeps only immutable main-image PCs and excludes slice resumes, overlays, and
+runtime RAM. The committed route contributes 567 ARM9 seeds, expanding the
+generated main bank from 4,335 to 7,115 functions. Replaying the same route
+reduced ARM9 Tier-3 entries by 10.98% and interpreted instructions by 5.91%,
+with all 13 action checkpoints retaining identical event counts and RGB
+hashes. This is a coverage improvement, not yet a wall-clock performance
+claim; generated banks still compile with the bring-up `-O0` policy.
+
 Native and ndsref scheduler/event counts agree through the loop. Captures of
 both physical screens at title and post-title checkpoints are byte-identical
 after correcting two shared reset/presentation assumptions: the runner now
@@ -43,7 +55,7 @@ starts from the retail `POWCNT1 = 0x820F` state, and screen routing is applied
 as scanlines are produced rather than retroactively when a completed frame is
 read.
 
-The paired `../ndsrecomp-mph` worktree also removes two SM64DS-specific
+The canonical `../ndsrecomp` framework also removes two SM64DS-specific
 cross-title assumptions. Static title banks are now registered only for the
 exact ROM they were generated from—important because both games use the
 standard ARM7 load address—and cartridge backup type/capacity are game-owned
@@ -78,10 +90,10 @@ the more mature SNESRecomp and PSXRecomp game repositories:
 
 - `game.toml` owns exact game identity and host-facing defaults.
 - `tools/prepare_mph.py` verifies the ROM, extracts/decompresses both main CPU
-  images, extracts all 18 ARM9 overlays, and emits ignored ndsrecomp configs.
+  images, extracts all 18 ARM9 overlays, and emits ignored ndsrecomp configs
+  seeded by `coverage/adventure-main-entry-points.json`.
 - `generated/` contains every ROM-derived input and output and stays ignored.
-- `ndsrecomp.pin` records the framework base; development currently uses the
-  isolated sibling worktree at `../ndsrecomp-mph`.
+- `ndsrecomp.pin` records the exact framework commit on canonical `main`.
 - `mphread.pin` records the reverse-engineering reference used for AMHE0
   metadata. MphRead is a recreation/file-format project, not a matching
   disassembly.
@@ -100,7 +112,7 @@ build from a MinGW64 shell:
 
 ```bash
 cmake -G Ninja -S . -B build \
-  -DNDSRECOMP_ROOT=../ndsrecomp-mph
+  -DNDSRECOMP_ROOT=../ndsrecomp
 cmake --build build --target metroidprimehuntersrecomp
 ```
 
@@ -112,14 +124,14 @@ Build the runner with these generated banks and launch the authentic
 firmware/card path:
 
 ```bash
-cmake -G Ninja -S ../ndsrecomp-mph/runner \
-  -B ../ndsrecomp-mph/runner/build-mph-title \
+cmake -G Ninja -S ../ndsrecomp/runner \
+  -B ../ndsrecomp/runner/build-mph-title \
   -DNDS_BOOTSTRAP_FIRMWARE=ON \
   -DNDS_TITLE_BANK_DIR="$PWD/generated/recomp" \
   -DNDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
-cmake --build ../ndsrecomp-mph/runner/build-mph-title
+cmake --build ../ndsrecomp/runner/build-mph-title
 
-../ndsrecomp-mph/runner/build-mph-title/nds_runner \
+../ndsrecomp/runner/build-mph-title/nds_runner \
   ../ndsrecomp/bios --interactive \
   --rom "Metroid Prime Hunters.nds" --config game.toml
 ```
@@ -128,7 +140,7 @@ For deterministic headless checkpoints:
 
 ```bash
 ./.venv/Scripts/python.exe tools/capture_mph_checkpoints.py \
-  --runner ../ndsrecomp-mph/runner/build-mph-title/nds_runner.exe \
+  --runner ../ndsrecomp/runner/build-mph-title/nds_runner.exe \
   --bios ../ndsrecomp/bios --rom "Metroid Prime Hunters.nds" \
   --config game.toml --out generated/captures/checkpoints \
   --targets 300 900 2400 3600 6000 7200 7800 8400 9000 12000
@@ -152,7 +164,7 @@ Run the minimized Adventure trace against the native runner:
 
 ```bash
 ./.venv/Scripts/python.exe tools/fuzz_mph_gameplay.py \
-  --runner ../ndsrecomp-mph/runner/build-mph-title/nds_runner.exe \
+  --runner ../ndsrecomp/runner/build-mph-title/nds_runner.exe \
   --bios ../ndsrecomp/bios --rom "Metroid Prime Hunters.nds" \
   --config game.toml --out generated/fuzz/native-adventure \
   --actions scenarios/adventure_start.json --steps 0
@@ -160,7 +172,10 @@ Run the minimized Adventure trace against the native runner:
 
 Replace `--runner` with `--oracle ../ndsref/build-native/ndsref.exe` to
 produce the independent reference trace. Add `--steps 100 --seed <number>`
-to continue deterministic exploration after the scripted prefix.
+to continue deterministic exploration after the scripted prefix. For a
+native coverage run, add `--capture-static-coverage`, then pass its ignored
+`trace.json` to `tools/promote_mph_static_coverage.py`; review and commit the
+filtered metadata, never the ROM-derived generated banks.
 Compare the complete action routes with:
 
 ```bash

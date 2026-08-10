@@ -214,6 +214,8 @@ def launch(args: argparse.Namespace, output: Path) -> subprocess.Popen[bytes]:
             "--startup-mode",
             "automatic",
         ]
+        if args.capture_static_coverage:
+            command.append("--discover-static-misses")
     else:
         executable = args.oracle.resolve()
         firmware = output / "firmware-automatic.bin"
@@ -266,6 +268,7 @@ def main() -> int:
     parser.add_argument("--settle-frames", type=int, default=45)
     parser.add_argument("--post-start-frames", type=int, default=180)
     parser.add_argument("--skip-start-tap", action="store_true")
+    parser.add_argument("--capture-static-coverage", action="store_true")
     args = parser.parse_args()
     if args.runner is not None and args.config is None:
         parser.error("--config is required with --runner")
@@ -331,6 +334,11 @@ def main() -> int:
                     f"vblank={checkpoint['vblank9']} "
                     f"signature={str(checkpoint['signature'])[:12]}",
                     flush=True,
+                )
+            if args.runner is not None and args.capture_static_coverage:
+                trace["static_coverage"] = client.command("static_coverage")
+                trace["tier3_coverage"] = client.command(
+                    "tier3_coverage", max=262_144
                 )
             (output / "trace.json").write_text(
                 json.dumps(trace, indent=2) + "\n",

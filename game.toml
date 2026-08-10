@@ -60,9 +60,9 @@ load_address = 0x02380000
 size = 0x00028464
 
 [framework]
-path = "../ndsrecomp-mph"
-pin = "6b9a88859ded02496b320aab4d0ae20bee6ab3ba"
-branch = "codex/metroid-prime-hunters"
+path = "../ndsrecomp"
+pin = "76ac592b5c84e54f5a7ea8c62b432cf5af756115"
+branch = "main"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

@@ -14,7 +14,7 @@
 namespace {
 
 constexpr wchar_t kRunner[] =
-    L"F:\\Projects\\ndsrecomp\\ndsrecomp-mph\\runner\\build-mph-title-fixed\\nds_runner.exe";
+    L"F:\\Projects\\ndsrecomp\\ndsrecomp\\runner\\build-mph-title\\nds_runner.exe";
 constexpr wchar_t kBios[] =
     L"F:\\Projects\\ndsrecomp\\ndsrecomp\\bios";
 constexpr wchar_t kGameDir[] =

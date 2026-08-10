@@ -4,7 +4,7 @@ project(MetroidPrimeHuntersRecomp VERSION 0.0.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ndsrecomp-mph" CACHE PATH
+set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ndsrecomp" CACHE PATH
     "Path to the ndsrecomp framework checkout")
 if(NOT EXISTS "${NDSRECOMP_ROOT}/recompiler/CMakeLists.txt")
     message(FATAL_ERROR
@@ -23,6 +23,8 @@ set(MPH_ROM "${CMAKE_CURRENT_SOURCE_DIR}/Metroid Prime Hunters.nds"
 set(MPH_GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/generated")
 set(MPH_INPUT_DIR "${MPH_GENERATED_DIR}/inputs")
 set(MPH_RECOMP_DIR "${MPH_GENERATED_DIR}/recomp")
+set(MPH_COVERAGE_SEEDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/coverage/adventure-main-entry-points.json")
 
 set(_mph_venv_python "${CMAKE_CURRENT_SOURCE_DIR}/.venv/Scripts/python.exe")
 if(EXISTS "${_mph_venv_python}")
@@ -45,7 +47,9 @@ add_custom_command(
     COMMAND "${MPH_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_mph.py"
             --rom "${MPH_ROM}"
             --out "${MPH_INPUT_DIR}"
+            --coverage "${MPH_COVERAGE_SEEDS}"
     DEPENDS "${MPH_ROM}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_mph.py"
+            "${MPH_COVERAGE_SEEDS}"
     COMMENT "Verifying AMHE0 and preparing main/overlay code images")
 add_custom_target(mph_prepare DEPENDS ${MPH_PREP_OUTPUTS})
 

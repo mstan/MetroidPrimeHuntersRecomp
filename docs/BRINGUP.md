@@ -4,7 +4,7 @@
 
 - Cartridge: USA revision 0 (`AMHE`, `MP HUNTERS`)
 - ROM SHA-1: `90164d1ac127ee5f9815ea4ae7de798c7b5fc629`
-- Framework base: `8c587032f602f07fde3540b05748df83ac355275`
+- Framework main integration: `76ac592b5c84e54f5a7ea8c62b432cf5af756115`
 - MphRead reference: `26cd8a6fe93dc5e525d1a1bb304fe96001111e55`
 - Public matching disassembly: none found
 
@@ -27,8 +27,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
    - VBlank 2400: opening cinematic
    - VBlank 3000: hunter cinematic
    - VBlank 3600: Weavel introduction
-5. The generated main banks contain 4,335 ARM9 functions and 16 ARM7
-   functions. Exact-ROM-gated registration produces the same 700,000,000
+5. The initial generated main banks contained 4,335 ARM9 functions and 16
+   ARM7 functions. Exact-ROM-gated registration produced the same 700,000,000
    cycle machine state as the clean interpreter runner.
 6. AMHE uses melonDS SaveMemType 5: 256 KiB flash. Save type/capacity are now
    game-owned configuration instead of an SM64DS runner constant.
@@ -65,6 +65,14 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 14. All 15 matching native/oracle checkpoints in the minimized route are
     byte-identical across both physical screens: zero differing pixels and
     zero maximum channel delta, including the first gameplay frame.
+15. Tier-3 coverage captured from that route yielded 567 unique ARM9
+    call/indirect targets inside the immutable main image. Slice-resume roots,
+    runtime RAM, and all reused overlay ranges were excluded. Adding those
+    seeds expands the ARM9 bank to 7,115 functions; the identical replay cuts
+    ARM9 Tier-3 entries from 64,619,845 to 57,525,780 (10.98%) and interpreted
+    instructions from 3,866,962,843 to 3,638,379,652 (5.91%). All 13 action
+    checkpoints retain identical event counts and RGB hashes. This does not
+    yet establish a wall-clock speedup while generated code remains `-O0`.
 
 ## Bring-up gates
 

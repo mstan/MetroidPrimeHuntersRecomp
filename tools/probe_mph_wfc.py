@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Drive Metroid Prime Hunters to its WFC setup connection test.
+"""Drive Metroid Prime Hunters through Nintendo WFC paths.
 
-This is a title-specific M8 probe. It intentionally stops at the standard
-Nintendo WFC setup connection-test result instead of entering matchmaking.
+This is a title-specific M8 probe. It can stop at the standard Nintendo WFC
+setup connection test, enter Find Game, or tap through to the one-instance
+matchmaking search screen.
 The output directory can contain real console/network identifiers in ring
 events and screenshots; keep it under scratch/ and do not publish it raw.
 """
@@ -59,7 +60,11 @@ def ring_count(item: dict[str, Any], kind: str) -> int:
     return len(events)
 
 
-def summarize(report: list[dict[str, Any]], filters: tuple[str, ...]) -> dict[str, Any]:
+def summarize(
+    report: list[dict[str, Any]],
+    filters: tuple[str, ...],
+    flow: str,
+) -> dict[str, Any]:
     steps = []
     for item in report:
         steps.append({
@@ -71,22 +76,27 @@ def summarize(report: list[dict[str, Any]], filters: tuple[str, ...]) -> dict[st
 
     final = report[-1] if report else {}
     final_counts = {name: ring_count(final, name) for name in filters}
+    max_counts = {
+        name: max((step["counts"][name] for step in steps), default=0)
+        for name in filters
+    }
     network_reached = (
-        final_counts.get("dhcp", 0) > 0
-        and final_counts.get("dns_query", 0) > 0
-        and final_counts.get("tcp_open", 0) > 0
+        max_counts.get("dhcp", 0) > 0
+        and max_counts.get("dns_query", 0) > 0
+        and max_counts.get("tcp_open", 0) > 0
     )
-    tls_reached = final_counts.get("tls_record", 0) > 0
+    tls_reached = max_counts.get("tls_record", 0) > 0
     backend_clean = (
-        final_counts.get("backend_error", 0) == 0
-        and final_counts.get("backend_drop", 0) == 0
+        max_counts.get("backend_error", 0) == 0
+        and max_counts.get("backend_drop", 0) == 0
     )
+    status_prefix = flow.replace("-", "_")
     if network_reached and tls_reached and backend_clean:
-        status = "wfc_setup_reached_nas_tls"
+        status = f"{status_prefix}_reached_nas_tls"
     elif network_reached and backend_clean:
-        status = "wfc_setup_reached_network"
+        status = f"{status_prefix}_reached_network"
     elif backend_clean:
-        status = "wfc_setup_no_network"
+        status = f"{status_prefix}_no_network"
     else:
         status = "backend_error"
 
@@ -98,6 +108,7 @@ def summarize(report: list[dict[str, Any]], filters: tuple[str, ...]) -> dict[st
         "tls_reached": tls_reached,
         "backend_clean": backend_clean,
         "final_counts": final_counts,
+        "max_counts": max_counts,
         "steps": steps,
     }
 
@@ -118,7 +129,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "--config",
         str(args.config.resolve()),
         "--startup-mode",
-        "automatic",
+        args.startup_mode,
         "--network",
         "on",
         "--network-backend",
@@ -132,6 +143,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         command.extend(["--save-path", str(args.save_path.resolve())])
     else:
         command.append("--no-save")
+    if args.firmware_path:
+        command.extend(["--firmware-path", str(args.firmware_path.resolve())])
+    if args.discover_static_misses:
+        command.append("--discover-static-misses")
 
     filters = tuple(args.filter)
     with (output / "runner.stdout.log").open("wb") as stdout, (
@@ -156,34 +171,67 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 input_lib.advance_to_vblank(client, 7800)
                 save("title")
 
-                # MPH shell to the standard Nintendo WFC Connection Setup UI.
+                # MPH shell to the online menu.
                 for label, x, y, wait in (
                     ("main-menu", 84, 92, 180),
                     ("nickname-dialog", 168, 92, 180),
                     ("multiplayer-menu", 128, 126, 240),
                     ("wfc-menu", 198, 92, 360),
-                    ("wfc-setup-root", 128, 40, 600),
                 ):
                     input_lib.tap(client, x, y, 12)
                     input_lib.advance_frames(client, wait)
                     save(label)
 
-                # Standard WFC setup flow, shared with MKDS.
-                for label, x, y, wait in (
-                    ("settings-tile", 85, 100, 220),
-                    ("slot1", 43, 35, 220),
-                    ("search-for-ap", 128, 37, 1600),
-                    ("ap-row", 50, 65, 220),
-                ):
+                if args.flow == "setup":
+                    input_lib.tap(client, 128, 36, 12)
+                    input_lib.advance_frames(client, 600)
+                    save("wfc-setup-root")
+
+                    # Standard WFC setup flow, shared with MKDS.
+                    flow_steps = (
+                        ("settings-tile", 85, 100, 220),
+                        ("slot1", 43, 35, 220),
+                        ("search-for-ap", 128, 37, 1600),
+                        ("ap-row", 50, 65, 220),
+                    )
+                else:
+                    flow_steps = (
+                        ("find-game", 58, 96, 1200),
+                        ("find-game-confirm", 189, 125, 900),
+                        ("find-game-yes", 108, 124, 1200),
+                    )
+
+                for label, x, y, wait in flow_steps:
                     input_lib.tap(client, x, y, 12)
                     input_lib.advance_frames(client, wait)
                     save(label)
 
-                input_lib.press_key(client, "a", 12)
-                input_lib.advance_frames(client, 300)
-                save("after-a-start-test")
+                if args.flow == "setup":
+                    input_lib.press_key(client, "a", 12)
+                    input_lib.advance_frames(client, 300)
+                    save("after-a-start-test")
 
+                if args.flow == "search-game":
+                    for target in args.targets:
+                        if target > 22000:
+                            break
+                        input_lib.advance_to_vblank(client, target)
+                        save(f"wait-{target}")
+
+                    # First-time runs stop on a WFC ID saved prompt. After the
+                    # ID is already saved, this tap is harmless on the search
+                    # filter screen; the next tap starts the actual search.
+                    input_lib.tap(client, 189, 125, 12)
+                    input_lib.advance_frames(client, 900)
+                    save("ack-or-filter")
+                    input_lib.tap(client, 178, 171, 12)
+                    input_lib.advance_frames(client, 1200)
+                    save("search-for-game")
+
+                current_vblank = report[-1]["vblank9"] if report else 0
                 for target in args.targets:
+                    if target <= current_vblank:
+                        continue
                     input_lib.advance_to_vblank(client, target)
                     save(f"wait-{target}")
 
@@ -192,10 +240,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     encoding="utf-8",
                     newline="\n",
                 )
-                summary = summarize(report, filters)
+                summary = summarize(report, filters, args.flow)
                 summary["output"] = str(output)
                 summary["network_backend"] = args.network_backend
                 summary["wfc_provider"] = args.wfc_provider
+                summary["flow"] = args.flow
+                summary["firmware_path"] = (
+                    str(args.firmware_path.resolve())
+                    if args.firmware_path
+                    else None
+                )
                 summary["save_path"] = str(args.save_path.resolve()) if args.save_path else None
                 (output / "summary.json").write_text(
                     json.dumps(summary, indent=2) + "\n",
@@ -229,8 +283,20 @@ def main() -> int:
     parser.add_argument("--rom", type=Path, default=Path("Metroid Prime Hunters.nds"))
     parser.add_argument("--config", type=Path, default=Path("game.toml"))
     parser.add_argument("--save-path", type=Path)
+    parser.add_argument("--firmware-path", type=Path)
+    parser.add_argument("--discover-static-misses", action="store_true")
+    parser.add_argument(
+        "--startup-mode",
+        choices=("preserve", "manual", "automatic"),
+        default="automatic",
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=19983)
+    parser.add_argument(
+        "--flow",
+        choices=("setup", "find-game", "search-game"),
+        default="setup",
+    )
     parser.add_argument(
         "--network-backend",
         choices=("slirp", "pcap"),
@@ -256,7 +322,11 @@ def main() -> int:
 
     summary = run(args)
     print(json.dumps(summary, indent=2), flush=True)
-    if args.require_network and summary["status"] != "wfc_setup_reached_nas_tls":
+    if args.require_network and not (
+        summary["network_reached"]
+        and summary["tls_reached"]
+        and summary["backend_clean"]
+    ):
         return 1
     return 0
 

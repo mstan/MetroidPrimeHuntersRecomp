@@ -94,6 +94,16 @@ foreach ($name in $runtimeDlls) {
   Copy-Item -LiteralPath $source -Destination $stage
 }
 
+$forbidden = @(Get-ChildItem -LiteralPath $stage -File -Recurse |
+  Where-Object {
+    $_.Extension -in @('.nds', '.rom', '.sav', '.bin', '.gpr') -or
+    $_.Name -in @('biosnds9.rom', 'biosnds7.rom', 'firmware.bin') -or
+    $_.FullName -match '[\\/]generated[\\/]'
+  })
+if ($forbidden.Count -ne 0) {
+  throw "Release stage contains forbidden private/derived material: $($forbidden.FullName -join ', ')"
+}
+
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $stagePrefix = $stageFull.TrimEnd('\') + '\'
@@ -125,7 +135,11 @@ $archive = [IO.Compression.ZipFile]::OpenRead($zipFull)
 try {
   $badEntries = @($archive.Entries | Where-Object {
     $_.FullName.Contains('\') -or $_.FullName.StartsWith('/') -or
-    $_.FullName -match '(^|/)\.\.(/|$)'
+    $_.FullName -match '(^|/)\.\.(/|$)' -or
+    [IO.Path]::GetExtension($_.FullName) -in
+      @('.nds', '.rom', '.sav', '.bin', '.gpr') -or
+    [IO.Path]::GetFileName($_.FullName) -in
+      @('biosnds9.rom', 'biosnds7.rom', 'firmware.bin')
   })
   if ($badEntries.Count -ne 0) {
     throw "ZIP contains unsafe entry names."

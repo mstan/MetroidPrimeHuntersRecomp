@@ -184,18 +184,28 @@ The build verifies the ROM, expands the compressed ARM9, extracts overlay
 metadata/images, generates the initial ARM9 and ARM7 static closures, compiles
 the generated banks, and builds the ROM identity checker.
 
-## Windows release packaging
+## Release packaging
 
-Configure Release builds of the title runner and recomp-ui launcher, then run:
+The supported Windows packaging path builds the ROM-free runner and launcher,
+then stages the portable ZIP:
 
 ```powershell
-powershell -File tools\make_release.ps1 -Version 0.1.0 `
-  -RunnerBuildDir ..\ndsrecomp\runner\build-mph-release `
-  -LauncherBuildDir launcher\recomp-ui\build-release
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+  tools\build-windows.ps1 -Version 0.1.0
 ```
 
-The packager refuses a runner that does not contain the FMV runtime bank and
-re-reads the resulting ZIP to reject unsafe or non-portable entry names.
+On Linux, build the runner-first AppImage from source:
+
+```bash
+bash tools/build-linux.sh --version 0.1.0
+```
+
+The packagers refuse a runner that does not contain the FMV runtime bank,
+stage only explicit safe payloads, and reject unsafe names or
+ROM/save/BIOS/firmware/generated material. The AppImage starts `nds_runner`
+directly because the current title launcher is Windows-only; place the `.nds`
+ROM and a `bios/` folder containing your verified DS dumps beside the
+AppImage.
 
 Build the runner with these generated banks and launch the authentic
 firmware/card path:

@@ -180,6 +180,13 @@ def main() -> int:
     parser.add_argument(
         "--targets", type=int, nargs="+", default=[300, 600, 900, 1200]
     )
+    parser.add_argument(
+        "--boot",
+        choices=("firmware", "direct"),
+        default="firmware",
+        help="boot path: firmware (LLE, default) or direct "
+        "(melonDS SetupDirectBoot equivalent on both backends)",
+    )
     args = parser.parse_args()
     if args.runner is not None and args.config is None:
         parser.error("--config is required with --runner")
@@ -206,6 +213,8 @@ def main() -> int:
                 "--startup-mode",
                 "automatic",
             ]
+            if args.boot == "direct":
+                command += ["--boot", "direct"]
         else:
             executable = args.oracle.resolve()
             bios = args.bios.resolve()
@@ -221,8 +230,12 @@ def main() -> int:
                 str(firmware),
                 "--rom",
                 str(args.rom.resolve()),
+                # The runner's --startup-mode automatic patches its private
+                # in-memory firmware; the oracle reads the same patched copy
+                # from disk so a direct boot's user-settings mirror carries
+                # identical bytes on both sides.
                 "--boot",
-                "firmware",
+                args.boot,
                 "--port",
                 str(args.port),
             ]

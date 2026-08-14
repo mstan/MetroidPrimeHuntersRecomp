@@ -194,9 +194,16 @@ def main() -> int:
         "the runner is pinned to melonDS's default MAC so the images are "
         "byte-identical and the diff stays apples to apples",
     )
+    parser.add_argument(
+        "--freebios",
+        action="store_true",
+        help="use the vendored FreeBIOS on both backends (no BIOS dumps)",
+    )
     args = parser.parse_args()
     if args.generated_firmware and args.boot != "direct":
         parser.error("--generated-firmware requires --boot direct")
+    if args.freebios and args.boot != "direct":
+        parser.error("--freebios requires --boot direct")
     if args.runner is not None and args.config is None:
         parser.error("--config is required with --runner")
 
@@ -230,16 +237,21 @@ def main() -> int:
             if args.generated_firmware:
                 command += ["--generated-firmware",
                             "--identity-mac", "00:09:bf:11:22:33"]
+            if args.freebios:
+                command += ["--freebios"]
         else:
             executable = args.oracle.resolve()
             bios = args.bios.resolve()
-            command = [
-                str(executable),
-                "--bios9",
-                str(bios / "biosnds9.rom"),
-                "--bios7",
-                str(bios / "biosnds7.rom"),
-            ]
+            command = [str(executable)]
+            if args.freebios:
+                command += ["--freebios"]
+            else:
+                command += [
+                    "--bios9",
+                    str(bios / "biosnds9.rom"),
+                    "--bios7",
+                    str(bios / "biosnds7.rom"),
+                ]
             if args.generated_firmware:
                 command += ["--generated-firmware"]
             else:

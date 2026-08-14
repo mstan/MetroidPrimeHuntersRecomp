@@ -3,7 +3,8 @@
 
 This is a title-specific M8 probe. It can stop at the standard Nintendo WFC
 setup connection test, enter Find Game, or tap through to the one-instance
-matchmaking search screen.
+matchmaking search screen. It can also enter the Friends and Rivals branch for
+manual/path exploration.
 The output directory can contain real console/network identifiers in ring
 events and screenshots; keep it under scratch/ and do not publish it raw.
 """
@@ -138,6 +139,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         "on",
         "--wfc-provider",
         args.wfc_provider,
+        "--instance-index",
+        str(args.instance_index),
     ]
     if args.save_path:
         command.extend(["--save-path", str(args.save_path.resolve())])
@@ -195,11 +198,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                         ("ap-row", 50, 65, 220),
                     )
                 else:
-                    flow_steps = (
-                        ("find-game", 58, 96, 1200),
-                        ("find-game-confirm", 189, 125, 900),
-                        ("find-game-yes", 108, 124, 1200),
-                    )
+                    if args.flow == "friends-rivals":
+                        flow_steps = (
+                            ("friends-rivals", 194, 96, 1200),
+                        )
+                    else:
+                        flow_steps = (
+                            ("find-game", 58, 96, 1200),
+                            ("find-game-confirm", 189, 125, 900),
+                            ("find-game-yes", 108, 124, 1200),
+                        )
 
                 for label, x, y, wait in flow_steps:
                     input_lib.tap(client, x, y, 12)
@@ -218,12 +226,20 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                         input_lib.advance_to_vblank(client, target)
                         save(f"wait-{target}")
 
-                    # First-time runs stop on a WFC ID saved prompt. After the
-                    # ID is already saved, this tap is harmless on the search
-                    # filter screen; the next tap starts the actual search.
-                    input_lib.tap(client, 189, 125, 12)
-                    input_lib.advance_frames(client, 900)
-                    save("ack-or-filter")
+                    if args.fresh_profile:
+                        input_lib.tap(client, 178, 171, 12)
+                        input_lib.advance_frames(client, 900)
+                        save("ack-wfc-id")
+                        input_lib.tap(client, 108, 124, 12)
+                        input_lib.advance_frames(client, 4200)
+                        save("post-id-connect")
+                    else:
+                        # Returning profiles are already on the search filter
+                        # screen. This tap is harmless there and keeps older
+                        # evidence paths stable.
+                        input_lib.tap(client, 189, 125, 12)
+                        input_lib.advance_frames(client, 900)
+                        save("ack-or-filter")
                     input_lib.tap(client, 178, 171, 12)
                     input_lib.advance_frames(client, 1200)
                     save("search-for-game")
@@ -244,6 +260,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                 summary["output"] = str(output)
                 summary["network_backend"] = args.network_backend
                 summary["wfc_provider"] = args.wfc_provider
+                summary["instance_index"] = args.instance_index
                 summary["flow"] = args.flow
                 summary["firmware_path"] = (
                     str(args.firmware_path.resolve())
@@ -251,6 +268,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     else None
                 )
                 summary["save_path"] = str(args.save_path.resolve()) if args.save_path else None
+                if args.firmware_out:
+                    firmware = client.command("firmware_dump")
+                    if not isinstance(firmware, dict):
+                        raise RuntimeError("firmware_dump returned a non-object response")
+                    if int(firmware.get("size", 0)) != 262144:
+                        raise RuntimeError(
+                            f"firmware_dump returned {firmware.get('size')} bytes"
+                        )
+                    firmware_bytes = bytes.fromhex(str(firmware["hex"]))
+                    args.firmware_out.parent.mkdir(parents=True, exist_ok=True)
+                    args.firmware_out.write_bytes(firmware_bytes)
+                    summary["firmware_out"] = str(args.firmware_out.resolve())
                 (output / "summary.json").write_text(
                     json.dumps(summary, indent=2) + "\n",
                     encoding="utf-8",
@@ -284,7 +313,13 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=Path("game.toml"))
     parser.add_argument("--save-path", type=Path)
     parser.add_argument("--firmware-path", type=Path)
+    parser.add_argument("--firmware-out", type=Path)
     parser.add_argument("--discover-static-misses", action="store_true")
+    parser.add_argument(
+        "--fresh-profile",
+        action="store_true",
+        help="drive first-time MPH WFC ID acknowledgement before searching",
+    )
     parser.add_argument(
         "--startup-mode",
         choices=("preserve", "manual", "automatic"),
@@ -292,9 +327,10 @@ def main() -> int:
     )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=19983)
+    parser.add_argument("--instance-index", type=int, default=0)
     parser.add_argument(
         "--flow",
-        choices=("setup", "find-game", "search-game"),
+        choices=("setup", "find-game", "search-game", "friends-rivals"),
         default="setup",
     )
     parser.add_argument(
@@ -319,6 +355,8 @@ def main() -> int:
 
     if args.port < 1 or args.port > 65535:
         parser.error("--port must be in 1..65535")
+    if args.instance_index < 0 or args.instance_index > 255:
+        parser.error("--instance-index must be in 0..255")
 
     summary = run(args)
     print(json.dumps(summary, indent=2), flush=True)

@@ -187,7 +187,16 @@ def main() -> int:
         help="boot path: firmware (LLE, default) or direct "
         "(melonDS SetupDirectBoot equivalent on both backends)",
     )
+    parser.add_argument(
+        "--generated-firmware",
+        action="store_true",
+        help="synthesize the firmware image on both backends (no dump); "
+        "the runner is pinned to melonDS's default MAC so the images are "
+        "byte-identical and the diff stays apples to apples",
+    )
     args = parser.parse_args()
+    if args.generated_firmware and args.boot != "direct":
+        parser.error("--generated-firmware requires --boot direct")
     if args.runner is not None and args.config is None:
         parser.error("--config is required with --runner")
 
@@ -210,24 +219,34 @@ def main() -> int:
                 "--config",
                 str(args.config.resolve()),
                 "--no-save",
-                "--startup-mode",
-                "automatic",
             ]
+            if not args.generated_firmware:
+                # Meaningful only when the real firmware runs (or seeds the
+                # user-settings mirror); a generated image must stay
+                # byte-identical to the oracle's, which never sets autoboot.
+                command += ["--startup-mode", "automatic"]
             if args.boot == "direct":
                 command += ["--boot", "direct"]
+            if args.generated_firmware:
+                command += ["--generated-firmware",
+                            "--identity-mac", "00:09:bf:11:22:33"]
         else:
             executable = args.oracle.resolve()
             bios = args.bios.resolve()
-            firmware = output / "firmware-automatic.bin"
-            automatic_firmware(bios / "firmware.bin", firmware)
             command = [
                 str(executable),
                 "--bios9",
                 str(bios / "biosnds9.rom"),
                 "--bios7",
                 str(bios / "biosnds7.rom"),
-                "--firmware",
-                str(firmware),
+            ]
+            if args.generated_firmware:
+                command += ["--generated-firmware"]
+            else:
+                firmware = output / "firmware-automatic.bin"
+                automatic_firmware(bios / "firmware.bin", firmware)
+                command += ["--firmware", str(firmware)]
+            command += [
                 "--rom",
                 str(args.rom.resolve()),
                 # The runner's --startup-mode automatic patches its private

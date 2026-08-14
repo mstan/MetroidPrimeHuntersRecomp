@@ -555,14 +555,32 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
         return false;
     }
+    bool dumps_present = true;
     for (const auto& file : firmware_files) {
-        if (std::filesystem::is_regular_file(file)) continue;
-        MessageBoxW(nullptr,
-            L"Nintendo DS BIOS/firmware dumps are missing. Copy your own "
-            L"verified biosnds9.rom, biosnds7.rom, and firmware.bin files "
-            L"into the release's bios folder, then launch again.",
-            L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONINFORMATION);
-        return false;
+        if (!std::filesystem::is_regular_file(file)) dumps_present = false;
+    }
+    bool no_dumps_mode = false;
+    if (!dumps_present) {
+        // Never a silent fallback: missing dumps surface as an explicit
+        // choice between supplying dumps and the built-in no-dump path
+        // (FreeBIOS + generated firmware + direct boot, beads-yjp.15).
+        const int choice = MessageBoxW(nullptr,
+            L"Nintendo DS BIOS/firmware dumps were not found in the bios "
+            L"folder.\n\n"
+            L"Launch with the built-in FreeBIOS and generated firmware "
+            L"instead? Nothing but the game ROM is required; the game boots "
+            L"directly (no DS menu) and online play uses an identity created "
+            L"for this install.\n\n"
+            L"Choose No to supply your own verified biosnds9.rom, "
+            L"biosnds7.rom, and firmware.bin dumps in the bios folder for "
+            L"the fully faithful path.",
+            L"Metroid Prime Hunters Recomp",
+            MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1);
+        if (choice != IDYES) return false;
+        no_dumps_mode = true;
+        // The bios folder still hosts the persisted per-install identity.
+        std::error_code error;
+        std::filesystem::create_directories(bios, error);
     }
 
     std::wstring command =
@@ -588,7 +606,13 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         (mods.prime_controls ? L"on" : L"off") +
         L" --mph-virtual-stylus-sensitivity " +
         std::to_wstring(mods.virtual_stylus_sensitivity) +
-        L" --startup-mode automatic";
+        L" --startup-mode automatic" +
+        // The runner's own default keeps networking OFF (probe/CI safety);
+        // a player launching through the UI expects Nintendo WFC to work,
+        // so the launcher turns it on and points it at Wiimmfi.
+        L" --network on --wfc on --wfc-provider wiimmfi";
+    if (no_dumps_mode)
+        command += L" --freebios --generated-firmware --boot direct";
     append_binding_args(command, mods);
 
     STARTUPINFOW startup{};

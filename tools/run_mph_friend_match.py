@@ -57,13 +57,33 @@ FIRST_GAME_ROW = (85, 52)
 # CREATE GAME does not publish the game by itself: it opens "MAKE THIS GAME
 # AVAILABLE TO: FRIENDS / RIVALS", whose green check is what actually lists it.
 AVAILABILITY_CONFIRM = (128, 136)
-# Capture densely right after the join tap: a rejection or a transient prompt
-# would otherwise be over before the next scheduled checkpoint.
-# Interactions tried, in order, to actually enter the advertised game.
+# The advertised row's text block. Tapping it SELECTS the row -- the host's
+# game settings appear on the guest's top screen, which mph_screens sees as
+# "selected-lobby". Selection alone never joins; A is the connect action.
+GAME_ROW = (40, 55)
+# Right-hand panel under ONLINE n/n: the VIEW button.
+VIEW_BUTTON = (215, 110)
+# The 80430 modal has TWO pages: the error text with an orange ">" bottom right,
+# then a support-phone-number page with a back "<" and a green check. Tapping
+# the ">" only turns the page -- the check is what closes it. Getting this wrong
+# in an earlier run left the modal open, so the attempts that followed were
+# delivered to a dialog instead of the lobby and proved nothing.
+ERROR_NEXT_PAGE = (190, 120)
+ERROR_CONFIRM = (128, 120)
+# Interactions tried, in order, to actually enter the advertised game. Each is
+# (name, steps, settle_beats); a step is one beat of the lockstep clock, so the
+# host idles for exactly as many frames as the guest spends acting.
 JOIN_ATTEMPTS = (
-    ("tap-text", 40, 55),
-    ("tap-row", 85, 60),
-    ("press-a", 0, 0),
+    # PROVEN, twice, to reach "CONNECTING TO FRIEND'S GAME...": select the row,
+    # then A. This is the join interaction; everything after it is network. The
+    # long settle is to time how long CONNECTING runs before 80430 lands.
+    # There is exactly ONE attempt per session: an 80430 does not leave the
+    # guest in the lobby to try again, it drops the console off Friends and
+    # Rivals and back to the Nintendo WFC menu (measured -- run 3's second and
+    # third attempts were delivered to the WFC menu and then to a 52200
+    # "unable to connect to Nintendo WFC" modal, proving nothing). Anything
+    # else to try has to be a fresh run, not a further tap in this one.
+    ("select-then-a", (("tap", *GAME_ROW), ("key", "a")), 8),
 )
 # Publishing drops the host into game setup, whose first tab is the mode picker
 # (BATTLE is the large pre-selected disc). The room is advertised at PLAYERS 1/4
@@ -185,6 +205,26 @@ def tap_and_save(instance: Instance, label: str, x: int, y: int, wait: int) -> N
     input_lib.tap(instance.client, x, y, 12)
     input_lib.advance_frames(instance.client, wait)
     save_checkpoint(instance, label)
+
+
+def beat(instance: Instance, action: tuple[Any, ...] | None, frames: int) -> None:
+    """One tick of the lockstep clock: optional input, then a fixed idle.
+
+    Both tap() and press_key() hold for 12 frames, and an instance with nothing
+    to do idles for the same 12, so every beat costs 12 + frames on every
+    instance no matter what it did. That is what lets the guest branch on what
+    it sees without drifting away from the host it is trying to talk to.
+    """
+    assert instance.client is not None
+    if action is None:
+        input_lib.advance_frames(instance.client, 12)
+    elif action[0] == "tap":
+        input_lib.tap(instance.client, action[1], action[2], 12)
+    elif action[0] == "key":
+        input_lib.press_key(instance.client, action[1], 12)
+    else:
+        raise ValueError(f"unknown beat action: {action!r}")
+    input_lib.advance_frames(instance.client, frames)
 
 
 def current_screen(instance: Instance) -> str:
@@ -355,17 +395,14 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
 
     for_each(instances, create_phase)
 
-    def lockstep_host_tap(
-        label: str, point: tuple[int, int], capture_frames: tuple[int, ...]
+    def lockstep_host_action(
+        label: str, action: tuple[Any, ...], capture_frames: tuple[int, ...]
     ) -> None:
-        """Host taps one setup control; guests idle for the identical frames."""
+        """Host drives one setup control; guests idle for the identical frames."""
 
         def step(instance: Instance) -> None:
             assert instance.client is not None
-            if instance is host:
-                input_lib.tap(instance.client, *point, 12)
-            else:
-                input_lib.advance_frames(instance.client, 12)
+            beat(instance, action if instance is host else None, 0)
             role = "host" if instance is host else "guest"
             for index, frames in enumerate(capture_frames):
                 input_lib.advance_frames(instance.client, frames)
@@ -374,23 +411,29 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
         for_each(instances, step)
 
     # Setup is a sequence, not a single confirmation: mode, then arena/settings.
-    lockstep_host_tap("mode", MODE_BATTLE, CONFIG_CAPTURE_FRAMES)
-    lockstep_host_tap("settings", SETTINGS_CONFIRM, CONFIG_CAPTURE_FRAMES)
-    lockstep_host_tap("hunter", HUNTER_SAMUS, CONFIG_CAPTURE_FRAMES)
+    lockstep_host_action("mode", ("tap", *MODE_BATTLE), CONFIG_CAPTURE_FRAMES)
+    lockstep_host_action(
+        "settings", ("tap", *SETTINGS_CONFIRM), CONFIG_CAPTURE_FRAMES
+    )
+    lockstep_host_action("hunter", ("tap", *HUNTER_SAMUS), CONFIG_CAPTURE_FRAMES)
+    # SELECT HUNTER has no on-screen confirm, and leaving the host parked on it
+    # is a candidate explanation for the guest's 80430 ("game is no longer
+    # available"): try to carry the host off the setup tabs and into whatever
+    # waiting state a real host sits in before a guest arrives.
+    lockstep_host_action("hunter-confirm", ("key", "a"), CONFIG_CAPTURE_FRAMES)
+
+    join_log: list[dict[str, Any]] = []
+
+    def guest_state(instance: Instance) -> str:
+        assert instance.client is not None
+        return mph_screens.lobby_state(
+            input_lib.combined_framebuffer(instance.client)
+        )
 
     def join_phase(instance: Instance) -> None:
         assert instance.client is not None
-        if instance is host:
-            input_lib.advance_frames(
-                instance.client, args.join_poll * args.join_poll_frames
-            )
-            save_checkpoint(instance, "host-idle")
-            for index in range(len(JOIN_ATTEMPTS)):
-                input_lib.advance_frames(
-                    instance.client, 12 + args.join_attempt_frames
-                )
-                save_checkpoint(instance, f"host-settle-{index}")
-            return
+        is_host = instance is host
+        role = "host" if is_host else "guest"
 
         # Wait for the host's game to actually appear before tapping: an earlier
         # run tapped the row on a schedule and there was nothing under the
@@ -398,39 +441,78 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
         listed = False
         poll = args.join_poll
         for poll in range(args.join_poll):
+            if is_host:
+                break
             if mph_screens.has_available_game(
                 input_lib.combined_framebuffer(instance.client)
             ):
                 listed = True
                 break
             input_lib.advance_frames(instance.client, args.join_poll_frames)
-        save_checkpoint(instance, f"lobby-listed-{listed}")
-        remaining = args.join_poll - (poll if listed else args.join_poll)
-        if remaining > 0:
+        if is_host:
             input_lib.advance_frames(
-                instance.client, remaining * args.join_poll_frames
+                instance.client, args.join_poll * args.join_poll_frames
             )
+            save_checkpoint(instance, "host-idle")
+        else:
+            save_checkpoint(instance, f"lobby-listed-{listed}")
+            remaining = args.join_poll - (poll if listed else args.join_poll)
+            if remaining > 0:
+                input_lib.advance_frames(
+                    instance.client, remaining * args.join_poll_frames
+                )
 
-        # Tapping the row centre is ignored, so try the row's text block, the
-        # row centre and the A button in turn. Once the lobby list is gone the
-        # join took, but keep advancing the same frames either way so the host
-        # stays in lockstep.
+        # Each attempt is: its input beats, then settle beats to let the join
+        # resolve, then dismissal beats that clear an 80430 modal so the next
+        # attempt starts from the lobby again. Every beat costs identical frames
+        # on host and guest, so the two stay live peers throughout.
         joined = False
-        for name, x, y in JOIN_ATTEMPTS:
-            if not joined:
-                if name == "press-a":
-                    input_lib.press_key(instance.client, "a", 12)
-                else:
-                    input_lib.tap(instance.client, x, y, 12)
-            else:
-                input_lib.advance_frames(instance.client, 12)
-            input_lib.advance_frames(instance.client, args.join_attempt_frames)
-            listed_now = mph_screens.has_available_game(
-                input_lib.combined_framebuffer(instance.client)
+        for name, steps, settle_beats in JOIN_ATTEMPTS:
+            for step in steps:
+                beat(
+                    instance,
+                    None if is_host or joined else step,
+                    args.join_beat_frames,
+                )
+            for index in range(settle_beats):
+                beat(instance, None, args.join_settle_frames)
+                state = "" if is_host else guest_state(instance)
+                save_checkpoint(
+                    instance,
+                    f"{role}-{name}-settle{index}"
+                    + (f"-{state}" if state else ""),
+                )
+                if state == "off-lobby":
+                    joined = True
+            # Clear whatever the attempt left on screen so the next one starts
+            # from the lobby: page the 80430 modal forward, close it, and if
+            # closing it dropped the console offline, answer the reconnect
+            # prompt. Each is one beat whether or not it acts.
+            recovery = (
+                ("tap", *ERROR_NEXT_PAGE),
+                ("tap", *ERROR_CONFIRM),
+                ("idle",),
+                ("reconnect",),
+                ("idle",),
             )
-            save_checkpoint(instance, f"join-{name}-listed-{listed_now}")
-            if not listed_now:
-                joined = True
+            for action in recovery:
+                choice: tuple[Any, ...] | None = None
+                if not is_host and not joined:
+                    assert instance.client is not None
+                    image = input_lib.combined_framebuffer(instance.client)
+                    if action[0] == "reconnect":
+                        if mph_screens.is_connect_dialog(image):
+                            choice = ("tap", *DIALOG_YES)
+                    elif action[0] == "tap" and mph_screens.lobby_dialog_open(
+                        image
+                    ):
+                        choice = action
+                beat(instance, choice, args.join_beat_frames)
+            if not is_host:
+                final = guest_state(instance)
+                save_checkpoint(instance, f"guest-{name}-after-{final}")
+                join_log.append({"attempt": name, "state": final, "joined": joined})
+                print(f"[join] {name}: {final} joined={joined}", flush=True)
 
     for_each(instances, join_phase)
 
@@ -445,6 +527,16 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
 
     summaries = []
     for instance in instances:
+        # summary.json keeps only per-filter counts, which is enough to say the
+        # backend was clean but not enough to say WHO a failing join talked to.
+        # The ring entries carry src/dst IPv4 and ports, so keep the raw report
+        # per instance: after an 80430 the question is always which peer the
+        # guest was trying to reach and whether anything came back.
+        (instance.output / "report.json").write_text(
+            json.dumps(instance.report, indent=2) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
         steps = [
             {
                 "label": item["label"],
@@ -485,6 +577,8 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
         "instances": len(instances),
         "network_backend": args.network_backend,
         "wfc_provider": args.wfc_provider,
+        "join_attempts": join_log,
+        "joined": any(entry["joined"] for entry in join_log),
         "summaries": summaries,
         "backend_clean": all(s["backend_clean"] for s in summaries),
     }
@@ -522,7 +616,18 @@ def main() -> int:
     parser.add_argument("--lobby-wait", type=int, default=1800)
     parser.add_argument("--join-poll", type=int, default=8)
     parser.add_argument("--join-poll-frames", type=int, default=300)
-    parser.add_argument("--join-attempt-frames", type=int, default=1200)
+    parser.add_argument(
+        "--join-beat-frames",
+        type=int,
+        default=400,
+        help="Frames per input/dismiss beat during the join attempts.",
+    )
+    parser.add_argument(
+        "--join-settle-frames",
+        type=int,
+        default=1200,
+        help="Frames per settle beat; a join takes several to resolve.",
+    )
     parser.add_argument(
         "--host-index",
         type=int,

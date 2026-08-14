@@ -34,6 +34,19 @@ BOXES = {
     # red cross on the right, both ringed in orange.
     "dialog_yes": (98, 302, 120, 324),
     "dialog_no": (138, 302, 160, 324),
+    # Friends/Rivals lobby, top screen: the ARENA thumbnail. Flat dark green
+    # while no game row is selected, a lit photo of the arena once a row is
+    # selected and the host's settings have been pulled down (measured: 0
+    # bright pixels unselected, 1300-1800 selected).
+    "arena_thumb": (140, 45, 245, 120),
+    # Lobby overlays cover the orange CREATE GAME bar, which is otherwise the
+    # brightest fixed thing on the lobby (measured mean red 158-163 with no
+    # dialog, 13-18 under one).
+    "create_bar": (30, 318, 120, 332),
+    # The orange ">" continue arrow, bottom right of the error dialog only.
+    "dialog_arrow": (178, 300, 202, 324),
+    # The rotating "no entry" badge of CONNECTING TO FRIEND'S GAME.
+    "dialog_spinner": (118, 292, 142, 316),
 }
 
 
@@ -89,6 +102,66 @@ def has_available_game(image: Image.Image) -> bool:
     return bright > 100
 
 
+def bright_count(image: Image.Image, box: tuple[int, int, int, int]) -> int:
+    crop = image.crop(box)
+    return sum(1 for r, g, b in crop.getdata() if r + g + b > 250)
+
+
+def has_selected_game(image: Image.Image) -> bool:
+    """True once a lobby row is selected and the host's settings are shown.
+
+    Selecting the advertised row pulls the host's game configuration down onto
+    the guest's top screen; the ARENA thumbnail going from flat dark green to a
+    lit photo is the cleanest witness of it.
+    """
+    return bright_count(image, BOXES["arena_thumb"]) > 600
+
+
+def lobby_dialog_open(image: Image.Image) -> bool:
+    """True when a modal covers the lobby's CREATE GAME bar."""
+    r, _g, _b = mean_box(image, BOXES["create_bar"])
+    return r < 70
+
+
+def is_join_error(image: Image.Image) -> bool:
+    """The "ERROR CODE 80430 ... GAME IS NO LONGER AVAILABLE" modal.
+
+    Its only bright feature is the orange ">" continue arrow in the bottom
+    right corner, which the CONNECTING modal does not have.
+    """
+    if not lobby_dialog_open(image):
+        return False
+    r, _g, _b = mean_box(image, BOXES["dialog_arrow"])
+    return r > 20 and bright_count(image, BOXES["dialog_arrow"]) > 40
+
+
+def is_connecting(image: Image.Image) -> bool:
+    """The "CONNECTING TO FRIEND'S GAME..." modal with its spinning badge."""
+    if not lobby_dialog_open(image) or is_join_error(image):
+        return False
+    return bright_count(image, BOXES["dialog_spinner"]) > 40
+
+
+def lobby_state(image: Image.Image) -> str:
+    """Classify what the guest is looking at during the join attempts."""
+    if is_join_error(image):
+        return "join-error"
+    if is_connecting(image):
+        return "connecting"
+    if lobby_dialog_open(image):
+        return "lobby-dialog"
+    if has_available_game(image):
+        return "selected-lobby" if has_selected_game(image) else "lobby"
+    return "off-lobby"
+
+
+# Only the navigation screens belong here: identify() is what the driver uses
+# to steer between menus, and the lobby-modal predicates above are not safe
+# outside the Friends/Rivals lobby. lobby_dialog_open() keys off the CREATE
+# GAME bar, which simply does not exist on the roster or the Hunter License, so
+# those screens read as "a modal is up" and, because the roster carries orange
+# UI where the 80430 dialog's continue arrow sits, as "join-error". Adding them
+# here made register_friend() give up on the way back to the WFC menu.
 SCREENS: dict[str, Callable[[Image.Image], bool]] = {
     "connect-dialog": is_connect_dialog,
     "wfc-menu": is_wfc_menu,
@@ -112,7 +185,10 @@ def main() -> int:
         readings = "  ".join(
             f"{name}={value}" for name, value in samples(image).items()
         )
-        print(f"{Path(path).name}: {identify(image)}\n    {readings}")
+        print(
+            f"{Path(path).name}: {identify(image)} lobby={lobby_state(image)}"
+            f"\n    {readings}"
+        )
     return 0
 
 

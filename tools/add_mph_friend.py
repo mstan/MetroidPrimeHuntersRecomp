@@ -214,8 +214,30 @@ def drive(args: argparse.Namespace, session: Session) -> dict[str, Any]:
     input_lib.advance_to_vblank(session.client, args.title_vblank)
     session.save("title")
 
-    for label, x, y, wait in MENU_PATH:
+    # MENU_PATH[:5] ends on the Friends and Rivals roster; the last step opens
+    # Add Friend, which --verify-only deliberately skips so an existing roster
+    # can be inspected without writing to it.
+    for label, x, y, wait in MENU_PATH[: 5 if args.verify_only else len(MENU_PATH)]:
         session.tap_and_save(label, x, y, wait)
+
+    if args.verify_only:
+        for target in args.settle_targets:
+            input_lib.advance_to_vblank(session.client, target)
+            session.save(f"verify-{target}")
+        return {
+            "verify_only": True,
+            "save_path": str(args.save_path),
+            "cart_save": {"after": session.client.command("cart_save_info")},
+            "steps": [
+                {
+                    "label": item["label"],
+                    "vblank9": item["vblank9"],
+                    "image": item["image"],
+                    "signature": item["signature"],
+                }
+                for item in session.report
+            ],
+        }
 
     enter_code(session, args.code, args.key_settle)
     session.save("code-entered")
@@ -275,10 +297,15 @@ def main() -> int:
         help="Prepared profile firmware pushed in with firmware_replace.",
     )
     parser.add_argument(
-        "--code", required=True, help="12-digit friend code to register."
+        "--code", default="", help="12-digit friend code to register."
     )
     parser.add_argument(
-        "--name", required=True, help="Temporary friend name (keyboard entry)."
+        "--name", default="", help="Temporary friend name (keyboard entry)."
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Open the roster and capture it without registering anything.",
     )
     parser.add_argument("--port", type=int, default=20450)
     parser.add_argument("--startup-mode", default="automatic")
@@ -299,11 +326,12 @@ def main() -> int:
     args = parser.parse_args()
 
     code = args.code.replace(" ", "").replace("-", "")
-    if len(code) != 12 or not code.isdigit():
-        parser.error("--code must be 12 digits")
+    if not args.verify_only:
+        if len(code) != 12 or not code.isdigit():
+            parser.error("--code must be 12 digits")
+        if not args.name:
+            parser.error("--name must not be empty")
     args.code = code
-    if not args.name:
-        parser.error("--name must not be empty")
 
     for attribute in (
         "runner", "bios", "rom", "config", "save_path",

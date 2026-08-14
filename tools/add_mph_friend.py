@@ -121,6 +121,14 @@ def launch(args: argparse.Namespace) -> subprocess.Popen[bytes]:
     ]
     if args.firmware_path is not None:
         command.extend(["--firmware-path", str(args.firmware_path)])
+    if args.no_dumps:
+        # The full no-dump path (beads-yjp.15 increment 4): FreeBIOS +
+        # generated firmware force direct boot; identity comes from the
+        # per-install persisted MAC unless a probe pins one explicitly.
+        command.extend(["--freebios", "--generated-firmware",
+                        "--boot", "direct"])
+        if args.identity_mac:
+            command.extend(["--identity-mac", args.identity_mac])
 
     stdout = (args.out / "runner.stdout.log").open("wb")
     stderr = (args.out / "runner.stderr.log").open("wb")
@@ -292,6 +300,17 @@ def main() -> int:
     parser.add_argument("--save-path", type=Path, required=True)
     parser.add_argument("--firmware-path", type=Path)
     parser.add_argument(
+        "--no-dumps",
+        action="store_true",
+        help="run the full no-dump path: --freebios --generated-firmware "
+        "--boot direct (mutually exclusive with --firmware-path)",
+    )
+    parser.add_argument(
+        "--identity-mac",
+        help="with --no-dumps: pin the generated-firmware identity MAC "
+        "instead of the persisted per-install one",
+    )
+    parser.add_argument(
         "--inject-firmware",
         type=Path,
         help="Prepared profile firmware pushed in with firmware_replace.",
@@ -324,6 +343,10 @@ def main() -> int:
     )
     parser.add_argument("--exit-wait", type=int, default=900)
     args = parser.parse_args()
+    if args.no_dumps and (args.firmware_path or args.inject_firmware):
+        parser.error("--no-dumps is mutually exclusive with "
+                     "--firmware-path/--inject-firmware (the generated "
+                     "image IS the firmware)")
 
     code = args.code.replace(" ", "").replace("-", "")
     if not args.verify_only:

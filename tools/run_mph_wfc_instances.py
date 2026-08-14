@@ -30,6 +30,8 @@ FILTERS = (
     "dns_query",
     "dns_response",
     "tcp_open",
+    "tcp_close",
+    "tcp_reset",
     "tcp_packet",
     "tls_record",
     "udp_packet",
@@ -196,6 +198,21 @@ def tap_and_wait(instance: Instance, label: str, x: int, y: int, wait: int) -> N
     save_checkpoint(instance, label)
 
 
+def tap_and_wait_staggered(
+    instance: Instance,
+    label: str,
+    x: int,
+    y: int,
+    wait: int,
+    stagger_frames: int,
+) -> None:
+    assert instance.client is not None
+    if stagger_frames > 0:
+        input_lib.advance_frames(instance.client, instance.index * stagger_frames)
+        save_checkpoint(instance, f"pre-{label}-stagger")
+    tap_and_wait(instance, label, x, y, wait)
+
+
 def advance_to(instance: Instance, target: int) -> None:
     assert instance.client is not None
     input_lib.advance_to_vblank(instance.client, target)
@@ -241,10 +258,11 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
         ("find-game-confirm", 189, 125, 900),
         ("find-game-yes", 108, 124, 1200),
     ):
+        stagger = args.network_entry_stagger_frames if label == "find-game-yes" else 0
         for_each(
             instances,
-            lambda instance, label=label, x=x, y=y, wait=wait: tap_and_wait(
-                instance, label, x, y, wait
+            lambda instance, label=label, x=x, y=y, wait=wait, stagger=stagger: tap_and_wait_staggered(
+                instance, label, x, y, wait, stagger
             ),
             args.instances,
         )
@@ -266,7 +284,14 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
 
     for_each(
         instances,
-        lambda instance: tap_and_wait(instance, "search-for-game", 178, 171, 1200),
+        lambda instance: tap_and_wait_staggered(
+            instance,
+            "search-for-game",
+            178,
+            171,
+            1200,
+            args.search_stagger_frames,
+        ),
         args.instances,
     )
 
@@ -363,12 +388,28 @@ def main() -> int:
         nargs="+",
         default=[25000, 30000, 45000, 60000],
     )
+    parser.add_argument(
+        "--network-entry-stagger-frames",
+        type=int,
+        default=0,
+        help="Delay each instance by index * N frames before entering WFC from Find Game.",
+    )
+    parser.add_argument(
+        "--search-stagger-frames",
+        type=int,
+        default=0,
+        help="Delay each instance by index * N frames before tapping Search for Game.",
+    )
     args = parser.parse_args()
 
     if args.instances < 1 or args.instances > 8:
         parser.error("--instances must be in 1..8")
     if args.base_port < 1 or args.base_port + args.instances - 1 > 65535:
         parser.error("--base-port range must fit in 1..65535")
+    if args.network_entry_stagger_frames < 0:
+        parser.error("--network-entry-stagger-frames must be non-negative")
+    if args.search_stagger_frames < 0:
+        parser.error("--search-stagger-frames must be non-negative")
 
     args.runner = args.runner.resolve()
     args.bios = args.bios.resolve()

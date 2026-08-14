@@ -39,7 +39,11 @@ def advance_to_vblank(
     previous = -1
     while True:
         response = client.command(
-            "run_to_event", event="vblank9", count=target, stall=300_000
+            "run_to_event",
+            event="vblank9",
+            count=target,
+            stall=300_000,
+            max_rounds=100_000_000,
         )
         if not isinstance(response, dict):
             raise RuntimeError(f"invalid run_to_event response: {response!r}")

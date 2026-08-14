@@ -13,10 +13,12 @@
 /launcher/recomp-ui/build*/
 /saves/
 /captures/
+/scratch/
 *.sav
 *.log
 /rom.cfg
 /settings.toml
+/keybinds.ini
 
 # Local Python environment and tool output.
 /.venv/

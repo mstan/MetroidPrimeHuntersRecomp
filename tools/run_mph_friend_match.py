@@ -59,7 +59,12 @@ FIRST_GAME_ROW = (85, 52)
 AVAILABILITY_CONFIRM = (128, 136)
 # Capture densely right after the join tap: a rejection or a transient prompt
 # would otherwise be over before the next scheduled checkpoint.
-JOIN_CAPTURE_FRAMES = (300, 600, 1200, 2400)
+# Interactions tried, in order, to actually enter the advertised game.
+JOIN_ATTEMPTS = (
+    ("tap-text", 40, 55),
+    ("tap-row", 85, 60),
+    ("press-a", 0, 0),
+)
 # Publishing drops the host into game setup, whose first tab is the mode picker
 # (BATTLE is the large pre-selected disc). The room is advertised at PLAYERS 1/4
 # from this point, but a guest tapping the row is ignored, so the host has to be
@@ -380,8 +385,10 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
                 instance.client, args.join_poll * args.join_poll_frames
             )
             save_checkpoint(instance, "host-idle")
-            for index, frames in enumerate(JOIN_CAPTURE_FRAMES):
-                input_lib.advance_frames(instance.client, frames)
+            for index in range(len(JOIN_ATTEMPTS)):
+                input_lib.advance_frames(
+                    instance.client, 12 + args.join_attempt_frames
+                )
                 save_checkpoint(instance, f"host-settle-{index}")
             return
 
@@ -404,10 +411,26 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
                 instance.client, remaining * args.join_poll_frames
             )
 
-        input_lib.tap(instance.client, *FIRST_GAME_ROW, 12)
-        for index, frames in enumerate(JOIN_CAPTURE_FRAMES):
-            input_lib.advance_frames(instance.client, frames)
-            save_checkpoint(instance, f"join-{index}")
+        # Tapping the row centre is ignored, so try the row's text block, the
+        # row centre and the A button in turn. Once the lobby list is gone the
+        # join took, but keep advancing the same frames either way so the host
+        # stays in lockstep.
+        joined = False
+        for name, x, y in JOIN_ATTEMPTS:
+            if not joined:
+                if name == "press-a":
+                    input_lib.press_key(instance.client, "a", 12)
+                else:
+                    input_lib.tap(instance.client, x, y, 12)
+            else:
+                input_lib.advance_frames(instance.client, 12)
+            input_lib.advance_frames(instance.client, args.join_attempt_frames)
+            listed_now = mph_screens.has_available_game(
+                input_lib.combined_framebuffer(instance.client)
+            )
+            save_checkpoint(instance, f"join-{name}-listed-{listed_now}")
+            if not listed_now:
+                joined = True
 
     for_each(instances, join_phase)
 
@@ -499,6 +522,7 @@ def main() -> int:
     parser.add_argument("--lobby-wait", type=int, default=1800)
     parser.add_argument("--join-poll", type=int, default=8)
     parser.add_argument("--join-poll-frames", type=int, default=300)
+    parser.add_argument("--join-attempt-frames", type=int, default=1200)
     parser.add_argument(
         "--host-index",
         type=int,

@@ -1,5 +1,6 @@
 #include "recomp_launcher.h"
 #include "launcher_profile.h"
+#include "sha1.h"
 
 #include <windows.h>
 
@@ -10,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -43,6 +45,10 @@ struct ModState {
     std::string weapon6 = "6";
     std::string virtual_stylus = "Tab";
     std::string menu = "V";
+    // Persisted BIOS choice, psxrecomp-style: any one of the three retail
+    // dump files (its folder is used at launch). Empty = the built-in
+    // FreeBIOS + generated firmware.
+    std::string bios_path;
     std::filesystem::path settings_path;
     std::string last_error;
 };
@@ -187,6 +193,8 @@ void load_mod_state(ModState& state) {
             state.mouse_invert_y = value == "true";
         } else if (key == "prime_controls") {
             state.prime_controls = value != "false";
+        } else if (key == "bios_path") {
+            state.bios_path = value;
         } else if (key == "virtual_stylus_sensitivity") {
             saw_virtual_stylus_sensitivity = true;
             char* end = nullptr;
@@ -241,7 +249,8 @@ bool save_mod_state(ModState& state) {
              << "prime_controls="
              << (state.prime_controls ? "true" : "false") << '\n'
              << "virtual_stylus_sensitivity="
-             << state.virtual_stylus_sensitivity << '\n';
+             << state.virtual_stylus_sensitivity << '\n'
+             << "bios_path=" << state.bios_path << '\n';
         for (const BindingOption& option : kBindingOptions)
             file << option.id << "=" << state.*(option.member) << '\n';
         if (!file) {
@@ -500,6 +509,101 @@ RecompLauncherCModProvider make_mod_provider(ModState* state) {
     return provider;
 }
 
+// ── BIOS handling, psxrecomp-style ─────────────────────────────────────
+// The persisted BIOS setting names any ONE of the three retail dump files;
+// its folder is what the runner receives. Empty = built-in FreeBIOS +
+// generated firmware. No startup prompts: the choice lives in settings and
+// the first-run wizard's BIOS row, and bios_verify explains each state.
+
+struct NdsDump {
+    const char* file;
+    size_t size;
+    const char* sha1;
+};
+
+constexpr std::array<NdsDump, 3> kNdsDumps{{
+    {"biosnds9.rom", 4096, "bfaac75f101c135e32e2aaf541de6b1be4c8c62d"},
+    {"biosnds7.rom", 16384, "24f67bdea115a2c847c8813a262502ee1607b7df"},
+    {"firmware.bin", 262144, "ae22de59fbf3f35ccfbeacaeba6fa87ac5e7b14b"},
+}};
+
+std::filesystem::path bios_dir_from_setting(const char* setting) {
+    if (!setting || !setting[0]) return {};
+    std::error_code error;
+    const std::filesystem::path picked(setting);
+    if (std::filesystem::is_directory(picked, error)) return picked;
+    return picked.parent_path();
+}
+
+// 0 = dump missing, 1 = verified, 2 = present but wrong size/hash.
+int check_dump(const std::filesystem::path& dir, const NdsDump& dump) {
+    std::ifstream file(dir / dump.file, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) return 0;
+    const std::streamoff size = file.tellg();
+    if (size != static_cast<std::streamoff>(dump.size)) return 2;
+    std::vector<uint8_t> data(dump.size);
+    file.seekg(0);
+    if (!file.read(reinterpret_cast<char*>(data.data()),
+                   static_cast<std::streamsize>(data.size()))) {
+        return 2;
+    }
+    return gba::sha1(data.data(), data.size()).hex() == dump.sha1 ? 1 : 2;
+}
+
+int nds_bios_verify(const char* bios_path, RecompLauncherCBiosVerify* out) {
+    if (!out) return 0;
+    std::memset(out, 0, sizeof(*out));
+    if (!bios_path || !bios_path[0]) {
+        // Empty = the no-dump default; always launchable, like OpenBIOS.
+        out->ok = 1;
+        std::snprintf(out->detail, sizeof(out->detail),
+                      "Using built-in FreeBIOS + generated firmware "
+                      "(no dumps required).");
+        return 1;
+    }
+    try {
+        const std::filesystem::path dir = bios_dir_from_setting(bios_path);
+        int missing = 0, mismatched = 0;
+        for (const NdsDump& dump : kNdsDumps) {
+            const int state = check_dump(dir, dump);
+            if (state == 0) ++missing;
+            if (state == 2) ++mismatched;
+        }
+        if (missing == 0 && mismatched == 0) {
+            out->ok = 1;
+            std::snprintf(out->detail, sizeof(out->detail),
+                          "Retail BIOS + firmware dumps verified (SHA-1 ok).");
+            return 1;
+        }
+        if (missing > 0) {
+            std::snprintf(out->detail, sizeof(out->detail),
+                          "Folder must contain biosnds9.rom, biosnds7.rom "
+                          "and firmware.bin (%d missing). Clear the "
+                          "selection to use FreeBIOS.", missing);
+            return 1;
+        }
+        out->warn = 1;
+        std::snprintf(out->detail, sizeof(out->detail),
+                      "%d dump(s) fail SHA-1 verification; the game will "
+                      "refuse to start. Clear the selection to use FreeBIOS.",
+                      mismatched);
+        return 1;
+    } catch (...) {
+        std::snprintf(out->detail, sizeof(out->detail),
+                      "Could not read the selected BIOS folder.");
+        return 1;
+    }
+}
+
+int nds_persist_setup(void* context, const char* rom_path,
+                      const char* bios_path) {
+    (void)rom_path;
+    if (!context) return 1;
+    auto* state = static_cast<ModState*>(context);
+    state->bios_path = bios_path ? bios_path : "";
+    return save_mod_state(*state) ? 0 : 1;
+}
+
 std::wstring widen(const char* source) {
     if (!source || !source[0]) return {};
     const int count = MultiByteToWideChar(
@@ -540,13 +644,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     if (rom_wide.empty()) return false;
 
     const std::filesystem::path runner = game_dir / "nds_runner.exe";
-    const std::filesystem::path bios = game_dir / "bios";
     const std::filesystem::path config = game_dir / "game.toml";
-    const std::array<std::filesystem::path, 3> firmware_files{{
-        bios / "biosnds9.rom",
-        bios / "biosnds7.rom",
-        bios / "firmware.bin",
-    }};
     if (!std::filesystem::is_regular_file(runner) ||
         !std::filesystem::is_regular_file(config)) {
         MessageBoxW(nullptr,
@@ -555,32 +653,29 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
         return false;
     }
-    bool dumps_present = true;
-    for (const auto& file : firmware_files) {
-        if (!std::filesystem::is_regular_file(file)) dumps_present = false;
-    }
+
+    // BIOS selection is a persisted setting (psxrecomp model), never a
+    // launch-time prompt. A configured folder means the retail dumps; an
+    // empty setting means the built-in FreeBIOS + generated firmware —
+    // unless the release's own bios folder already holds all three dumps
+    // (the pre-settings convention), which keeps existing installs on the
+    // faithful path without reconfiguration.
+    std::filesystem::path bios = bios_dir_from_setting(
+        mods.bios_path.c_str());
     bool no_dumps_mode = false;
-    if (!dumps_present) {
-        // Never a silent fallback: missing dumps surface as an explicit
-        // choice between supplying dumps and the built-in no-dump path
-        // (FreeBIOS + generated firmware + direct boot, beads-yjp.15).
-        const int choice = MessageBoxW(nullptr,
-            L"Nintendo DS BIOS/firmware dumps were not found in the bios "
-            L"folder.\n\n"
-            L"Launch with the built-in FreeBIOS and generated firmware "
-            L"instead? Nothing but the game ROM is required; the game boots "
-            L"directly (no DS menu) and online play uses an identity created "
-            L"for this install.\n\n"
-            L"Choose No to supply your own verified biosnds9.rom, "
-            L"biosnds7.rom, and firmware.bin dumps in the bios folder for "
-            L"the fully faithful path.",
-            L"Metroid Prime Hunters Recomp",
-            MB_YESNO | MB_ICONINFORMATION | MB_DEFBUTTON1);
-        if (choice != IDYES) return false;
-        no_dumps_mode = true;
-        // The bios folder still hosts the persisted per-install identity.
-        std::error_code error;
-        std::filesystem::create_directories(bios, error);
+    if (bios.empty()) {
+        bios = game_dir / "bios";
+        bool conventional_dumps = true;
+        for (const NdsDump& dump : kNdsDumps) {
+            if (!std::filesystem::is_regular_file(bios / dump.file))
+                conventional_dumps = false;
+        }
+        if (!conventional_dumps) {
+            no_dumps_mode = true;
+            // The bios folder still hosts the persisted per-install identity.
+            std::error_code error;
+            std::filesystem::create_directories(bios, error);
+        }
     }
 
     std::wstring command =
@@ -663,6 +758,7 @@ int main(int argc, char** argv) {
     mod_state.settings_path = mod_settings_path();
     load_mod_state(mod_state);
     RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);
+    copy_text(settings.bios_path, mod_state.bios_path.c_str());
 
     RecompLauncherCGameInfo game{};
     launcher_profile_apply("nds", &game);
@@ -676,6 +772,9 @@ int main(int argc, char** argv) {
     game.display_layout_labels = display_layouts;
     game.num_display_layouts = std::size(display_layouts);
     game.mods = &mod_provider;
+    game.bios_verify = nds_bios_verify;
+    game.persist_setup = nds_persist_setup;
+    game.persist_setup_ctx = &mod_state;
 
     const std::filesystem::path exe = std::filesystem::weakly_canonical(
         std::filesystem::absolute(argv[0])).parent_path();
@@ -691,6 +790,9 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "recomp-ui unavailable\n");
         return 2;
     }
+    // The UI's final BIOS selection is authoritative for this launch even if
+    // a persist callback was missed (persistence is best-effort UX).
+    mod_state.bios_path = settings.bios_path;
     return launch_runner(exe, selected_rom, settings.display_layout,
                          mod_state.adaptive_widescreen,
                          mod_state,

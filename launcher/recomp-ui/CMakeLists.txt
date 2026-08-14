@@ -7,7 +7,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SDL2 CONFIG REQUIRED)
 
-add_executable(mph-recomp-ui launcher_main.cpp)
+set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
+    "Path to the ndsrecomp framework checkout (for the shared SHA-1 helper)")
+
+add_executable(mph-recomp-ui launcher_main.cpp
+    "${NDSRECOMP_ROOT}/recompiler/support/sha1.cpp")
+target_include_directories(mph-recomp-ui PRIVATE
+    "${NDSRECOMP_ROOT}/recompiler/support")
 target_link_libraries(mph-recomp-ui PRIVATE SDL2::SDL2)
 
 set(RECOMP_UI_ROOT "F:/Projects/recomp-ui" CACHE PATH

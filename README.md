@@ -137,15 +137,21 @@ an enhancement bring-up baseline: projection, game-side culling, HUD anchoring,
 movies, fades, and screen routing still need sustained gameplay auditing.
 
 An MPH-specific recomp-ui development launcher lives in
-`launcher/recomp-ui`. Its Adaptive Widescreen and Mouse Aim mods are enabled
-by default and map to the same runner CLI used by the SM64DS preview. Mouse
-Aim forces the two-screen layout: click the top window to capture the cursor,
-move the mouse for unbounded relative aim, and use Mouse 1 to fire through the
-game's default right-handed `L` trigger. `Escape`, changing focus, or closing a
-window safely releases both the cursor and any held fire input; the bottom
-window remains an ordinary clickable touchscreen. Sensitivity and inverted-Y
-settings are available in MODS, with a `1.00x` sensitivity default, and
-persist in `%APPDATA%\MetroidPrimeHuntersRecomp\mods.ini`.
+`launcher/recomp-ui`. Its Adaptive Widescreen and Prime Controls mods are
+enabled by default and map to the same runner CLI used by the SM64DS preview.
+Prime Controls owns both mouse aim and the melonPrimeDS keyboard/mouse layout:
+click the top window to capture the cursor, move the mouse for unbounded
+relative aim, and use the configured bindings for movement, weapons, and
+touchscreen helpers. `Escape`, changing focus, or closing a window safely
+releases the cursor and any held fire input; the bottom window remains an
+ordinary clickable touchscreen. Aim sensitivity defaults to `0.30x`, virtual
+stylus sensitivity defaults to `0.20x`, and both are editable from the MODS
+page along with inverted-Y and every Prime Controls binding. Settings persist
+in `%APPDATA%\MetroidPrimeHuntersRecomp\mods.ini`. Binding defaults are `WASD`
+move, `Space` jump, `Left Ctrl` morph ball, `Left Shift` boost/map zoom, `C`
+scan visor, `F` OK, `Q/E` scan-message arrows, `V` menu, Mouse 1/2
+fire/scan-fire, Mouse 4 missiles, Mouse 5 beam, number keys `1` through `6`
+for subweapons, and `Tab` for the virtual stylus.
 
 ## Project shape
 

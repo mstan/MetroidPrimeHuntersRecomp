@@ -60,7 +60,7 @@ int main() {
         return 5;
     }
     if (!require(feature.enabled == 1, "feature enabled default")) return 6;
-    if (!require(feature.option_count == 26, "feature option count")) return 7;
+    if (!require(feature.option_count == 27, "feature option count")) return 7;
 
     RecompLauncherCModOption option{};
     if (!require(provider.feature_option_get(
@@ -91,6 +91,30 @@ int main() {
     option = {};
     if (!require(provider.feature_option_get(
             provider.ctx, "mph-prime-controls", "prime-controls", 3,
+            &option), "pad aim sensitivity option get")) {
+        return 14;
+    }
+    if (!require(std::strcmp(option.id, "pad-aim-sensitivity") == 0,
+                 "pad aim sensitivity option id")) return 14;
+    if (!require(std::strcmp(option.value, "100") == 0,
+                 "pad aim sensitivity default value")) return 14;
+    if (!require(std::strcmp(option.default_value, "100") == 0,
+                 "pad aim sensitivity declared default")) return 14;
+    if (!require(option.choice_count == 11,
+                 "pad aim sensitivity choice count")) return 14;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-aim-sensitivity", "150"), "set pad aim sensitivity"))
+        return 14;
+    if (!require(!provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-aim-sensitivity", "5"),
+                 "reject out-of-range pad aim sensitivity"))
+        return 14;
+
+    option = {};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-prime-controls", "prime-controls", 4,
             &option), "move-forward option get")) {
         return 14;
     }
@@ -132,7 +156,7 @@ int main() {
     }
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 3,
+            provider.ctx, "mph-prime-controls", "prime-controls", 4,
             &option), "move-forward option get after set")) {
         return 23;
     }
@@ -146,7 +170,7 @@ int main() {
     }
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 3,
+            provider.ctx, "mph-prime-controls", "prime-controls", 4,
             &option), "move-forward option get after reject")) {
         return 26;
     }

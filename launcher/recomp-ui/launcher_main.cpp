@@ -22,6 +22,7 @@ struct ModState {
     bool mouse_invert_y = false;
     bool prime_controls = true;
     int virtual_stylus_sensitivity = 20;
+    int pad_aim_sensitivity = 100;
     std::string move_forward = "W";
     std::string move_back = "S";
     std::string move_left = "A";
@@ -269,6 +270,11 @@ void load_mod_state(ModState& state) {
             const long parsed = std::strtol(value.c_str(), &end, 10);
             if (end && *end == '\0' && parsed >= 10 && parsed <= 400)
                 state.virtual_stylus_sensitivity = static_cast<int>(parsed);
+        } else if (key == "pad_aim_sensitivity") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == '\0' && parsed >= 10 && parsed <= 400)
+                state.pad_aim_sensitivity = static_cast<int>(parsed);
         } else {
             for (const BindingOption& option : kBindingOptions) {
                 if (key == option.id) {
@@ -318,6 +324,7 @@ bool save_mod_state(ModState& state) {
              << (state.prime_controls ? "true" : "false") << '\n'
              << "virtual_stylus_sensitivity="
              << state.virtual_stylus_sensitivity << '\n'
+             << "pad_aim_sensitivity=" << state.pad_aim_sensitivity << '\n'
              << "bios_path=" << state.bios_path << '\n'
              << "player_name=" << state.player_name << '\n';
         for (const BindingOption& option : kBindingOptions)
@@ -386,7 +393,7 @@ int mod_feature_get(void* context, int index,
                       : "Disabled");
         output->enabled = state->prime_controls ? 1 : 0;
         output->option_count =
-            3 + static_cast<int>(kBindingOptions.size());
+            4 + static_cast<int>(kBindingOptions.size());
         output->camera_controls = 1;
     }
     return 1;
@@ -425,7 +432,7 @@ int mod_feature_option_get(void* context, const char* package_id,
         return 0;
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
-        index >= 3 + static_cast<int>(kBindingOptions.size())) {
+        index >= 4 + static_cast<int>(kBindingOptions.size())) {
         return 0;
     }
     const auto* state = static_cast<const ModState*>(context);
@@ -469,8 +476,21 @@ int mod_feature_option_get(void* context, const char* package_id,
         output->choice_count = static_cast<int>(kSensitivityChoices.size());
         return 1;
     }
+    if (index == 3) {
+        copy_text(output->id, "pad-aim-sensitivity");
+        copy_text(output->label, "Pad aim sensitivity");
+        copy_text(output->description,
+                  "Multiplier for right-stick camera aim on a gamepad.");
+        copy_text(output->group, "Gamepad");
+        std::snprintf(output->value, sizeof(output->value), "%d",
+                      state->pad_aim_sensitivity);
+        copy_text(output->default_value, "100");
+        output->type = RECOMP_MOD_OPTION_CHOICE;
+        output->choice_count = static_cast<int>(kSensitivityChoices.size());
+        return 1;
+    }
     const BindingOption& option =
-        kBindingOptions[static_cast<size_t>(index - 3)];
+        kBindingOptions[static_cast<size_t>(index - 4)];
     copy_text(output->id, option.id);
     copy_text(output->label, option.label);
     copy_text(output->description,
@@ -494,7 +514,8 @@ int mod_feature_choice_get(void*, const char* package_id,
     }
     const bool sensitivity =
         (std::strcmp(option_id, "aim-sensitivity") == 0 ||
-         std::strcmp(option_id, "virtual-stylus-sensitivity") == 0);
+         std::strcmp(option_id, "virtual-stylus-sensitivity") == 0 ||
+         std::strcmp(option_id, "pad-aim-sensitivity") == 0);
     if (sensitivity) {
         if (index >= static_cast<int>(kSensitivityChoices.size()))
             return 0;
@@ -532,15 +553,18 @@ int mod_feature_set_option(void* context, const char* package_id,
     }
     auto* state = static_cast<ModState*>(context);
     if (std::strcmp(option_id, "aim-sensitivity") == 0 ||
-        std::strcmp(option_id, "virtual-stylus-sensitivity") == 0) {
+        std::strcmp(option_id, "virtual-stylus-sensitivity") == 0 ||
+        std::strcmp(option_id, "pad-aim-sensitivity") == 0) {
         char* end = nullptr;
         const long parsed = std::strtol(value, &end, 10);
         if (!end || *end != '\0' || parsed < 10 || parsed > 400)
             return 0;
         if (std::strcmp(option_id, "aim-sensitivity") == 0)
             state->mouse_sensitivity = static_cast<int>(parsed);
-        else
+        else if (std::strcmp(option_id, "virtual-stylus-sensitivity") == 0)
             state->virtual_stylus_sensitivity = static_cast<int>(parsed);
+        else
+            state->pad_aim_sensitivity = static_cast<int>(parsed);
         return 1;
     }
     if (std::strcmp(option_id, "invert-y") == 0) {
@@ -776,6 +800,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         (mods.prime_controls ? L"on" : L"off") +
         L" --mph-virtual-stylus-sensitivity " +
         std::to_wstring(mods.virtual_stylus_sensitivity) +
+        L" --mph-pad-aim-sensitivity " +
+        std::to_wstring(mods.pad_aim_sensitivity) +
         L" --startup-mode automatic" +
         // The runner's own default keeps networking OFF (probe/CI safety);
         // a player launching through the UI expects Nintendo WFC to work,

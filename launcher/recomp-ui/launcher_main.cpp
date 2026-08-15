@@ -52,13 +52,11 @@ struct ModState {
     // beads-yjp.16 -- host-owned online identity. player_name is the DS
     // firmware console nickname the runner writes into its in-memory
     // firmware image (--player-name); it is what a game surfaces as the
-    // player's default name and what WFC/Wiimmfi shows to peers.
-    // player_name_override gates it, so turning the identity feature off
-    // restores the firmware's own name (a retail dump's real console
-    // nickname, or the generated image's "ndsrecomp") without discarding
-    // the name the player configured.
+    // player's default name and what WFC/Wiimmfi shows to peers. Edited on
+    // the dashboard ONLINE card (GameInfo.has_player_name); empty keeps the
+    // firmware's own name (a retail dump's real console nickname, or the
+    // generated image's "ndsrecomp").
     std::string player_name;
-    bool player_name_override = false;
     // Where the runner will look for dumps and for generated-identity.bin
     // when bios_path is empty (the release's own bios folder). Captured once
     // at startup so the identity row can show the MAC without re-deriving
@@ -253,13 +251,14 @@ void load_mod_state(ModState& state) {
             state.prime_controls = value != "false";
         } else if (key == "bios_path") {
             state.bios_path = value;
+        } else if (key == "player_name_override") {
+            // Legacy key from the short-lived mods-page identity row;
+            // ignored (the dashboard field's emptiness is the only gate).
         } else if (key == "player_name") {
             // An unrepresentable persisted value is dropped, not repaired:
             // the runner would refuse it anyway, and a silently altered name
             // is worse than no name at all.
             if (valid_player_name(value)) state.player_name = value;
-        } else if (key == "player_name_override") {
-            state.player_name_override = value == "true";
         } else if (key == "virtual_stylus_sensitivity") {
             saw_virtual_stylus_sensitivity = true;
             char* end = nullptr;
@@ -316,9 +315,7 @@ bool save_mod_state(ModState& state) {
              << "virtual_stylus_sensitivity="
              << state.virtual_stylus_sensitivity << '\n'
              << "bios_path=" << state.bios_path << '\n'
-             << "player_name=" << state.player_name << '\n'
-             << "player_name_override="
-             << (state.player_name_override ? "true" : "false") << '\n';
+             << "player_name=" << state.player_name << '\n';
         for (const BindingOption& option : kBindingOptions)
             file << option.id << "=" << state.*(option.member) << '\n';
         if (!file) {
@@ -336,13 +333,17 @@ bool save_mod_state(ModState& state) {
     return true;
 }
 
+// The online identity is NOT a mod: it lives on the dashboard's ONLINE
+// card (GameInfo.has_player_name + the NDS profile's "identity" panel),
+// directly under the controller card. Only the two real gameplay mods
+// remain here.
 int mod_feature_count(void*) {
-    return 3;
+    return 2;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 2) return 0;
+    if (!context || !output || index < 0 || index > 1) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
     if (index == 0) {
@@ -360,45 +361,6 @@ int mod_feature_get(void* context, int index,
         copy_text(output->status,
                   state->adaptive_widescreen ? "Enabled" : "Disabled");
         output->enabled = state->adaptive_widescreen ? 1 : 0;
-    } else if (index == 2) {
-        // beads-yjp.16. The launcher's only host-owned identity surface: the
-        // firmware console nickname, plus a READ-ONLY view of the per-install
-        // console MAC. There is deliberately no MAC editor -- a hand-typed
-        // value could be multicast, which is never a valid station address,
-        // and the runner generates/persists it once instead.
-        //
-        copy_text(output->id, "online-identity");
-        copy_text(output->package_id, "mph-online-identity");
-        copy_text(output->package_version, "0.1.0");
-        copy_text(output->package_name, "MPH Online Identity");
-        copy_text(output->name, "Player name");
-        copy_text(output->author, "ndsrecomp");
-        copy_text(
-            output->description,
-            "Sets the DS firmware console nickname for this launch, which "
-            "is the name Nintendo WFC / Wiimmfi shows to other players and "
-            "the default name games offer. Turn this off to keep the "
-            "nickname stored in the firmware itself.");
-        copy_text(output->group, "Online");
-        const std::string mac = read_identity_mac(
-            state->bios_path.empty()
-                ? state->default_bios_dir
-                : bios_dir_from_setting(state->bios_path.c_str()));
-        std::string status;
-        if (state->player_name.empty()) {
-            status = "Player name: firmware default";
-        } else if (state->player_name_override) {
-            status = "Player name: " + state->player_name;
-        } else {
-            status = "Player name: " + state->player_name + " (not applied)";
-        }
-        if (!mac.empty())
-            status += " - Console MAC: " + mac + " (generated identity)";
-        else
-            status += " - Console MAC: from the firmware dump";
-        copy_text(output->status, status.c_str());
-        output->enabled = state->player_name_override ? 1 : 0;
-        output->option_count = 1;  // the free-text name row
     } else {
         copy_text(output->id, "prime-controls");
         copy_text(output->package_id, "mph-prime-controls");
@@ -441,14 +403,6 @@ int mod_feature_enable(void* context, const char* package_id,
         state->mouse_aim = state->prime_controls;
         return 1;
     }
-    if (std::strcmp(package_id, "mph-online-identity") == 0 &&
-        std::strcmp(feature_id, "online-identity") == 0) {
-        // Always accepted, including with no name configured: refusing here
-        // would abort the launcher's bulk enable/disable-all edit and roll
-        // the whole set back.
-        state->player_name_override = enabled != 0;
-        return 1;
-    }
     return 0;
 }
 
@@ -465,23 +419,6 @@ int mod_feature_option_get(void* context, const char* package_id,
                            RecompLauncherCModOption* output) {
     if (!context || !package_id || !feature_id || !output || index < 0)
         return 0;
-    if (std::strcmp(package_id, "mph-online-identity") == 0 &&
-        std::strcmp(feature_id, "online-identity") == 0) {
-        if (index != 0) return 0;
-        const auto* state = static_cast<const ModState*>(context);
-        std::memset(output, 0, sizeof(*output));
-        copy_text(output->id, "player-name");
-        copy_text(output->label, "Player name");
-        copy_text(output->description,
-                  "1-10 characters: letters, digits, spaces, and common "
-                  "punctuation. This becomes the DS nickname Wiimmfi shows "
-                  "to other players. Leave empty for the firmware default.");
-        copy_text(output->group, "Online");
-        copy_text(output->value, state->player_name.c_str());
-        copy_text(output->default_value, "");
-        output->type = RECOMP_MOD_OPTION_TEXT;
-        return 1;
-    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
         index >= 3 + static_cast<int>(kBindingOptions.size())) {
@@ -585,23 +522,6 @@ int mod_feature_set_option(void* context, const char* package_id,
                            const char* value) {
     if (!context || !package_id || !feature_id || !option_id || !value)
         return 0;
-    if (std::strcmp(package_id, "mph-online-identity") == 0 &&
-        std::strcmp(feature_id, "online-identity") == 0 &&
-        std::strcmp(option_id, "player-name") == 0) {
-        auto* state = static_cast<ModState*>(context);
-        const std::string name(value);
-        // Empty clears the override back to the firmware default; anything
-        // else must pass the same rules the runner enforces, so a rejected
-        // commit here is the UI's validation feedback.
-        if (!name.empty() && !valid_player_name(name)) {
-            state->last_error =
-                "Player name must be 1-10 characters: letters, digits, "
-                "spaces, and common punctuation.";
-            return 0;
-        }
-        state->player_name = name;
-        return 1;
-    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0) {
         return 0;
@@ -863,7 +783,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     // dump keeps its console's real nickname, a generated image keeps
     // "ndsrecomp"). Re-validated here so a hand-edited mods.ini can never
     // hand the runner a name it will refuse to start on.
-    if (mods.player_name_override && valid_player_name(mods.player_name))
+    if (valid_player_name(mods.player_name))
         append_arg(command, L"--player-name", widen(mods.player_name.c_str()));
     if (no_dumps_mode)
         command += L" --freebios --generated-firmware --boot direct";
@@ -921,9 +841,26 @@ int main(int argc, char** argv) {
     load_mod_state(mod_state);
     RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);
     copy_text(settings.bios_path, mod_state.bios_path.c_str());
+    copy_text(settings.player_name, mod_state.player_name.c_str());
+
+    // Read-only identity detail for the dashboard ONLINE card. Captured once
+    // at startup: the MAC only changes on the first-ever no-dump launch.
+    const std::string identity_mac = read_identity_mac(
+        mod_state.bios_path.empty()
+            ? mod_state.default_bios_dir
+            : bios_dir_from_setting(mod_state.bios_path.c_str()));
+    const std::string identity_detail =
+        !identity_mac.empty()
+            ? "Console MAC: " + identity_mac + " (generated identity)"
+            : std::string("Console MAC: from the firmware dump, or created "
+                          "on the first no-dump launch.");
 
     RecompLauncherCGameInfo game{};
     launcher_profile_apply("nds", &game);
+    // MPH has Nintendo WFC online play, so it opts into the dashboard
+    // ONLINE identity card (most DS titles never set this).
+    game.has_player_name = 1;
+    game.identity_detail = identity_detail.c_str();
     game.name = "Metroid Prime Hunters";
     game.region = "USA";
     game.known_sha1_hex = sha1;
@@ -953,6 +890,23 @@ int main(int argc, char** argv) {
     // The UI's final BIOS selection is authoritative for this launch even if
     // a persist callback was missed (persistence is best-effort UX).
     mod_state.bios_path = settings.bios_path;
+    // Same for the ONLINE card's player name. An invalid entry is surfaced
+    // and dropped rather than silently reshaped or allowed to block launch.
+    {
+        const std::string typed = settings.player_name;
+        if (!typed.empty() && !valid_player_name(typed)) {
+            MessageBoxW(nullptr,
+                L"The player name must be 1-10 characters: letters, digits, "
+                L"spaces, and common punctuation. Launching with the default "
+                L"name instead.",
+                L"Metroid Prime Hunters Recomp",
+                MB_OK | MB_ICONINFORMATION);
+            mod_state.player_name.clear();
+        } else {
+            mod_state.player_name = typed;
+        }
+        save_mod_state(mod_state);
+    }
     return launch_runner(exe, selected_rom, settings.display_layout,
                          mod_state.adaptive_widescreen,
                          mod_state,

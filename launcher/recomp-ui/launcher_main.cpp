@@ -367,14 +367,6 @@ int mod_feature_get(void* context, int index,
         // value could be multicast, which is never a valid station address,
         // and the runner generates/persists it once instead.
         //
-        // KNOWN GAP: the shared launcher has no free-text mod-option type
-        // (RecompLauncherCModOptionType is BOOLEAN/CHOICE/INTEGER, and only
-        // the first two render), and its one existing player-name text field
-        // lives behind GameInfo.netplay_supported, which would drag in the
-        // whole lobby view MPH does not have. So the NAME is configured in
-        // mods.ini for now and this row shows/consumes it; the toggle below
-        // is fully functional either way. Adding RECOMP_MOD_OPTION_TEXT
-        // upstream is all this row needs to become directly editable.
         copy_text(output->id, "online-identity");
         copy_text(output->package_id, "mph-online-identity");
         copy_text(output->package_version, "0.1.0");
@@ -406,6 +398,7 @@ int mod_feature_get(void* context, int index,
             status += " - Console MAC: from the firmware dump";
         copy_text(output->status, status.c_str());
         output->enabled = state->player_name_override ? 1 : 0;
+        output->option_count = 1;  // the free-text name row
     } else {
         copy_text(output->id, "prime-controls");
         copy_text(output->package_id, "mph-prime-controls");
@@ -470,8 +463,26 @@ bool is_binding_choice(const char* value) {
 int mod_feature_option_get(void* context, const char* package_id,
                            const char* feature_id, int index,
                            RecompLauncherCModOption* output) {
-    if (!context || !package_id || !feature_id || !output || index < 0 ||
-        std::strcmp(package_id, "mph-prime-controls") != 0 ||
+    if (!context || !package_id || !feature_id || !output || index < 0)
+        return 0;
+    if (std::strcmp(package_id, "mph-online-identity") == 0 &&
+        std::strcmp(feature_id, "online-identity") == 0) {
+        if (index != 0) return 0;
+        const auto* state = static_cast<const ModState*>(context);
+        std::memset(output, 0, sizeof(*output));
+        copy_text(output->id, "player-name");
+        copy_text(output->label, "Player name");
+        copy_text(output->description,
+                  "1-10 characters: letters, digits, spaces, and common "
+                  "punctuation. This becomes the DS nickname Wiimmfi shows "
+                  "to other players. Leave empty for the firmware default.");
+        copy_text(output->group, "Online");
+        copy_text(output->value, state->player_name.c_str());
+        copy_text(output->default_value, "");
+        output->type = RECOMP_MOD_OPTION_TEXT;
+        return 1;
+    }
+    if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
         index >= 3 + static_cast<int>(kBindingOptions.size())) {
         return 0;
@@ -572,8 +583,26 @@ int mod_feature_choice_get(void*, const char* package_id,
 int mod_feature_set_option(void* context, const char* package_id,
                            const char* feature_id, const char* option_id,
                            const char* value) {
-    if (!context || !package_id || !feature_id || !option_id || !value ||
-        std::strcmp(package_id, "mph-prime-controls") != 0 ||
+    if (!context || !package_id || !feature_id || !option_id || !value)
+        return 0;
+    if (std::strcmp(package_id, "mph-online-identity") == 0 &&
+        std::strcmp(feature_id, "online-identity") == 0 &&
+        std::strcmp(option_id, "player-name") == 0) {
+        auto* state = static_cast<ModState*>(context);
+        const std::string name(value);
+        // Empty clears the override back to the firmware default; anything
+        // else must pass the same rules the runner enforces, so a rejected
+        // commit here is the UI's validation feedback.
+        if (!name.empty() && !valid_player_name(name)) {
+            state->last_error =
+                "Player name must be 1-10 characters: letters, digits, "
+                "spaces, and common punctuation.";
+            return 0;
+        }
+        state->player_name = name;
+        return 1;
+    }
+    if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0) {
         return 0;
     }

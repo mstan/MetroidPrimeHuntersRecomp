@@ -214,13 +214,56 @@ int main() {
     // Off by default: an unset name must never silently replace the
     // nickname a firmware dump already carries.
     if (!require(feature.enabled == 0, "identity off by default")) return 41;
-    if (!require(feature.option_count == 0,
-                 "identity exposes no options (no text option type "
-                 "upstream)")) {
+    if (!require(feature.option_count == 1,
+                 "identity exposes the player-name text option")) {
         return 42;
     }
     if (!require(std::strstr(feature.status, "firmware default") != nullptr,
                  "identity status reports the firmware default")) return 43;
+
+    // The free-text option row (RECOMP_MOD_OPTION_TEXT upstream).
+    RecompLauncherCModOption name_option{};
+    if (!require(provider.feature_option_get(provider.ctx,
+                                             "mph-online-identity",
+                                             "online-identity", 0,
+                                             &name_option) == 1,
+                 "identity option get")) {
+        return 60;
+    }
+    if (!require(name_option.type == RECOMP_MOD_OPTION_TEXT,
+                 "player name is a text option")) return 61;
+    if (!require(std::strcmp(name_option.id, "player-name") == 0,
+                 "player name option id")) return 62;
+    if (!require(provider.feature_set_option(provider.ctx,
+                                             "mph-online-identity",
+                                             "online-identity",
+                                             "player-name",
+                                             "Way Too Long Name") == 0,
+                 "overlong name is rejected")) {
+        return 63;
+    }
+    if (!require(provider.feature_set_option(provider.ctx,
+                                             "mph-online-identity",
+                                             "online-identity",
+                                             "player-name", "Hunter") == 1,
+                 "valid name is accepted")) {
+        return 64;
+    }
+    if (!require(provider.feature_option_get(provider.ctx,
+                                             "mph-online-identity",
+                                             "online-identity", 0,
+                                             &name_option) == 1 &&
+                     std::strcmp(name_option.value, "Hunter") == 0,
+                 "accepted name reads back")) {
+        return 65;
+    }
+    if (!require(provider.feature_set_option(provider.ctx,
+                                             "mph-online-identity",
+                                             "online-identity",
+                                             "player-name", "") == 1,
+                 "empty clears back to the firmware default")) {
+        return 66;
+    }
 
     // The toggle must always succeed -- returning 0 aborts and rolls back the
     // launcher's bulk enable-all/disable-all edit.

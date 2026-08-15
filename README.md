@@ -153,6 +153,13 @@ scan visor, `F` OK, `Q/E` scan-message arrows, `V` menu, Mouse 1/2
 fire/scan-fire, Mouse 4 missiles, Mouse 5 beam, number keys `1` through `6`
 for subweapons, and `Tab` for the virtual stylus.
 
+Credit where it is due:
+[makinori/melonPrimeDS](https://github.com/makinori/melonPrimeDS) is the
+reference this Prime Controls reimplementation follows — its keyboard/mouse
+layout, touchscreen-helper mappings, and sensitivity defaults were worked
+out there first, and this project reimplements that scheme on the
+recompiled runner's native input path.
+
 ## Project shape
 
 The structure follows the sibling SM64DS project while adopting patterns from

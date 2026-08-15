@@ -31,6 +31,7 @@ target_compile_definitions(mph-mod-provider-test PRIVATE
 set(RECOMP_UI_SDL3 OFF)
 set(RECOMP_UI_ENABLE_MODS ON CACHE BOOL "" FORCE)
 include("${RECOMP_UI_ROOT}/recomp_ui.cmake")
-recomp_target_launcher_ui(mph-recomp-ui CONSOLE nds)
+recomp_target_launcher_ui(mph-recomp-ui CONSOLE nds
+    BOXART "${CMAKE_CURRENT_SOURCE_DIR}/assets/boxart.tga")
 
 add_test(NAME mph_mod_provider_test COMMAND mph-mod-provider-test)

@@ -20,8 +20,14 @@ set(RECOMP_UI_ROOT "F:/Projects/recomp-ui" CACHE PATH
     "Path to the shared recomp-ui checkout")
 
 enable_testing()
-add_executable(mph-mod-provider-test tests/launcher_mod_provider_test.cpp)
+add_executable(mph-mod-provider-test tests/launcher_mod_provider_test.cpp
+    "${NDSRECOMP_ROOT}/recompiler/support/sha1.cpp")
+# The test #includes launcher_main.cpp whole, so it needs the SAME sha1.h the
+# launcher gets -- ndsrecomp's gba::sha1, not recomp-ui/src/common/sha1.h,
+# which is a different API and would be picked up first from the include path
+# below. Listed ahead of the recomp-ui directories for that reason.
 target_include_directories(mph-mod-provider-test PRIVATE
+    "${NDSRECOMP_ROOT}/recompiler/support"
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${RECOMP_UI_ROOT}/src"
     "${RECOMP_UI_ROOT}/src/common")

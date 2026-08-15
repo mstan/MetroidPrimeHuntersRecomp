@@ -154,12 +154,22 @@ fire/scan-fire, Mouse 4 missiles, Mouse 5 beam, number keys `1` through `6`
 for subweapons, and `Tab` for the virtual stylus.
 
 Gamepads work as a full alternative: the left stick moves (it maps to the
-D-pad everywhere, including menus), the right stick aims the camera, and the
-right/left triggers fire and scan-fire. Aiming engages as soon as the right
-stick or a trigger is used and idles back out when released, so the
-touchscreen and menus keep working while the sticks rest. Pad aim
-sensitivity is `--mph-pad-aim-sensitivity 10..400` (or
-`controls.prime.pad_aim_sensitivity` in the runner config), default `100`.
+D-pad everywhere, including menus), the right stick aims the camera, and
+every Prime Controls action has its own gamepad binding, shown and
+remappable in the launcher's MODS page under **Gamepad** alongside the
+keyboard rows. Defaults: `RT` shoot, `LT` scan-fire, `A` jump, `B` morph
+ball, `X` missile, `Y` UI OK, `LB` beam, `RB` boost/zoom, `R3` scan visor,
+D-pad left/right scan-message arrows, `Start` menu; subweapons 1–6 start
+unbound. Aiming engages as soon as the right stick, a trigger, or a bound
+pad button is used and idles back out when released, so the touchscreen
+and menus keep working while the sticks rest. Pad aim sensitivity sits on
+the same page (also `--mph-pad-aim-sensitivity 10..400` /
+`controls.prime.pad_aim_sensitivity`, default `100`); per-action flags are
+`--mph-pad-bind-<action>` / `controls.prime.pad_bindings.<action>`.
+
+melonPrimeDS itself ships no gamepad bindings for its Metroid controls
+(keyboard and mouse only), so this controller layout is this project's own
+dual-stick adaptation of its scheme.
 
 Credit where it is due:
 [makinori/melonPrimeDS](https://github.com/makinori/melonPrimeDS) is the

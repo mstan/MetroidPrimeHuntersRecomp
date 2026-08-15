@@ -46,6 +46,32 @@ struct ModState {
     std::string weapon6 = "6";
     std::string virtual_stylus = "Tab";
     std::string menu = "V";
+    // Gamepad bindings for the same actions (runner
+    // nds_default_mph_pad_bindings defaults). "None" = unbound; movement
+    // stays on the left stick / D-pad natively.
+    std::string pad_move_forward = "None";
+    std::string pad_move_back = "None";
+    std::string pad_move_left = "None";
+    std::string pad_move_right = "None";
+    std::string pad_jump = "Pad A";
+    std::string pad_morph_ball = "Pad B";
+    std::string pad_boost_zoom = "Pad RB";
+    std::string pad_scan_visor = "Pad R3";
+    std::string pad_ui_left = "Pad Left";
+    std::string pad_ui_right = "Pad Right";
+    std::string pad_ui_ok = "Pad Y";
+    std::string pad_shoot = "Pad RT";
+    std::string pad_scan_shoot = "Pad LT";
+    std::string pad_beam = "Pad LB";
+    std::string pad_missile = "Pad X";
+    std::string pad_weapon1 = "None";
+    std::string pad_weapon2 = "None";
+    std::string pad_weapon3 = "None";
+    std::string pad_weapon4 = "None";
+    std::string pad_weapon5 = "None";
+    std::string pad_weapon6 = "None";
+    std::string pad_virtual_stylus = "None";
+    std::string pad_menu = "Pad Start";
     // Persisted BIOS choice, psxrecomp-style: any one of the three retail
     // dump files (its folder is used at launch). Empty = the built-in
     // FreeBIOS + generated firmware.
@@ -162,6 +188,69 @@ constexpr std::array<BindingOption, 23> kBindingOptions{{
         &ModState::virtual_stylus, "Tab"},
     {"menu", "Menu", "Movement",
         &ModState::menu, "V"},
+}};
+
+// Gamepad rows: the same actions, bound to pad buttons and passed to the
+// runner as --mph-pad-bind-<action>. The runner id is this id without the
+// "pad-" prefix.
+constexpr std::array<BindingOption, 23> kPadBindingOptions{{
+    {"pad-move-forward", "Move forward", "Gamepad",
+        &ModState::pad_move_forward, "None"},
+    {"pad-move-back", "Move back", "Gamepad",
+        &ModState::pad_move_back, "None"},
+    {"pad-move-left", "Move left", "Gamepad",
+        &ModState::pad_move_left, "None"},
+    {"pad-move-right", "Move right", "Gamepad",
+        &ModState::pad_move_right, "None"},
+    {"pad-jump", "Jump", "Gamepad",
+        &ModState::pad_jump, "Pad A"},
+    {"pad-morph-ball", "Morph ball", "Gamepad",
+        &ModState::pad_morph_ball, "Pad B"},
+    {"pad-boost-zoom", "Boost / zoom", "Gamepad",
+        &ModState::pad_boost_zoom, "Pad RB"},
+    {"pad-scan-visor", "Scan visor", "Gamepad",
+        &ModState::pad_scan_visor, "Pad R3"},
+    {"pad-ui-left", "UI left", "Gamepad",
+        &ModState::pad_ui_left, "Pad Left"},
+    {"pad-ui-right", "UI right", "Gamepad",
+        &ModState::pad_ui_right, "Pad Right"},
+    {"pad-ui-ok", "UI OK", "Gamepad",
+        &ModState::pad_ui_ok, "Pad Y"},
+    {"pad-shoot", "Shoot", "Gamepad",
+        &ModState::pad_shoot, "Pad RT"},
+    {"pad-scan-shoot", "Scan shoot", "Gamepad",
+        &ModState::pad_scan_shoot, "Pad LT"},
+    {"pad-beam", "Beam", "Gamepad",
+        &ModState::pad_beam, "Pad LB"},
+    {"pad-missile", "Missile", "Gamepad",
+        &ModState::pad_missile, "Pad X"},
+    {"pad-weapon1", "Subweapon 1", "Gamepad",
+        &ModState::pad_weapon1, "None"},
+    {"pad-weapon2", "Subweapon 2", "Gamepad",
+        &ModState::pad_weapon2, "None"},
+    {"pad-weapon3", "Subweapon 3", "Gamepad",
+        &ModState::pad_weapon3, "None"},
+    {"pad-weapon4", "Subweapon 4", "Gamepad",
+        &ModState::pad_weapon4, "None"},
+    {"pad-weapon5", "Subweapon 5", "Gamepad",
+        &ModState::pad_weapon5, "None"},
+    {"pad-weapon6", "Subweapon 6", "Gamepad",
+        &ModState::pad_weapon6, "None"},
+    {"pad-virtual-stylus", "Virtual stylus", "Gamepad",
+        &ModState::pad_virtual_stylus, "None"},
+    {"pad-menu", "Menu", "Gamepad",
+        &ModState::pad_menu, "Pad Start"},
+}};
+
+constexpr std::array<BindingChoice, 17> kPadChoices{{
+    {"None", "Unbound"},
+    {"Pad A", "A"}, {"Pad B", "B"}, {"Pad X", "X"}, {"Pad Y", "Y"},
+    {"Pad LB", "Left bumper"}, {"Pad RB", "Right bumper"},
+    {"Pad LT", "Left trigger"}, {"Pad RT", "Right trigger"},
+    {"Pad L3", "Left stick click"}, {"Pad R3", "Right stick click"},
+    {"Pad Up", "D-pad up"}, {"Pad Down", "D-pad down"},
+    {"Pad Left", "D-pad left"}, {"Pad Right", "D-pad right"},
+    {"Pad Start", "Start"}, {"Pad Back", "Back / Select"},
 }};
 
 // EXACTLY the runner's nds_validate_player_name() rule set
@@ -282,6 +371,12 @@ void load_mod_state(ModState& state) {
                     break;
                 }
             }
+            for (const BindingOption& option : kPadBindingOptions) {
+                if (key == option.id) {
+                    state.*(option.member) = value;
+                    break;
+                }
+            }
         }
     }
     if (settings_version < 2) {
@@ -328,6 +423,8 @@ bool save_mod_state(ModState& state) {
              << "bios_path=" << state.bios_path << '\n'
              << "player_name=" << state.player_name << '\n';
         for (const BindingOption& option : kBindingOptions)
+            file << option.id << "=" << state.*(option.member) << '\n';
+        for (const BindingOption& option : kPadBindingOptions)
             file << option.id << "=" << state.*(option.member) << '\n';
         if (!file) {
             state.last_error = "Could not finish launcher mod settings.";
@@ -393,7 +490,8 @@ int mod_feature_get(void* context, int index,
                       : "Disabled");
         output->enabled = state->prime_controls ? 1 : 0;
         output->option_count =
-            4 + static_cast<int>(kBindingOptions.size());
+            4 + static_cast<int>(kBindingOptions.size()) +
+            static_cast<int>(kPadBindingOptions.size());
         output->camera_controls = 1;
     }
     return 1;
@@ -432,7 +530,8 @@ int mod_feature_option_get(void* context, const char* package_id,
         return 0;
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
-        index >= 4 + static_cast<int>(kBindingOptions.size())) {
+        index >= 4 + static_cast<int>(kBindingOptions.size()) +
+                     static_cast<int>(kPadBindingOptions.size())) {
         return 0;
     }
     const auto* state = static_cast<const ModState*>(context);
@@ -489,17 +588,25 @@ int mod_feature_option_get(void* context, const char* package_id,
         output->choice_count = static_cast<int>(kSensitivityChoices.size());
         return 1;
     }
-    const BindingOption& option =
-        kBindingOptions[static_cast<size_t>(index - 4)];
+    const bool pad_row =
+        index >= 4 + static_cast<int>(kBindingOptions.size());
+    const BindingOption& option = pad_row
+        ? kPadBindingOptions[static_cast<size_t>(
+              index - 4 - static_cast<int>(kBindingOptions.size()))]
+        : kBindingOptions[static_cast<size_t>(index - 4)];
     copy_text(output->id, option.id);
     copy_text(output->label, option.label);
     copy_text(output->description,
-              "Keyboard or mouse input for this Prime Controls action.");
+              pad_row
+                  ? "Gamepad button for this Prime Controls action."
+                  : "Keyboard or mouse input for this Prime Controls "
+                    "action.");
     copy_text(output->group, option.group);
     copy_text(output->value, (state->*(option.member)).c_str());
     copy_text(output->default_value, option.default_value);
     output->type = RECOMP_MOD_OPTION_CHOICE;
-    output->choice_count = static_cast<int>(kBindingChoices.size());
+    output->choice_count = static_cast<int>(
+        pad_row ? kPadChoices.size() : kBindingChoices.size());
     return 1;
 }
 
@@ -527,6 +634,15 @@ int mod_feature_choice_get(void*, const char* package_id,
         return 1;
     }
     if (std::strcmp(option_id, "invert-y") == 0) return 0;
+    for (const BindingOption& option : kPadBindingOptions) {
+        if (std::strcmp(option_id, option.id) != 0) continue;
+        if (index >= static_cast<int>(kPadChoices.size())) return 0;
+        std::memset(output, 0, sizeof(*output));
+        const BindingChoice& choice = kPadChoices[index];
+        copy_text(output->value, choice.value);
+        copy_text(output->label, choice.label);
+        return 1;
+    }
     if (index >= static_cast<int>(kBindingChoices.size())) {
         return 0;
     }
@@ -573,6 +689,16 @@ int mod_feature_set_option(void* context, const char* package_id,
             state->mouse_invert_y = false;
         else return 0;
         return 1;
+    }
+    for (const BindingOption& option : kPadBindingOptions) {
+        if (std::strcmp(option_id, option.id) != 0) continue;
+        for (const BindingChoice& choice : kPadChoices) {
+            if (std::strcmp(choice.value, value) == 0) {
+                state->*(option.member) = value;
+                return 1;
+            }
+        }
+        return 0;
     }
     if (!is_binding_choice(value)) return 0;
     for (const BindingOption& option : kBindingOptions) {
@@ -731,6 +857,12 @@ void append_binding_args(std::wstring& command, const ModState& mods) {
     for (const BindingOption& option : kBindingOptions) {
         std::wstring flag = L"--mph-bind-";
         flag += widen(option.id);
+        append_arg(command, flag.c_str(), widen((mods.*(option.member)).c_str()));
+    }
+    for (const BindingOption& option : kPadBindingOptions) {
+        // Row id "pad-<action>" maps to --mph-pad-bind-<action>.
+        std::wstring flag = L"--mph-pad-bind-";
+        flag += widen(option.id + std::strlen("pad-"));
         append_arg(command, flag.c_str(), widen((mods.*(option.member)).c_str()));
     }
 }

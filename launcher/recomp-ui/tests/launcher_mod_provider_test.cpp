@@ -60,7 +60,7 @@ int main() {
         return 5;
     }
     if (!require(feature.enabled == 1, "feature enabled default")) return 6;
-    if (!require(feature.option_count == 27, "feature option count")) return 7;
+    if (!require(feature.option_count == 50, "feature option count")) return 7;
 
     RecompLauncherCModOption option{};
     if (!require(provider.feature_option_get(
@@ -176,6 +176,45 @@ int main() {
     }
     if (!require(std::strcmp(option.value, "Right Shift") == 0,
                  "move-forward unchanged after reject")) return 27;
+
+    // Gamepad rows follow the keyboard rows: index 27 = pad-move-forward,
+    // 34 = pad-scan-visor (defaults None and Pad R3 respectively).
+    option = {};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-prime-controls", "prime-controls", 27,
+            &option), "pad-move-forward option get")) {
+        return 28;
+    }
+    if (!require(std::strcmp(option.id, "pad-move-forward") == 0,
+                 "pad-move-forward option id")) return 28;
+    if (!require(std::strcmp(option.value, "None") == 0,
+                 "pad-move-forward default value")) return 28;
+    if (!require(option.choice_count == 17,
+                 "pad option choice count")) return 28;
+    option = {};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-prime-controls", "prime-controls", 34,
+            &option), "pad-scan-visor option get")) {
+        return 28;
+    }
+    if (!require(std::strcmp(option.id, "pad-scan-visor") == 0,
+                 "pad-scan-visor option id")) return 28;
+    if (!require(std::strcmp(option.value, "Pad R3") == 0,
+                 "pad-scan-visor default value")) return 28;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-scan-visor", "Pad L3"), "set pad-scan-visor")) return 28;
+    if (!require(!provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-scan-visor", "Mouse Left"),
+                 "reject keyboard value on pad row")) return 28;
+    RecompLauncherCModChoice pad_choice{};
+    if (!require(provider.feature_choice_get(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-scan-visor", 10, &pad_choice),
+                 "pad choice get R3")) return 28;
+    if (!require(std::strcmp(pad_choice.value, "Pad R3") == 0,
+                 "pad choice value R3")) return 28;
 
     if (!require(provider.feature_set_option(
             provider.ctx, "mph-prime-controls", "prime-controls",

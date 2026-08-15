@@ -53,10 +53,11 @@ struct ModState {
     // firmware console nickname the runner writes into its in-memory
     // firmware image (--player-name); it is what a game surfaces as the
     // player's default name and what WFC/Wiimmfi shows to peers. Edited on
-    // the dashboard ONLINE card (GameInfo.has_player_name); empty keeps the
-    // firmware's own name (a retail dump's real console nickname, or the
-    // generated image's "ndsrecomp").
-    std::string player_name;
+    // the dashboard ONLINE card (GameInfo.has_player_name). Defaults to the
+    // project identity (owner directive) on both boot paths; clearing the
+    // field keeps the firmware's own name (a retail dump's real console
+    // nickname, or the generated image's built-in default).
+    std::string player_name = "ndsrecomp";
     // Where the runner will look for dumps and for generated-identity.bin
     // when bios_path is empty (the release's own bios folder). Captured once
     // at startup so the identity row can show the MAC without re-deriving
@@ -255,10 +256,13 @@ void load_mod_state(ModState& state) {
             // Legacy key from the short-lived mods-page identity row;
             // ignored (the dashboard field's emptiness is the only gate).
         } else if (key == "player_name") {
-            // An unrepresentable persisted value is dropped, not repaired:
-            // the runner would refuse it anyway, and a silently altered name
-            // is worse than no name at all.
-            if (valid_player_name(value)) state.player_name = value;
+            // A present-but-empty value is a deliberate clear (firmware
+            // default), distinct from a missing key (the "ndsrecomp"
+            // default). An unrepresentable value is dropped to empty, not
+            // repaired: the runner would refuse it anyway, and a silently
+            // altered name is worse than no name at all.
+            state.player_name = valid_player_name(value) ? value
+                                                         : std::string();
         } else if (key == "virtual_stylus_sensitivity") {
             saw_virtual_stylus_sensitivity = true;
             char* end = nullptr;

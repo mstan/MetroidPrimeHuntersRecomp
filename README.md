@@ -153,6 +153,14 @@ scan visor, `F` OK, `Q/E` scan-message arrows, `V` menu, Mouse 1/2
 fire/scan-fire, Mouse 4 missiles, Mouse 5 beam, number keys `1` through `6`
 for subweapons, and `Tab` for the virtual stylus.
 
+Gamepads work as a full alternative: the left stick moves (it maps to the
+D-pad everywhere, including menus), the right stick aims the camera, and the
+right/left triggers fire and scan-fire. Aiming engages as soon as the right
+stick or a trigger is used and idles back out when released, so the
+touchscreen and menus keep working while the sticks rest. Pad aim
+sensitivity is `--mph-pad-aim-sensitivity 10..400` (or
+`controls.prime.pad_aim_sensitivity` in the runner config), default `100`.
+
 Credit where it is due:
 [makinori/melonPrimeDS](https://github.com/makinori/melonPrimeDS) is the
 reference this Prime Controls reimplementation follows — its keyboard/mouse

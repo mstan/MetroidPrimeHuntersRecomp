@@ -1,17 +1,30 @@
 # MetroidPrimeHuntersRecomp
 
+> MetroidPrimeHuntersRecomp is a byproduct of developing
+> [ndsrecomp](https://github.com/mstan/ndsrecomp): the games are the proving
+> ground, and the framework is the long-term goal. This is an in-development
+> preview, not a finished port. Expect rough edges, crashes, hangs,
+> visual/audio issues, networking problems, desyncs, and game-specific bugs. My
+> time for any one title is limited, so I ask for patience. Testing, issues,
+> and PRs to the game or framework are welcome and will help accelerate polish.
+
 Early Metroid Prime Hunters static-recompilation target for
 [ndsrecomp](https://github.com/mstan/ndsrecomp). The project is pinned to the
-USA revision-0 game and is being used to turn the initial SM64DS-oriented
-framework into a multi-title Nintendo DS recompilation ecosystem.
+USA revision-0 game and is part of the first wave of Nintendo DS recompilation
+bring-up.
 
 ## Release status
 
-Version 0.1.0 is the first Windows development release for the exact USA
-revision-0 ROM identified below. Its ZIP contains a portable launcher, the
-title runner with the content-validated FMV bank compiled in, launcher assets,
-configuration, and required runtime libraries. No Nintendo ROM, BIOS,
-firmware, save data, raw capture, or generated source is distributed.
+Version 0.1.0 is an early alpha and the first release in the ndsrecomp
+ecosystem. Instability and bugs are expected. This release is for testers and
+developers who are comfortable with incomplete gameplay validation, early input
+support, rudimentary controller support, and experimental networking.
+
+The Windows ZIP targets the exact USA revision-0 ROM identified below. It
+contains a portable launcher, the title runner with the content-validated FMV
+bank compiled in, launcher assets, configuration, and required runtime
+libraries. No Nintendo ROM, BIOS, firmware, save data, raw capture, or
+generated source is distributed.
 
 ## Quick start
 
@@ -119,16 +132,14 @@ starts from the retail `POWCNT1 = 0x820F` state, and screen routing is applied
 as scanlines are produced rather than retroactively when a completed frame is
 read.
 
-The canonical `../ndsrecomp` framework also removes two SM64DS-specific
-cross-title assumptions. Static title banks are now registered only for the
-exact ROM they were generated from—important because both games use the
-standard ARM7 load address—and cartridge backup type/capacity are game-owned
-configuration. AMHE declares its 256 KiB flash instead of inheriting SM64DS's
-8 KiB EEPROM.
+The canonical `../ndsrecomp` framework also removes two cross-title
+assumptions. Static title banks are now registered only for the exact ROM they
+were generated from, and cartridge backup type/capacity are game-owned
+configuration. AMHE declares its 256 KiB flash explicitly.
 
 This proves campaign entry, not gameplay completeness. Runtime ARM7 code,
 the remaining ARM9 overlay generations, sustained traversal/combat scenarios,
-and packaging remain explicit next gates in
+and future release polish remain explicit next gates in
 [`docs/BRINGUP.md`](docs/BRINGUP.md).
 
 The exact-ROM `game.toml` now opts the upper screen into the shared 448x192
@@ -138,7 +149,7 @@ movies, fades, and screen routing still need sustained gameplay auditing.
 
 An MPH-specific recomp-ui development launcher lives in
 `launcher/recomp-ui`. Its Adaptive Widescreen and Prime Controls mods are
-enabled by default and map to the same runner CLI used by the SM64DS preview.
+enabled by default and map to the shared ndsrecomp runner CLI.
 Prime Controls owns both mouse aim and the melonPrimeDS keyboard/mouse layout:
 click the top window to capture the cursor, move the mouse for unbounded
 relative aim, and use the configured bindings for movement, weapons, and
@@ -153,17 +164,17 @@ scan visor, `F` OK, `Q/E` scan-message arrows, `V` menu, Mouse 1/2
 fire/scan-fire, Mouse 4 missiles, Mouse 5 beam, number keys `1` through `6`
 for subweapons, and `Tab` for the virtual stylus.
 
-Gamepads work as a full alternative: the left stick moves (it maps to the
-D-pad everywhere, including menus), the right stick aims the camera, and
-every Prime Controls action has its own gamepad binding, shown and
-remappable in the launcher's MODS page under **Gamepad** alongside the
-keyboard rows. Defaults: `RT` shoot, `LT` scan-fire, `A` jump, `B` morph
-ball, `X` missile, `Y` UI OK, `LB` beam, `RB` boost/zoom, `R3` scan visor,
-D-pad left/right scan-message arrows, `Start` menu; subweapons 1–6 start
-unbound. Aiming engages as soon as the right stick, a trigger, or a bound
-pad button is used and idles back out when released, so the touchscreen
-and menus keep working while the sticks rest. Pad aim sensitivity sits on
-the same page (also `--mph-pad-aim-sensitivity 10..400` /
+Rudimentary gamepad support is implemented as a controller alternative: the
+left stick moves (it maps to the D-pad everywhere, including menus), the right
+stick aims the camera, and every Prime Controls action has its own gamepad
+binding, shown and remappable in the launcher's MODS page under **Gamepad**
+alongside the keyboard rows. Defaults: `RT` shoot, `LT` scan-fire, `A` jump,
+`B` morph ball, `X` missile, `Y` UI OK, `LB` beam, `RB` boost/zoom, `R3` scan
+visor, D-pad left/right scan-message arrows, `Start` menu; subweapons 1-6
+start unbound. Aiming engages as soon as the right stick, a trigger, or a bound
+pad button is used and idles back out when released, so the touchscreen and
+menus keep working while the sticks rest. Pad aim sensitivity sits on the same
+page (also `--mph-pad-aim-sensitivity 10..400` /
 `controls.prime.pad_aim_sensitivity`, default `100`); per-action flags are
 `--mph-pad-bind-<action>` / `controls.prime.pad_bindings.<action>`.
 
@@ -173,15 +184,31 @@ dual-stick adaptation of its scheme.
 
 Credit where it is due:
 [makinori/melonPrimeDS](https://github.com/makinori/melonPrimeDS) is the
-reference this Prime Controls reimplementation follows — its keyboard/mouse
+reference this Prime Controls reimplementation follows - its keyboard/mouse
 layout, touchscreen-helper mappings, and sensitivity defaults were worked
 out there first, and this project reimplements that scheme on the
 recompiled runner's native input path.
 
+## Networking and Wiimmfi
+
+Nintendo WFC / Wiimmfi support is experimental. Current validation shows
+Metroid Prime Hunters can authenticate through Wiimmfi and reach a Friends and
+Rivals lobby where one locally driven instance can see another hosted game.
+In-game online play is ultimately untested. There is no guarantee that a match
+will connect, remain connected, or avoid desync.
+
+The Wi-Fi implementation is built on
+[melonDS](https://github.com/melonDS-emu/melonDS)'s Wi-Fi work in the shared
+ndsrecomp runner: its DS Wi-Fi controller model, emulated access point, and
+network backend are the foundation for Wiimmfi connectivity. Full credit to the
+melonDS team. See the ndsrecomp
+[`THIRD_PARTY_ATTRIBUTION.md`](https://github.com/mstan/ndsrecomp/blob/main/THIRD_PARTY_ATTRIBUTION.md)
+for provenance and licensing details.
+
 ## Project shape
 
-The structure follows the sibling SM64DS project while adopting patterns from
-the more mature SNESRecomp and PSXRecomp game repositories:
+The structure follows the sibling recomp game repositories while adopting
+patterns from the more mature SNESRecomp and PSXRecomp projects:
 
 - `game.toml` owns exact game identity and host-facing defaults.
 - `tools/prepare_mph.py` verifies the ROM, extracts/decompresses both main CPU

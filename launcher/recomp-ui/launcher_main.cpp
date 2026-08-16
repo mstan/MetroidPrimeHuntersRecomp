@@ -17,6 +17,13 @@ namespace {
 
 struct ModState {
     bool adaptive_widescreen = true;
+    // HD rendering. Off by default: it costs GPU time and VRAM, and the
+    // faithful native output stays the reference. internal_resolution
+    // multiplies 3D sample density; texture_upscale filters each decoded DS
+    // texture once on a cache miss. Both are inert when hd_rendering is off.
+    bool hd_rendering = false;
+    int internal_resolution = 2;
+    int texture_upscale = 2;
     bool mouse_aim = true;
     int mouse_sensitivity = 30;
     bool mouse_invert_y = false;
@@ -93,6 +100,24 @@ struct ModState {
     std::filesystem::path settings_path;
     std::string last_error;
 };
+
+struct HdChoice {
+    int value;
+    const char* label;
+};
+
+constexpr std::array<HdChoice, 4> kInternalResolutionChoices{{
+    {1, "1x (native)"},
+    {2, "2x"},
+    {3, "3x"},
+    {4, "4x"},
+}};
+
+constexpr std::array<HdChoice, 3> kTextureUpscaleChoices{{
+    {1, "Off"},
+    {2, "2x"},
+    {4, "4x"},
+}};
 
 struct SensitivityChoice {
     int percent;
@@ -328,6 +353,19 @@ void load_mod_state(ModState& state) {
                 settings_version = static_cast<int>(parsed);
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
+        } else if (key == "hd_rendering") {
+            state.hd_rendering = value == "true";
+        } else if (key == "internal_resolution") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 1 && parsed <= 4)
+                state.internal_resolution = static_cast<int>(parsed);
+        } else if (key == "texture_upscale") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 &&
+                (parsed == 1 || parsed == 2 || parsed == 4))
+                state.texture_upscale = static_cast<int>(parsed);
         } else if (key == "mouse_aim") {
             state.mouse_aim = value != "false";
         } else if (key == "mouse_sensitivity") {
@@ -410,6 +448,10 @@ bool save_mod_state(ModState& state) {
         file << "settings_version=2\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
+             << "hd_rendering="
+             << (state.hd_rendering ? "true" : "false") << '\n'
+             << "internal_resolution=" << state.internal_resolution << '\n'
+             << "texture_upscale=" << state.texture_upscale << '\n'
              << "mouse_aim=" << (state.prime_controls ? "true" : "false")
              << '\n'
              << "mouse_sensitivity=" << state.mouse_sensitivity << '\n'
@@ -446,12 +488,12 @@ bool save_mod_state(ModState& state) {
 // directly under the controller card. Only the two real gameplay mods
 // remain here.
 int mod_feature_count(void*) {
-    return 2;
+    return 3;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 1) return 0;
+    if (!context || !output || index < 0 || index > 2) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
     if (index == 0) {
@@ -469,6 +511,27 @@ int mod_feature_get(void* context, int index,
         copy_text(output->status,
                   state->adaptive_widescreen ? "Enabled" : "Disabled");
         output->enabled = state->adaptive_widescreen ? 1 : 0;
+    } else if (index == 2) {
+        copy_text(output->id, "hd-rendering");
+        copy_text(output->package_id, "mph-hd-rendering");
+        copy_text(output->package_version, "0.1.0");
+        copy_text(output->package_name, "MPH HD Rendering");
+        copy_text(output->name, "HD Rendering");
+        copy_text(output->author, "ndsrecomp");
+        copy_text(
+            output->description,
+            "Renders the 3D engine above one sample per DS pixel and "
+            "filters decoded textures, so the widescreen image gains detail "
+            "instead of just area. The 2D layers stay native, exactly as the "
+            "hardware draws them.");
+        copy_text(output->source_name, "Hyllian xBR-lv2 (MIT)");
+        copy_text(output->source_url,
+                  "https://github.com/libretro/glsl-shaders");
+        copy_text(output->group, "Display enhancements");
+        copy_text(output->status,
+                  state->hd_rendering ? "Enabled" : "Disabled");
+        output->enabled = state->hd_rendering ? 1 : 0;
+        output->option_count = 2;
     } else {
         copy_text(output->id, "prime-controls");
         copy_text(output->package_id, "mph-prime-controls");
@@ -512,6 +575,11 @@ int mod_feature_enable(void* context, const char* package_id,
         state->mouse_aim = state->prime_controls;
         return 1;
     }
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        state->hd_rendering = enabled != 0;
+        return 1;
+    }
     return 0;
 }
 
@@ -528,6 +596,41 @@ int mod_feature_option_get(void* context, const char* package_id,
                            RecompLauncherCModOption* output) {
     if (!context || !package_id || !feature_id || !output || index < 0)
         return 0;
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        if (index > 1) return 0;
+        const auto* hd = static_cast<const ModState*>(context);
+        std::memset(output, 0, sizeof(*output));
+        if (index == 0) {
+            copy_text(output->id, "internal-resolution");
+            copy_text(output->label, "Internal resolution");
+            copy_text(output->description,
+                      "Sample density of the 3D engine. Costs GPU time and "
+                      "VRAM; 2D layers are unaffected.");
+            copy_text(output->group, "Resolution");
+            std::snprintf(output->value, sizeof(output->value), "%d",
+                          hd->internal_resolution);
+            copy_text(output->default_value, "2");
+            output->type = RECOMP_MOD_OPTION_CHOICE;
+            output->choice_count =
+                static_cast<int>(kInternalResolutionChoices.size());
+            return 1;
+        }
+        copy_text(output->id, "texture-upscale");
+        copy_text(output->label, "Texture upscaling");
+        copy_text(output->description,
+                  "Filters each decoded DS texture once when it enters the "
+                  "cache, so higher internal resolution shows detail rather "
+                  "than larger texels.");
+        copy_text(output->group, "Textures");
+        std::snprintf(output->value, sizeof(output->value), "%d",
+                      hd->texture_upscale);
+        copy_text(output->default_value, "2");
+        output->type = RECOMP_MOD_OPTION_CHOICE;
+        output->choice_count =
+            static_cast<int>(kTextureUpscaleChoices.size());
+        return 1;
+    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
         index >= 4 + static_cast<int>(kBindingOptions.size()) +
@@ -615,6 +718,30 @@ int mod_feature_choice_get(void*, const char* package_id,
                            int index, RecompLauncherCModChoice* output) {
     if (!package_id || !feature_id || !option_id || !output || index < 0)
         return 0;
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        if (std::strcmp(option_id, "internal-resolution") == 0) {
+            if (index >= static_cast<int>(kInternalResolutionChoices.size()))
+                return 0;
+            std::memset(output, 0, sizeof(*output));
+            const HdChoice& choice = kInternalResolutionChoices[index];
+            std::snprintf(output->value, sizeof(output->value), "%d",
+                          choice.value);
+            copy_text(output->label, choice.label);
+            return 1;
+        }
+        if (std::strcmp(option_id, "texture-upscale") == 0) {
+            if (index >= static_cast<int>(kTextureUpscaleChoices.size()))
+                return 0;
+            std::memset(output, 0, sizeof(*output));
+            const HdChoice& choice = kTextureUpscaleChoices[index];
+            std::snprintf(output->value, sizeof(output->value), "%d",
+                          choice.value);
+            copy_text(output->label, choice.label);
+            return 1;
+        }
+        return 0;
+    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0) {
         return 0;
@@ -663,6 +790,30 @@ int mod_feature_set_option(void* context, const char* package_id,
                            const char* value) {
     if (!context || !package_id || !feature_id || !option_id || !value)
         return 0;
+    auto* hd_state = static_cast<ModState*>(context);
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        char* hd_end = nullptr;
+        const long hd_parsed = std::strtol(value, &hd_end, 10);
+        if (!hd_end || *hd_end != 0) return 0;
+        if (std::strcmp(option_id, "internal-resolution") == 0) {
+            for (const HdChoice& choice : kInternalResolutionChoices) {
+                if (choice.value != hd_parsed) continue;
+                hd_state->internal_resolution = static_cast<int>(hd_parsed);
+                return 1;
+            }
+            return 0;
+        }
+        if (std::strcmp(option_id, "texture-upscale") == 0) {
+            for (const HdChoice& choice : kTextureUpscaleChoices) {
+                if (choice.value != hd_parsed) continue;
+                hd_state->texture_upscale = static_cast<int>(hd_parsed);
+                return 1;
+            }
+            return 0;
+        }
+        return 0;
+    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0) {
         return 0;
@@ -919,6 +1070,12 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
             : L"stacked") +
         L" --adaptive-widescreen " +
         (adaptive ? L"top" : L"none") +
+        // Inert unless the HD mod is on, so the faithful native output stays
+        // the default for anyone who never opens the Mods page.
+        L" --internal-resolution " +
+        std::to_wstring(mods.hd_rendering ? mods.internal_resolution : 1) +
+        L" --texture-upscale " +
+        std::to_wstring(mods.hd_rendering ? mods.texture_upscale : 1) +
         L" --supersampling " + std::to_wstring(supersampling) +
         L" --antialiasing " + std::to_wstring(antialiasing) +
         L" --relative-mouse-touch " +

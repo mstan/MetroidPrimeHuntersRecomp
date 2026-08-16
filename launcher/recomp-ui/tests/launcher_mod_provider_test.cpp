@@ -41,9 +41,11 @@ int main() {
 
     if (!require(provider.feature_count != nullptr, "feature_count callback"))
         return 3;
-    // Two gameplay mods; the online identity is a dashboard card, not a mod.
+    // Three gameplay mods; the online identity is a dashboard card, not a
+    // mod. Index 1 stays prime controls so the assertions below are
+    // unaffected by HD rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 2, "feature_count == 2")) return 4;
+    if (!require(feature_count == 3, "feature_count == 3")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 1, &feature),
@@ -261,9 +263,9 @@ int main() {
 
     // The online identity is NOT a mod feature: it lives on the dashboard
     // ONLINE card (GameInfo.has_player_name + the NDS "identity" panel).
-    // Exactly the two gameplay mods remain.
-    if (!require(!provider.feature_get(provider.ctx, 2, &feature),
-                 "exactly two mod features (identity is not a mod)")) {
+    // Exactly the three gameplay mods remain; index 3 must not resolve.
+    if (!require(!provider.feature_get(provider.ctx, 3, &feature),
+                 "exactly three mod features (identity is not a mod)")) {
         return 37;
     }
 
@@ -310,6 +312,58 @@ int main() {
             return 59;
         }
         std::filesystem::remove(saved.settings_path);
+    }
+
+    // HD rendering: off by default, so a player who never opens the Mods
+    // page gets the faithful native output.
+    {
+        RecompLauncherCModFeature hd{};
+        if (!require(provider.feature_get(provider.ctx, 2, &hd),
+                     "feature_get hd rendering")) return 60;
+        if (!require(std::strcmp(hd.id, "hd-rendering") == 0,
+                     "hd feature id")) return 61;
+        if (!require(std::strcmp(hd.package_id, "mph-hd-rendering") == 0,
+                     "hd package id")) return 62;
+        if (!require(hd.enabled == 0, "hd disabled by default")) return 63;
+        if (!require(hd.option_count == 2, "hd option count")) return 64;
+
+        // Both options must reject values outside their choice list, so a
+        // hand-edited mods.ini cannot hand the runner a scale it refuses.
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "internal-resolution", "4") == 1,
+                     "hd internal resolution accepts 4")) return 65;
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "internal-resolution", "8") == 0,
+                     "hd internal resolution rejects 8")) return 66;
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "texture-upscale", "3") == 0,
+                     "hd texture upscale rejects 3")) return 67;
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "texture-upscale", "4") == 1,
+                     "hd texture upscale accepts 4")) return 68;
+
+        ModState hd_saved{};
+        hd_saved.settings_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_hd_settings.ini";
+        hd_saved.hd_rendering = true;
+        hd_saved.internal_resolution = 3;
+        hd_saved.texture_upscale = 4;
+        if (!require(save_mod_state(hd_saved), "hd save")) return 69;
+        ModState hd_loaded{};
+        hd_loaded.settings_path = hd_saved.settings_path;
+        load_mod_state(hd_loaded);
+        if (!require(hd_loaded.hd_rendering, "hd enable round trip"))
+            return 70;
+        if (!require(hd_loaded.internal_resolution == 3,
+                     "hd internal resolution round trip")) return 71;
+        if (!require(hd_loaded.texture_upscale == 4,
+                     "hd texture upscale round trip")) return 72;
+        std::filesystem::remove(hd_saved.settings_path);
     }
 
     return 0;

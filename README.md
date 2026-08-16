@@ -20,32 +20,39 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.3.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.3.0-alpha)**.
+**[v0.4.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.0-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.3.0.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.0.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-x86_64-v0.3.0.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-x86_64-v0.4.0.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
+New in v0.4.0: an opt-in **HD Rendering** mod on the Mods page. It raises the
+3D engine above one sample per DS pixel (up to 4x) and filters decoded
+textures, so the widescreen image gains detail rather than just area. The 2D
+layers stay native, exactly as the hardware draws them. It is off by default;
+enable it under Mods and pick the internal resolution and texture upscaling
+that suit your GPU.
+
 ## Quick Start
 
 Windows:
 
-1. Download and fully extract the `v0.3.0-alpha` Windows ZIP.
+1. Download and fully extract the `v0.4.0-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.3.0-alpha` AppImage.
+1. Download the `v0.4.0-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

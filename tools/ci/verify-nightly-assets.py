@@ -60,6 +60,7 @@ def verify_windows(path: Path) -> None:
         "README.md",
         "LICENSE",
         "bios/README.txt",
+        "cache/banks/README.txt",
     }
     with zipfile.ZipFile(path) as archive:
         names = {

@@ -13,7 +13,11 @@ antialiasing = 0
 # clickable. Runtime executable compatibility, not whole-ROM SHA-1, gates the
 # title-owned projection/culling patch for all supported revisions.
 adaptive_widescreen = "top"
-adaptive_capability = "top"
+# Do not declare display.adaptive_capability here. ndsrecomp intentionally
+# requires an exact game.sha1 for TOML-declared title capabilities. This shared
+# config has no exact content identity, so the MPH runtime patch grants TOP
+# capability only after the executable-compatible detector selects a supported
+# base profile. Unknown/header-only content remains fail-closed.
 adaptive_width = 448
 adaptive_skybox_fill = false
 adaptive_hud_anchor = true

@@ -1,22 +1,23 @@
 <#
 Package a completed Metroid Prime Hunters Recomp Windows release.
 
-The ZIP contains the portable recomp-ui launcher, the title runner with the
-content-validated FMV runtime bank compiled in, launcher assets, game config,
-documentation, and MinGW/SDL dependencies. ROMs, BIOS/firmware, saves, raw
-captures, and generated source are never staged.
+The ZIP contains the portable recomp-ui launcher, the title runner, launcher
+assets, the selected revision's game config, documentation, and MinGW/SDL
+dependencies. ROMs, BIOS/firmware, saves, raw captures, and generated source
+are never staged.
 
-Build the runner and launcher first, then run:
-
-  powershell -File tools\make_release.ps1 -Version 0.1.0 `
-    -RunnerBuildDir ..\ndsrecomp\runner\build-mph-release `
-    -LauncherBuildDir launcher\recomp-ui\build-release
+US1_0 keeps the historical release name and requires the validated FMV runtime
+bank. Other revision profiles may opt out of that bank until a revision-
+specific runtime capture has been produced.
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
-  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin'
+  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
+  [string]$GameConfig = 'game.toml',
+  [string]$Profile = 'US1_0',
+  [switch]$AllowNoFmvRuntime
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,18 +27,25 @@ $launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
 $runner = Join-Path $runnerBuild 'nds_runner.exe'
 $launcher = Join-Path $launcherBuild 'mph-recomp-ui.exe'
 $assets = Join-Path $launcherBuild 'assets'
+$gameConfigPath = if ([IO.Path]::IsPathRooted($GameConfig)) {
+  [IO.Path]::GetFullPath($GameConfig)
+} else {
+  [IO.Path]::GetFullPath((Join-Path $root $GameConfig))
+}
 
-foreach ($required in @($runner, $launcher, $assets)) {
+foreach ($required in @($runner, $launcher, $assets, $gameConfigPath)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Release input missing: $required"
   }
 }
 
-# A static-only runner is functional but drops the opening movies to roughly
-# half speed. Refuse to package one by checking the compiled bank identity.
-$runnerText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($runner))
-if (-not $runnerText.Contains('mph_arm9_fmv_runtime')) {
-  throw 'Runner does not contain the MPH FMV runtime bank.'
+if (-not $AllowNoFmvRuntime) {
+  # A US1.0 static-only runner is functional but drops the opening movies to
+  # roughly half speed. Keep the established release gate for that profile.
+  $runnerText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($runner))
+  if (-not $runnerText.Contains('mph_arm9_fmv_runtime')) {
+    throw 'Runner does not contain the MPH FMV runtime bank.'
+  }
 }
 
 $projectText = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw
@@ -47,7 +55,11 @@ if ($projectText -notmatch
 }
 
 $out = Join-Path $root 'release-stage'
-$stageName = "MetroidPrimeHuntersRecomp-windows-x64-v$Version"
+if ($Profile -eq 'US1_0') {
+  $stageName = "MetroidPrimeHuntersRecomp-windows-x64-v$Version"
+} else {
+  $stageName = "MetroidPrimeHuntersRecomp-$Profile-windows-x64-v$Version"
+}
 $stage = Join-Path $out $stageName
 $zip = Join-Path $out "$stageName.zip"
 $outFull = [IO.Path]::GetFullPath($out).TrimEnd('\') + '\'
@@ -74,7 +86,8 @@ Copy-Item -LiteralPath $launcher `
   -Destination (Join-Path $stage 'MetroidPrimeHuntersRecomp.exe')
 Copy-Item -LiteralPath $runner -Destination $stage
 Copy-Item -LiteralPath $assets -Destination $stage -Recurse
-Copy-Item -LiteralPath (Join-Path $root 'game.toml') -Destination $stage
+Copy-Item -LiteralPath $gameConfigPath `
+  -Destination (Join-Path $stage 'game.toml')
 Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root 'packaging\BIOS_README.txt') `

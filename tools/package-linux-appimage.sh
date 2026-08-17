@@ -11,14 +11,14 @@ LINUXDEPLOY_BIN="${LINUXDEPLOY_BIN:-linuxdeploy}"
 
 usage() {
   cat <<'EOF'
-Package an already-built MPH runner as a Linux x86_64 AppImage.
+Package an already-built ROM-free MPH runner as a Linux x86_64 AppImage.
 
 Usage:
   tools/package-linux-appimage.sh --runner PATH [options]
 
 Options:
   --version VERSION       Package version
-  --mph-version PROFILE   Content profile (default: US1_0)
+  --mph-version PROFILE   Content profile metadata (default: US1_0)
   --runner PATH           Built nds_runner executable (required)
   --out PATH              Output directory (default: release-stage)
   --appimage-tool PATH    appimagetool executable/AppImage
@@ -71,6 +71,7 @@ APPDIR="$OUT/${APP_NAME}-${MPH_VERSION}-linux-x86_64.AppDir"
 rm -rf "$APPDIR"
 mkdir -p \
   "$APPDIR/usr/bin/bios" \
+  "$APPDIR/usr/share/mph-recomp" \
   "$APPDIR/usr/share/applications" \
   "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
@@ -79,6 +80,7 @@ cp "$GAME_CONFIG" "$APPDIR/usr/bin/game.toml"
 cp "$ROOT/README.md" "$APPDIR/usr/bin/README.md"
 cp "$ROOT/LICENSE" "$APPDIR/usr/bin/LICENSE"
 cp "$ROOT/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
+cp "$ROOT/packaging/CACHE_README.txt" "$APPDIR/usr/share/mph-recomp/CACHE_README.txt"
 chmod 0755 "$APPDIR/usr/bin/nds_runner"
 
 ICON="$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png"
@@ -117,6 +119,7 @@ EOF
 
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
+set -eu
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export SDL_JOYSTICK_HIDAPI_STEAM=1
@@ -127,6 +130,26 @@ mkdir -p "$RUNDIR/bios" 2>/dev/null || true
 if [ ! -f "$RUNDIR/bios/README.txt" ] && [ -f "$HERE/usr/bin/bios/README.txt" ]; then
   cp "$HERE/usr/bin/bios/README.txt" "$RUNDIR/bios/README.txt" 2>/dev/null || true
 fi
+
+# Portable-first optimization cache. A future local JIT/portable-bank backend
+# namespaces children by whole-ROM content SHA-1; the hash is cache identity,
+# never the runtime base-profile selector. If the AppImage directory cannot be
+# written, fall back to the standard XDG cache location.
+PORTABLE_CACHE="$RUNDIR/cache/banks"
+CACHE_ROOT="$PORTABLE_CACHE"
+if mkdir -p "$PORTABLE_CACHE" 2>/dev/null &&
+   : > "$PORTABLE_CACHE/.mph-write-test" 2>/dev/null; then
+  rm -f "$PORTABLE_CACHE/.mph-write-test"
+else
+  CACHE_BASE="${XDG_CACHE_HOME:-${HOME:-$RUNDIR}/.cache}"
+  CACHE_ROOT="$CACHE_BASE/MetroidPrimeHuntersRecomp/banks"
+  mkdir -p "$CACHE_ROOT"
+fi
+if [ ! -f "$CACHE_ROOT/README.txt" ] && [ -f "$HERE/usr/share/mph-recomp/CACHE_README.txt" ]; then
+  cp "$HERE/usr/share/mph-recomp/CACHE_README.txt" "$CACHE_ROOT/README.txt" 2>/dev/null || true
+fi
+export MPH_BANK_CACHE_ROOT="$CACHE_ROOT"
+
 ROM=""
 for f in "$RUNDIR"/*.nds "$RUNDIR"/*.NDS; do
   [ -e "$f" ] && ROM="$f" && break
@@ -136,17 +159,19 @@ if [ "$#" -eq 0 ]; then
   if [ -n "$ROM" ]; then
     exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" \
       --config "$HERE/usr/bin/game.toml" --screen-layout separate \
-      --adaptive-widescreen top --startup-mode automatic
+      --adaptive-widescreen top --startup-mode automatic \
+      --freebios --generated-firmware --boot direct
   fi
   exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive \
     --config "$HERE/usr/bin/game.toml" --screen-layout separate \
-    --adaptive-widescreen top --startup-mode automatic
+    --adaptive-widescreen top --startup-mode automatic \
+    --freebios --generated-firmware --boot direct
 fi
 exec "$HERE/usr/bin/nds_runner" "$@"
 EOF
 chmod 0755 "$APPDIR/AppRun"
 
-# Safety gate: the AppDir may contain only the runner/package support material.
+# Safety gate: the AppDir may contain only runner/package support material.
 if find "$APPDIR" -type f \( \
     -iname '*.nds' -o -iname '*.sav' -o -iname '*.dsv' -o \
     -iname 'biosnds9.rom' -o -iname 'biosnds7.rom' -o -iname 'firmware.bin' \

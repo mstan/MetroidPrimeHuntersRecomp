@@ -32,7 +32,7 @@ save_size = 262144
 
 [framework]
 path = "../ndsrecomp"
-pin = "6c6a03bdcf99093f64555c4d05d16e522dc58634"
+pin = "302404ada0929528b680fa6808aad253b425c7a2"
 branch = "main"
 
 [reference.mphread]

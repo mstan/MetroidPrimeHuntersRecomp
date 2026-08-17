@@ -1,0 +1,177 @@
+{
+  "description": "Hypothesis test: a slot showing a green check is OPEN FOR A HUMAN PEER, not ready. Convert all three non-host slots to bots (star rating) so nothing waits on a peer, then START.",
+  "actions": [
+    {
+      "kind": "touch",
+      "x": 160,
+      "y": 92
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 128,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 62
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 27,
+      "y": 132
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 133
+    },
+    {
+      "kind": "wait",
+      "frames": 180
+    },
+    {
+      "kind": "touch",
+      "x": 148,
+      "y": 60
+    },
+    {
+      "kind": "wait",
+      "frames": 180
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 60
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "key",
+      "key": "start"
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    }
+  ]
+}

@@ -20,7 +20,6 @@ add_subdirectory(
 
 set(MPH_VERSION "US1_0" CACHE STRING
     "Metroid Prime Hunters retail revision profile")
-set_property(CACHE MPH_VERSION PROPERTY STRINGS US1_0 EU1_1)
 set(MPH_PROFILE_FILE
     "${CMAKE_CURRENT_SOURCE_DIR}/config/mph_rom_profiles.json"
     CACHE FILEPATH "Metroid Prime Hunters ROM profile registry")
@@ -28,6 +27,26 @@ if(NOT EXISTS "${MPH_PROFILE_FILE}")
     message(FATAL_ERROR "MPH ROM profile registry not found: ${MPH_PROFILE_FILE}")
 endif()
 file(READ "${MPH_PROFILE_FILE}" MPH_PROFILES_JSON)
+string(JSON MPH_PROFILE_COUNT LENGTH "${MPH_PROFILES_JSON}" profiles)
+if(MPH_PROFILE_COUNT LESS 1)
+    message(FATAL_ERROR "MPH ROM profile registry contains no profiles")
+endif()
+math(EXPR _mph_profile_last "${MPH_PROFILE_COUNT} - 1")
+set(MPH_PROFILE_KEYS)
+foreach(_mph_profile_index RANGE 0 ${_mph_profile_last})
+    string(JSON _mph_profile_key MEMBER
+        "${MPH_PROFILES_JSON}" profiles ${_mph_profile_index})
+    list(APPEND MPH_PROFILE_KEYS "${_mph_profile_key}")
+endforeach()
+set_property(CACHE MPH_VERSION PROPERTY STRINGS ${MPH_PROFILE_KEYS})
+list(FIND MPH_PROFILE_KEYS "${MPH_VERSION}" MPH_PROFILE_INDEX)
+if(MPH_PROFILE_INDEX EQUAL -1)
+    list(JOIN MPH_PROFILE_KEYS ", " _mph_profile_choices)
+    message(FATAL_ERROR
+        "Unknown MPH_VERSION '${MPH_VERSION}'. Configured profiles: "
+        "${_mph_profile_choices}")
+endif()
+
 string(JSON MPH_PROFILE_NAME GET
     "${MPH_PROFILES_JSON}" profiles "${MPH_VERSION}" display_name)
 string(JSON MPH_PROFILE_GAME_CODE GET

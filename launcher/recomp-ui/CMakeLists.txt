@@ -76,6 +76,7 @@ file(WRITE "${MPH_PROFILE_LAUNCHER_SOURCE}" "${MPH_LAUNCHER_SOURCE}")
 # but expose the melonPrimeDS/mphCodex game-side projection/culling patch as a
 # separate Mods item in the generated launcher. It defaults OFF; the existing
 # Adaptive Widescreen feature remains the original host-side ndsrecomp path.
+# The two features are radio-button-like: enabling either disables the other.
 execute_process(
     COMMAND "${Python3_EXECUTABLE}"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/patch_mph_launcher_aspect_mod.py"
@@ -93,7 +94,7 @@ file(READ "${MPH_PROFILE_LAUNCHER_SOURCE}" MPH_LAUNCHER_SOURCE)
 
 # Configure-time regression guards for the generated launcher. The release must
 # start without a fake ROM selection, and the two widescreen mechanisms must
-# remain independently addressable from the Mods page / runner command line.
+# remain separately addressable while never being enabled together.
 string(FIND "${MPH_LAUNCHER_SOURCE}"
     "std::filesystem::is_regular_file(default_rom, initial_rom_error)"
     _mph_initial_rom_exists_guard)
@@ -123,6 +124,30 @@ string(FIND "${MPH_LAUNCHER_SOURCE}"
     _mph_aspect_mod_default_guard)
 if(_mph_aspect_mod_default_guard EQUAL -1)
     message(FATAL_ERROR "Game Aspect Ratio Patch must remain opt-in by default")
+endif()
+string(FIND "${MPH_LAUNCHER_SOURCE}"
+    "MPH_WIDESCREEN_MUTUAL_EXCLUSION"
+    _mph_widescreen_exclusion_guard)
+if(_mph_widescreen_exclusion_guard EQUAL -1)
+    message(FATAL_ERROR "generated launcher lost widescreen mutual-exclusion logic")
+endif()
+string(FIND "${MPH_LAUNCHER_SOURCE}"
+    "if (state->adaptive_widescreen) state->aspect_ratio_patch = false;"
+    _mph_adaptive_disables_guest_guard)
+if(_mph_adaptive_disables_guest_guard EQUAL -1)
+    message(FATAL_ERROR "Adaptive Widescreen no longer disables Game Aspect Ratio Patch")
+endif()
+string(FIND "${MPH_LAUNCHER_SOURCE}"
+    "if (state->aspect_ratio_patch) state->adaptive_widescreen = false;"
+    _mph_guest_disables_adaptive_guard)
+if(_mph_guest_disables_adaptive_guard EQUAL -1)
+    message(FATAL_ERROR "Game Aspect Ratio Patch no longer disables Adaptive Widescreen")
+endif()
+string(FIND "${MPH_LAUNCHER_SOURCE}"
+    "((adaptive && !mods.aspect_ratio_patch) ? L\"top\" : L\"none\")"
+    _mph_runner_exclusion_guard)
+if(_mph_runner_exclusion_guard EQUAL -1)
+    message(FATAL_ERROR "runner launch path can pass both widescreen implementations")
 endif()
 
 add_executable(mph-recomp-ui "${MPH_PROFILE_LAUNCHER_SOURCE}"

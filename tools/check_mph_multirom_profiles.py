@@ -7,6 +7,10 @@ The registry intentionally separates three identities:
 * executable checksum: melonPrimeDS header+ARM9+ARM7 CRC32 compatibility,
 * whole-ROM SHA-1: exact build/capture/generated-content provenance.
 
+Build/capture content profiles reference a runtime base through ``base_profile``.
+That lets a clean ROM and one or more exact mod ROM identities keep independent
+coverage/banks/checkpoints while sharing a validated runtime address layout.
+
 Runtime checksum hits may authorize host Aim/Morph access. Header fallback alone
 must never be promoted to that trust level by this checker or the runner patch.
 """
@@ -24,6 +28,7 @@ from typing import NoReturn
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
 CHECKSUM_RE = re.compile(r"^0x[0-9A-F]{8}$")
 BANK_RE = re.compile(r"^[A-Za-z0-9_]+$")
+PROFILE_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
 HEX_RE = re.compile(r"0x[0-9A-Fa-f]+u?")
 REQUIRED_RUNTIME_FIELDS = {
     "morph_state": "baseIsAltForm",
@@ -246,8 +251,8 @@ def validate_registry(repo: Path, table: Path | None) -> None:
         die("ROM profile registry must be a JSON object")
     registry: dict[str, object] = registry_obj
 
-    if registry.get("schema") != 4:
-        die("ROM profile registry schema must be 4")
+    if registry.get("schema") != 5:
+        die("ROM profile registry schema must be 5")
 
     expected_address_source = (
         "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/"
@@ -274,15 +279,39 @@ def validate_registry(repo: Path, table: Path | None) -> None:
 
     profiles = registry.get("profiles")
     if not isinstance(profiles, dict) or not profiles:
-        die("ROM profile registry has no clean build/capture profiles")
+        die("ROM profile registry has no build/capture content profiles")
 
     seen_sha1: set[str] = set()
     seen_fmv_banks: set[str] = set()
+    seen_known_clean_base: set[str] = set()
     for key, profile in profiles.items():
+        if not isinstance(key, str) or not PROFILE_KEY_RE.fullmatch(key):
+            die(f"content profile key {key!r} must be a C/path-safe identifier")
         if not isinstance(profile, dict):
             die(f"profile {key} must be an object")
-        if key not in runtime_profiles:
-            die(f"{key}: clean build profile has no runtime base profile")
+
+        base_profile = profile.get("base_profile")
+        known_clean = profile.get("known_clean")
+        if not isinstance(base_profile, str) or base_profile not in runtime_profiles:
+            die(f"{key}.base_profile must name one of the seven runtime profiles")
+        if not isinstance(known_clean, bool):
+            die(f"{key}.known_clean must be boolean")
+        if known_clean:
+            # Runtime code generation intentionally discovers a clean identity by
+            # looking up the content profile with the same canonical key.
+            if key != base_profile:
+                die(
+                    f"{key}: known-clean content profile must use its canonical "
+                    f"runtime key {base_profile!r}"
+                )
+            if base_profile in seen_known_clean_base:
+                die(f"duplicate known-clean content identity for {base_profile}")
+            seen_known_clean_base.add(base_profile)
+        elif key in runtime_profiles:
+            die(
+                f"{key}: canonical runtime-profile key is reserved for its "
+                "known-clean content identity; use a distinct key for a mod"
+            )
 
         sha1 = profile.get("sha1")
         game_code = profile.get("game_code")
@@ -293,9 +322,12 @@ def validate_registry(repo: Path, table: Path | None) -> None:
             die(f"duplicate SHA-1 in profile registry: {sha1}")
         seen_sha1.add(sha1)
 
-        runtime_profile = runtime_profiles[key]
+        runtime_profile = runtime_profiles[base_profile]
         if game_code != runtime_profile.get("game_code") or revision != runtime_profile.get("revision"):
-            die(f"{key}: clean build identity disagrees with runtime base profile")
+            die(
+                f"{key}: content header identity disagrees with runtime base "
+                f"profile {base_profile}"
+            )
 
         launcher_default_rom = profile.get("launcher_default_rom")
         if (
@@ -386,12 +418,16 @@ def validate_registry(repo: Path, table: Path | None) -> None:
     us = profiles.get("US1_0")
     if not isinstance(us, dict):
         die("US1_0 clean build profile is required")
+    if us.get("base_profile") != "US1_0" or us.get("known_clean") is not True:
+        die("US1_0 must remain the canonical known-clean US1_0 identity")
     if us.get("fmv_runtime_bank") != "mph_arm9_fmv_runtime":
         die("US1_0 historical FMV runtime bank identity changed unexpectedly")
 
     eu = profiles.get("EU1_1")
     if not isinstance(eu, dict):
         die("EU1_1 clean build profile is required")
+    if eu.get("base_profile") != "EU1_1" or eu.get("known_clean") is not True:
+        die("EU1_1 must remain the canonical known-clean EU1_1 identity")
     if eu.get("game_code") != "AMHP" or eu.get("revision") != 1:
         die("EU1_1 must remain AMHP revision 1")
     if eu.get("sha1") != "bdcd1dea293e24c98d4c481430e90d21198985a5":
@@ -415,7 +451,7 @@ def validate_registry(repo: Path, table: Path | None) -> None:
     print(
         f"OK: validated {len(runtime_profiles)} runtime base profiles, "
         f"{len(EXPECTED_RUNTIME_CHECKSUMS)} executable checksums, and "
-        f"{len(profiles)} clean build/capture profiles"
+        f"{len(profiles)} build/capture content profiles"
     )
     if melon is not None:
         print(f"OK: all seven Aim/Morph profiles match melonPrimeDS table: {table}")

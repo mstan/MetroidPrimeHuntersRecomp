@@ -148,6 +148,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         command.append("--no-save")
     if args.firmware_path:
         command.extend(["--firmware-path", str(args.firmware_path.resolve())])
+    if args.firmware_state_path:
+        command.extend([
+            "--firmware-state-path", str(args.firmware_state_path.resolve())
+        ])
+    if args.no_dumps:
+        command.extend(["--freebios", "--generated-firmware", "--boot", "direct"])
     if args.discover_static_misses:
         command.append("--discover-static-misses")
 
@@ -195,7 +201,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                         ("settings-tile", 85, 100, 220),
                         ("slot1", 43, 35, 220),
                         ("search-for-ap", 128, 37, 1600),
-                        ("ap-row", 50, 65, 220),
+                        # Generated firmware already advertises the runner's
+                        # ndsrecomp AP. Discovery selects it and returns to
+                        # Connection 1 Settings; the old probe tapped (50,65)
+                        # here, which is the SSID row and opened the keyboard.
+                        ("test-connection", 192, 36, 2400),
+                        ("save-settings", 190, 177, 600),
                     )
                 else:
                     if args.flow == "friends-rivals":
@@ -215,9 +226,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     save(label)
 
                 if args.flow == "setup":
-                    input_lib.press_key(client, "a", 12)
-                    input_lib.advance_frames(client, 300)
-                    save("after-a-start-test")
+                    input_lib.press_key(client, "b", 12)
+                    input_lib.advance_frames(client, 600)
+                    save("setup-root-after-back")
+                    input_lib.press_key(client, "b", 12)
+                    input_lib.advance_frames(client, 600)
+                    save("exit-prompt")
 
                 if args.flow == "search-game":
                     for target in args.targets:
@@ -272,7 +286,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                     firmware = client.command("firmware_dump")
                     if not isinstance(firmware, dict):
                         raise RuntimeError("firmware_dump returned a non-object response")
-                    if int(firmware.get("size", 0)) != 262144:
+                    if int(firmware.get("size", 0)) not in (131072, 262144):
                         raise RuntimeError(
                             f"firmware_dump returned {firmware.get('size')} bytes"
                         )
@@ -313,6 +327,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=Path("game.toml"))
     parser.add_argument("--save-path", type=Path)
     parser.add_argument("--firmware-path", type=Path)
+    parser.add_argument("--firmware-state-path", type=Path)
+    parser.add_argument("--no-dumps", action="store_true")
     parser.add_argument("--firmware-out", type=Path)
     parser.add_argument("--discover-static-misses", action="store_true")
     parser.add_argument(
@@ -357,6 +373,8 @@ def main() -> int:
         parser.error("--port must be in 1..65535")
     if args.instance_index < 0 or args.instance_index > 255:
         parser.error("--instance-index must be in 0..255")
+    if args.no_dumps and args.firmware_path:
+        parser.error("--no-dumps and --firmware-path are mutually exclusive")
 
     summary = run(args)
     print(json.dumps(summary, indent=2), flush=True)

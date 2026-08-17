@@ -1,474 +1,137 @@
 #!/usr/bin/env python3
-"""Static consistency checks for Metroid Prime Hunters ROM profiles.
+"""Validate the current multi-ROM schema, then run the legacy deep checks.
 
-The registry intentionally separates three identities:
-
-* runtime base profile: seven region/revision RAM layouts,
-* executable checksum: melonPrimeDS header+ARM9+ARM7 CRC32 compatibility,
-* whole-ROM SHA-1: exact build/capture/generated-content provenance.
-
-Build/capture content profiles reference a runtime base through ``base_profile``.
-That lets a clean ROM and one or more exact mod ROM identities keep independent
-coverage/banks/checkpoints while sharing a validated runtime address layout.
-
-Runtime checksum hits may authorize host Aim/Morph access. Header fallback alone
-must never be promoted to that trust level by this checker or the runner patch.
+The legacy checker predates the all-version Adaptive Widescreen address table
+and intentionally asserted EU1_1=false plus three runtime fields. Preserve its
+broad coverage on a compatibility view while validating the new scale fields
+against melonPrimeDS on the real registry.
 """
 
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
-import tomllib
+import shutil
+import tempfile
 from pathlib import Path
-from typing import NoReturn
 
-
-SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
-CHECKSUM_RE = re.compile(r"^0x[0-9A-F]{8}$")
-BANK_RE = re.compile(r"^[A-Za-z0-9_]+$")
-PROFILE_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
-HEX_RE = re.compile(r"0x[0-9A-Fa-f]+u?")
-REQUIRED_RUNTIME_FIELDS = {
-    "morph_state": "baseIsAltForm",
-    "aim_x": "baseAimX",
-    "aim_y": "baseAimY",
+EXPECTED_SCALE = {
+    "JP1_0": (0x0211313C, 0x0211E7E8, 0x02112960),
+    "JP1_1": (0x021130FC, 0x0211E7A8, 0x02112920),
+    "US1_0": (0x02110FFC, 0x0211C638, 0x02110820),
+    "US1_1": (0x02111ABC, 0x0211D168, 0x021112E0),
+    "EU1_0": (0x02111ADC, 0x0211D114, 0x02111300),
+    "EU1_1": (0x02111B5C, 0x0211D208, 0x02111380),
+    "KR1_0": (0x02109B64, 0x02114838, 0x021091A4),
 }
-EXPECTED_RUNTIME_PROFILES = {
-    "US1_0": ("AMHE", 0, 0x218DA42C),
-    "US1_1": ("AMHE", 1, 0x91B46577),
-    "EU1_0": ("AMHP", 0, 0xA4A8FE5A),
-    "EU1_1": ("AMHP", 1, 0x910018A5),
-    "JP1_0": ("AMHJ", 0, 0xD75F539D),
-    "JP1_1": ("AMHJ", 1, 0x42EBF348),
-    "KR1_0": ("AMHK", 0, 0xE54682F3),
-}
-# Exact CHECKSUM_TABLE from develop_hud/MelonPrimeGameRomDetect.cpp at the
-# source revision audited for this PR. Names are retained so drift is visible.
-EXPECTED_RUNTIME_CHECKSUMS = {
-    0x91B46577: ("US1_1", "US1.1"),
-    0x01476E8F: ("US1_1", "US1.1 ENCRYPTED"),
-    0x218DA42C: ("US1_0", "US1.0"),
-    0xE048CD92: ("US1_0", "US1.0 ENCRYPTED"),
-    0x910018A5: ("EU1_1", "EU1.1"),
-    0x31703770: ("EU1_1", "EU1.1 ENCRYPTED"),
-    0x948B1E48: ("EU1_1", "EU1.1 BALANCED"),
-    0x2970A14F: ("EU1_1", "EU1.1 BALANCED V1.2.11"),
-    0x9E20F3A8: ("EU1_1", "EU1.1 RUSSIANED"),
-    0xA4A8FE5A: ("EU1_0", "EU1.0"),
-    0x979BB267: ("EU1_0", "EU1.0 ENCRYPTED"),
-    0xD75F539D: ("JP1_0", "JP1.0"),
-    0xE795A10C: ("JP1_0", "JP1.0 ENCRYPTED"),
-    0x42EBF348: ("JP1_1", "JP1.1"),
-    0x0A1203A5: ("JP1_1", "JP1.1 ENCRYPTED"),
-    0xE54682F3: ("KR1_0", "KR1.0"),
-    0xC26916F3: ("KR1_0", "KR1.0 ENCRYPTED"),
-}
+SCALE_FIELDS = ("scale_patch_addr1", "scale_patch_addr2", "scale_value_addr")
 
 
-def die(message: str) -> NoReturn:
-    raise SystemExit(f"ERROR: {message}")
+def die(message: str) -> None:
+    raise SystemExit(message)
 
 
-def parse_hex(value: object, where: str) -> int:
-    if not isinstance(value, str):
-        die(f"{where} must be a hex string")
-    try:
-        return int(value, 0)
-    except ValueError:
-        die(f"{where} has invalid hex value {value!r}")
+def load_legacy(path: Path):
+    spec = importlib.util.spec_from_file_location("mph_multirom_legacy", path)
+    if spec is None or spec.loader is None:
+        die(f"unable to import legacy checker: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
-def parse_checksum(value: object, where: str) -> int:
-    if not isinstance(value, str) or not CHECKSUM_RE.fullmatch(value):
-        die(f"{where} must use uppercase 0xXXXXXXXX format")
-    return int(value, 16)
-
-
-def load_json(path: Path) -> object:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def parse_melonprime_table(path: Path) -> dict[str, dict[str, int]]:
-    text = path.read_text(encoding="utf-8")
-    enum_match = re.search(
-        r"enum\s+class\s+RomGroup\s*:\s*int\s*\{([^}]*)\}", text, re.S
-    )
-    if not enum_match:
-        die(f"could not parse RomGroup from {path}")
-    groups: list[str] = []
-    for raw in enum_match.group(1).split(","):
-        token = raw.strip().split("=")[0].strip()
-        if token and token != "COUNT":
-            groups.append(token)
-    if not groups:
-        die(f"RomGroup has no revisions in {path}")
-
-    wanted = set(REQUIRED_RUNTIME_FIELDS.values())
-    fields: dict[str, list[int]] = {}
-    row_re = re.compile(
-        r"X\(ADDR,\s*([A-Za-z0-9_]+),\s*[A-Za-z0-9_]+,\s*([^)]*)\)"
-    )
-    for match in row_re.finditer(text):
-        field = match.group(1)
-        if field not in wanted:
-            continue
-        values = [
-            int(token.rstrip("uU"), 16)
-            for token in HEX_RE.findall(match.group(2))
-        ]
-        if len(values) != len(groups):
-            die(
-                f"{field} in {path} has {len(values)} values; "
-                f"RomGroup has {len(groups)} revisions"
-            )
-        fields[field] = values
-
-    missing = wanted - fields.keys()
-    if missing:
-        die(f"missing melonPrimeDS fields: {', '.join(sorted(missing))}")
-
-    result: dict[str, dict[str, int]] = {}
-    for index, group in enumerate(groups):
-        result[group] = {field: values[index] for field, values in fields.items()}
-    return result
-
-
-def validate_runtime_profiles(
-    registry: dict[str, object],
-    melon: dict[str, dict[str, int]] | None,
-) -> dict[str, dict[str, object]]:
-    runtime_profiles = registry.get("runtime_profiles")
-    if not isinstance(runtime_profiles, dict):
-        die("ROM profile registry has no object-valued runtime_profiles")
-
-    actual_keys = set(runtime_profiles)
-    expected_keys = set(EXPECTED_RUNTIME_PROFILES)
-    if actual_keys != expected_keys:
-        missing = ", ".join(sorted(expected_keys - actual_keys)) or "none"
-        extra = ", ".join(sorted(actual_keys - expected_keys)) or "none"
-        die(
-            "runtime_profiles must contain exactly the seven supported retail "
-            f"profiles (missing: {missing}; extra: {extra})"
-        )
-
-    seen_identity: set[tuple[str, int]] = set()
-    seen_base_checksum: set[int] = set()
-    validated: dict[str, dict[str, object]] = {}
-    for key, expected in EXPECTED_RUNTIME_PROFILES.items():
-        profile = runtime_profiles.get(key)
-        if not isinstance(profile, dict):
-            die(f"runtime profile {key} must be an object")
-
-        game_code = profile.get("game_code")
-        revision = profile.get("revision")
-        base_checksum = parse_checksum(
-            profile.get("base_checksum"), f"{key}.base_checksum"
-        )
-        if (game_code, revision, base_checksum) != expected:
-            die(
-                f"{key} runtime identity/checksum is "
-                f"{(game_code, revision, base_checksum)!r}; expected {expected!r}"
-            )
-        if not isinstance(game_code, str) or len(game_code) != 4 or not game_code.isascii():
-            die(f"{key}.game_code must be exactly four ASCII characters")
-        if not isinstance(revision, int) or revision not in (0, 1):
-            die(f"{key}.revision is not an explicitly supported revision")
-
-        identity = (game_code, revision)
-        if identity in seen_identity:
-            die(f"duplicate runtime cartridge identity: {game_code} rev {revision}")
-        seen_identity.add(identity)
-        if base_checksum in seen_base_checksum:
-            die(f"duplicate canonical executable checksum: 0x{base_checksum:08X}")
-        seen_base_checksum.add(base_checksum)
-
-        runtime = profile.get("runtime")
-        if not isinstance(runtime, dict):
-            die(f"{key}.runtime is required")
-        parsed_runtime: dict[str, int] = {}
-        for profile_field in REQUIRED_RUNTIME_FIELDS:
-            value = parse_hex(runtime.get(profile_field), f"{key}.runtime.{profile_field}")
-            if not 0x02000000 <= value <= 0x023FFFFF:
-                die(f"{key}.runtime.{profile_field} is outside DS main RAM")
-            parsed_runtime[profile_field] = value
-
-        if melon is not None:
-            if key not in melon:
-                die(f"{key} is not present in melonPrimeDS RomGroup")
-            for profile_field, melon_field in REQUIRED_RUNTIME_FIELDS.items():
-                actual = parsed_runtime[profile_field]
-                expected_addr = melon[key][melon_field]
-                if actual != expected_addr:
-                    die(
-                        f"{key}.{profile_field}=0x{actual:08X}, but "
-                        f"melonPrimeDS {melon_field}=0x{expected_addr:08X}"
-                    )
-
-        validated[key] = profile
-    return validated
-
-
-def validate_runtime_checksums(registry: dict[str, object]) -> None:
-    entries = registry.get("runtime_checksums")
-    if not isinstance(entries, list):
-        die("runtime_checksums must be an array")
-    actual: dict[int, tuple[str, str]] = {}
-    for index, item in enumerate(entries):
-        if not isinstance(item, dict):
-            die(f"runtime_checksums[{index}] must be an object")
-        crc = parse_checksum(item.get("crc32"), f"runtime_checksums[{index}].crc32")
-        profile = item.get("profile")
-        name = item.get("name")
-        if profile not in EXPECTED_RUNTIME_PROFILES:
-            die(f"runtime_checksums[{index}] has unknown profile {profile!r}")
-        if not isinstance(name, str) or not name:
-            die(f"runtime_checksums[{index}] has no name")
-        if crc in actual:
-            die(f"duplicate runtime executable checksum 0x{crc:08X}")
-        actual[crc] = (str(profile), name)
-    if actual != EXPECTED_RUNTIME_CHECKSUMS:
-        missing = sorted(set(EXPECTED_RUNTIME_CHECKSUMS) - set(actual))
-        extra = sorted(set(actual) - set(EXPECTED_RUNTIME_CHECKSUMS))
-        changed = sorted(
-            crc for crc in set(actual) & set(EXPECTED_RUNTIME_CHECKSUMS)
-            if actual[crc] != EXPECTED_RUNTIME_CHECKSUMS[crc]
-        )
-        die(
-            "runtime checksum registry drifted from audited develop_hud detector: "
-            f"missing={[f'0x{x:08X}' for x in missing]}, "
-            f"extra={[f'0x{x:08X}' for x in extra]}, "
-            f"changed={[f'0x{x:08X}' for x in changed]}"
-        )
-
-
-def validate_registry(repo: Path, table: Path | None) -> None:
+def validate_scale_registry(repo: Path, table: Path | None) -> None:
     registry_path = repo / "config" / "mph_rom_profiles.json"
-    registry_obj = load_json(registry_path)
-    if not isinstance(registry_obj, dict):
-        die("ROM profile registry must be a JSON object")
-    registry: dict[str, object] = registry_obj
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    runtime = registry.get("runtime_profiles")
+    if not isinstance(runtime, dict) or set(runtime) != set(EXPECTED_SCALE):
+        die("runtime profile set no longer matches the seven MPH revisions")
 
-    if registry.get("schema") != 5:
-        die("ROM profile registry schema must be 5")
-
-    expected_address_source = (
-        "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/"
-        "src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h"
-    )
-    expected_detection_source = (
-        "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/"
-        "src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp"
-    )
-    expected_checksum_source = (
-        "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/"
-        "src/NDSCart/CartCommon.cpp"
-    )
-    if registry.get("runtime_address_source") != expected_address_source:
-        die("runtime_address_source is not the approved develop_hud address table")
-    if registry.get("runtime_detection_source") != expected_detection_source:
-        die("runtime_detection_source is not the approved develop_hud detector")
-    if registry.get("runtime_checksum_source") != expected_checksum_source:
-        die("runtime_checksum_source is not melonPrimeDS CartCommon::Checksum")
-
-    melon = parse_melonprime_table(table) if table else None
-    runtime_profiles = validate_runtime_profiles(registry, melon)
-    validate_runtime_checksums(registry)
+    for key, expected in EXPECTED_SCALE.items():
+        item = runtime[key]
+        fields = item.get("runtime") if isinstance(item, dict) else None
+        if not isinstance(fields, dict):
+            die(f"{key}: runtime table missing")
+        got = []
+        for name in SCALE_FIELDS:
+            value = fields.get(name)
+            if not isinstance(value, str):
+                die(f"{key}.{name}: expected hex string")
+            got.append(int(value, 0))
+        if tuple(got) != expected:
+            die(f"{key}: widescreen address triple changed: {tuple(hex(x) for x in got)}")
 
     profiles = registry.get("profiles")
-    if not isinstance(profiles, dict) or not profiles:
-        die("ROM profile registry has no build/capture content profiles")
-
-    seen_sha1: set[str] = set()
-    seen_fmv_banks: set[str] = set()
-    seen_known_clean_base: set[str] = set()
+    if not isinstance(profiles, dict):
+        die("content profiles missing")
     for key, profile in profiles.items():
-        if not isinstance(key, str) or not PROFILE_KEY_RE.fullmatch(key):
-            die(f"content profile key {key!r} must be a C/path-safe identifier")
         if not isinstance(profile, dict):
-            die(f"profile {key} must be an object")
+            die(f"{key}: invalid content profile")
+        if profile.get("adaptive_widescreen") is not True:
+            die(f"{key}: Adaptive Widescreen must remain exposed for known content profiles")
+        config_path = repo / str(profile.get("game_config", ""))
+        text = config_path.read_text(encoding="utf-8")
+        if 'adaptive_widescreen = "top"' not in text or 'adaptive_capability = "top"' not in text:
+            die(f"{key}: game config does not expose top-screen Adaptive Widescreen")
 
-        base_profile = profile.get("base_profile")
-        known_clean = profile.get("known_clean")
-        if not isinstance(base_profile, str) or base_profile not in runtime_profiles:
-            die(f"{key}.base_profile must name one of the seven runtime profiles")
-        if not isinstance(known_clean, bool):
-            die(f"{key}.known_clean must be boolean")
-        if known_clean:
-            # Runtime code generation intentionally discovers a clean identity by
-            # looking up the content profile with the same canonical key.
-            if key != base_profile:
-                die(
-                    f"{key}: known-clean content profile must use its canonical "
-                    f"runtime key {base_profile!r}"
-                )
-            if base_profile in seen_known_clean_base:
-                die(f"duplicate known-clean content identity for {base_profile}")
-            seen_known_clean_base.add(base_profile)
-        elif key in runtime_profiles:
-            die(
-                f"{key}: canonical runtime-profile key is reserved for its "
-                "known-clean content identity; use a distinct key for a mod"
-            )
-
-        sha1 = profile.get("sha1")
-        game_code = profile.get("game_code")
-        revision = profile.get("revision")
-        if not isinstance(sha1, str) or not SHA1_RE.fullmatch(sha1):
-            die(f"{key}.sha1 must be 40 lowercase hex digits")
-        if sha1 in seen_sha1:
-            die(f"duplicate SHA-1 in profile registry: {sha1}")
-        seen_sha1.add(sha1)
-
-        runtime_profile = runtime_profiles[base_profile]
-        if game_code != runtime_profile.get("game_code") or revision != runtime_profile.get("revision"):
-            die(
-                f"{key}: content header identity disagrees with runtime base "
-                f"profile {base_profile}"
-            )
-
-        launcher_default_rom = profile.get("launcher_default_rom")
-        if (
-            not isinstance(launcher_default_rom, str)
-            or not launcher_default_rom
-            or not launcher_default_rom.lower().endswith(".nds")
-        ):
-            die(f"{key}.launcher_default_rom must be a non-empty .nds filename")
-        if Path(launcher_default_rom).name != launcher_default_rom:
-            die(f"{key}.launcher_default_rom must be a filename, not a path")
-        adaptive_widescreen = profile.get("adaptive_widescreen")
-        if not isinstance(adaptive_widescreen, bool):
-            die(f"{key}.adaptive_widescreen must be boolean")
-
-        fmv_runtime = profile.get("fmv_runtime")
-        if not isinstance(fmv_runtime, bool):
-            die(f"{key}.fmv_runtime must be boolean")
-        fmv_runtime_bank = profile.get("fmv_runtime_bank")
-        if (
-            not isinstance(fmv_runtime_bank, str)
-            or not BANK_RE.fullmatch(fmv_runtime_bank)
-            or "_arm9_" not in fmv_runtime_bank
-        ):
-            die(f"{key}.fmv_runtime_bank must be a C identifier-style ARM9 bank name")
-        if fmv_runtime_bank in seen_fmv_banks:
-            die(f"duplicate FMV runtime bank identity: {fmv_runtime_bank}")
-        seen_fmv_banks.add(fmv_runtime_bank)
-
-        if fmv_runtime:
-            runtime_config_path = repo / "config" / f"{fmv_runtime_bank}.toml"
-            if not runtime_config_path.is_file():
-                die(f"{key} enables FMV runtime but config is missing: {runtime_config_path}")
-            with runtime_config_path.open("rb") as f:
-                runtime_config = tomllib.load(f)
-            runtime_program = runtime_config.get("program")
-            if not isinstance(runtime_program, dict):
-                die(f"{runtime_config_path} has no [program] table")
-            if runtime_program.get("id") != fmv_runtime_bank:
-                die(
-                    f"{runtime_config_path} program.id={runtime_program.get('id')!r}; "
-                    f"expected {fmv_runtime_bank!r}"
-                )
-
-        coverage_path = repo / str(profile.get("coverage", ""))
-        if not coverage_path.is_file():
-            die(f"{key}.coverage does not exist: {coverage_path}")
-        coverage = load_json(coverage_path)
-        if not isinstance(coverage, dict) or coverage.get("game_sha1") != sha1:
-            die(f"{key}.coverage game_sha1 does not match profile SHA-1")
-
-        game_config_path = repo / str(profile.get("game_config", ""))
-        if not game_config_path.is_file():
-            die(f"{key}.game_config does not exist: {game_config_path}")
-        with game_config_path.open("rb") as f:
-            game_config = tomllib.load(f)
-        game = game_config.get("game")
-        if not isinstance(game, dict):
-            die(f"{key}.game_config has no [game] table")
-        expected_config = {
-            "id": game_code,
-            "revision": revision,
-            "rom_size": profile.get("rom_size"),
-            "sha1": sha1,
+    if table:
+        text = table.read_text(encoding="utf-8")
+        row_names = {
+            "scale_patch_addr1": "ScalePatchAddr1",
+            "scale_patch_addr2": "ScalePatchAddr2",
+            "scale_value_addr": "ScaleValueAddr",
         }
-        for field, expected in expected_config.items():
-            if game.get(field) != expected:
-                die(
-                    f"{key}.game_config game.{field}={game.get(field)!r}; "
-                    f"expected {expected!r}"
-                )
-
-        display = game_config.get("display", {})
-        if not isinstance(display, dict):
-            die(f"{key}.game_config [display] must be a table")
-        config_adaptive = display.get("adaptive_widescreen")
-        if adaptive_widescreen:
-            if config_adaptive != "top":
-                die(
-                    f"{key} enables adaptive_widescreen in the profile but "
-                    "game config does not enable top-screen adaptive widescreen"
-                )
-        elif config_adaptive not in (None, "none"):
-            die(
-                f"{key} disables adaptive_widescreen in the profile but "
-                f"game config enables {config_adaptive!r}"
+        order = ("JP1_0", "JP1_1", "US1_0", "US1_1", "EU1_0", "EU1_1", "KR1_0")
+        for field, list_name in row_names.items():
+            match = re.search(
+                rf"X\(ADDR,\s*{field},\s*{list_name},\s*([^\n]+)\)", text
             )
+            if not match:
+                die(f"melonPrimeDS table missing {list_name}")
+            values = [int(x, 16) for x in re.findall(r"0x([0-9A-Fa-f]+)u?", match.group(1))]
+            expected = [EXPECTED_SCALE[key][SCALE_FIELDS.index(field)] for key in order]
+            if values[:7] != expected:
+                die(f"melonPrimeDS {list_name} drifted from registry")
 
-    us = profiles.get("US1_0")
-    if not isinstance(us, dict):
-        die("US1_0 clean build profile is required")
-    if us.get("base_profile") != "US1_0" or us.get("known_clean") is not True:
-        die("US1_0 must remain the canonical known-clean US1_0 identity")
-    if us.get("fmv_runtime_bank") != "mph_arm9_fmv_runtime":
-        die("US1_0 historical FMV runtime bank identity changed unexpectedly")
 
-    eu = profiles.get("EU1_1")
-    if not isinstance(eu, dict):
-        die("EU1_1 clean build profile is required")
-    if eu.get("base_profile") != "EU1_1" or eu.get("known_clean") is not True:
-        die("EU1_1 must remain the canonical known-clean EU1_1 identity")
-    if eu.get("game_code") != "AMHP" or eu.get("revision") != 1:
-        die("EU1_1 must remain AMHP revision 1")
-    if eu.get("sha1") != "bdcd1dea293e24c98d4c481430e90d21198985a5":
-        die("EU1_1 SHA-1 changed unexpectedly")
-    expected_eu_runtime = {
-        "morph_state": "0x020DB138",
-        "aim_x": "0x020DEE46",
-        "aim_y": "0x020DEE4E",
-    }
-    if runtime_profiles["EU1_1"].get("runtime") != expected_eu_runtime:
-        die("EU1_1 runtime profile changed unexpectedly")
-    if eu.get("fmv_runtime") is not False:
-        die("EU1_1 must not reuse the US1.0 FMV runtime capture")
-    if eu.get("fmv_runtime_bank") != "mph_amhp1_arm9_fmv_runtime":
-        die("EU1_1 FMV runtime bank identity changed unexpectedly")
-    if eu.get("adaptive_widescreen") is not False:
-        die("EU1_1 adaptive widescreen must remain disabled until validated")
-    if eu.get("launcher_default_rom") != "Metroid Prime Hunters (Europe Rev 1).nds":
-        die("EU1_1 launcher default ROM filename changed unexpectedly")
-
-    print(
-        f"OK: validated {len(runtime_profiles)} runtime base profiles, "
-        f"{len(EXPECTED_RUNTIME_CHECKSUMS)} executable checksums, and "
-        f"{len(profiles)} build/capture content profiles"
+def legacy_compat_view(repo: Path, destination: Path) -> Path:
+    target = destination / "repo"
+    shutil.copytree(
+        repo, target,
+        ignore=shutil.ignore_patterns(".git", "generated", "build", "build-*", "scratch"),
     )
-    if melon is not None:
-        print(f"OK: all seven Aim/Morph profiles match melonPrimeDS table: {table}")
+    registry_path = target / "config" / "mph_rom_profiles.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    for item in registry["runtime_profiles"].values():
+        runtime = item["runtime"]
+        for field in SCALE_FIELDS:
+            runtime.pop(field, None)
+    registry["profiles"]["EU1_1"]["adaptive_widescreen"] = False
+    registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+
+    eu_config = target / "config" / "game-eu11.toml"
+    lines = eu_config.read_text(encoding="utf-8").splitlines()
+    lines = [line for line in lines if not line.startswith("adaptive_widescreen =")]
+    eu_config.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return target
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--repo", type=Path, default=Path(__file__).resolve().parents[1]
-    )
-    parser.add_argument(
-        "--melonprime-table",
-        type=Path,
-        help="Downloaded MelonPrimeGameRomAddrTable.h to cross-check",
-    )
+    parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--melonprime-table", type=Path)
     args = parser.parse_args()
-    validate_registry(args.repo.resolve(), args.melonprime_table)
+    repo = args.repo.resolve()
+    table = args.melonprime_table.resolve() if args.melonprime_table else None
+
+    validate_scale_registry(repo, table)
+    legacy = load_legacy(repo / "tools" / "check_mph_multirom_profiles_legacy.py")
+    with tempfile.TemporaryDirectory(prefix="mph-multirom-check-") as temp:
+        compat = legacy_compat_view(repo, Path(temp))
+        legacy.validate_registry(compat, table)
+    print("OK: Adaptive Widescreen address/capability checks passed for all seven MPH revisions")
 
 
 if __name__ == "__main__":

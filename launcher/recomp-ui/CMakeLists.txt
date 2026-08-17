@@ -22,7 +22,7 @@ option(MPH_LAUNCHER_ADAPTIVE_WIDESCREEN
 # Keep launcher_main.cpp as the readable US1.0 baseline, but compile a
 # profile-specific generated TU. Every replacement below is preimage-guarded:
 # if the baseline launcher changes, configure fails instead of silently
-# applying a stale multi-ROM transformation.
+# applying a stale multi-ROM/upstream transformation.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/launcher_main.cpp" MPH_LAUNCHER_SOURCE)
 
 function(mph_launcher_replace_required old new description)
@@ -85,6 +85,26 @@ mph_launcher_replace_required(
     "const std::wstring rom_wide = widen(rom);\n    if (rom_wide.empty()) return false;\n    adaptive = adaptive && ${_mph_adaptive_literal};"
     "the runner launch profile gate")
 
+# Upstream 5abcfee: persist mutable DS firmware/WFC state across launches.
+# This is injected into the generated profile TU so the readable baseline can
+# remain stable while all region launchers receive the same behavior.
+mph_launcher_replace_required(
+    "    return text;\n}\n\ntemplate <size_t N>\nvoid copy_text"
+    "    return text;\n}\n\nstd::filesystem::path firmware_state_path(\n    const std::filesystem::path& settings_path, bool generated) {\n    return settings_path.parent_path() /\n        (generated ? \"firmware-generated.bin\" : \"firmware-retail.bin\");\n}\n\nstd::string read_firmware_state_mac(const std::filesystem::path& path) {\n    std::ifstream file(path, std::ios::binary);\n    if (!file) return {};\n    file.seekg(0x36, std::ios::beg);\n    unsigned char mac[6]{};\n    file.read(reinterpret_cast<char*>(mac), sizeof(mac));\n    if (file.gcount() != static_cast<std::streamsize>(sizeof(mac)) ||\n        (mac[0] & 0x01u))\n        return {};\n    char text[32];\n    std::snprintf(text, sizeof(text), \"%02X:%02X:%02X:%02X:%02X:%02X\",\n                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);\n    return text;\n}\n\ntemplate <size_t N>\nvoid copy_text"
+    "the upstream firmware-state helper insertion point")
+mph_launcher_replace_required(
+    "    }\n\n    std::wstring command =\n        quote(runner.wstring())"
+    "    }\n    const std::filesystem::path firmware_state = firmware_state_path(\n        mods.settings_path, no_dumps_mode);\n\n    std::wstring command =\n        quote(runner.wstring())"
+    "the upstream firmware-state launch path")
+mph_launcher_replace_required(
+    "        L\" --network on --wfc on --wfc-provider wiimmfi\";\n    // beads-yjp.16:"
+    "        L\" --network on --wfc on --wfc-provider wiimmfi\";\n    append_arg(command, L\"--firmware-state-path\", firmware_state.wstring());\n    // beads-yjp.16:"
+    "the upstream firmware-state runner argument")
+mph_launcher_replace_required(
+    "    // Read-only identity detail for the dashboard ONLINE card. Captured once\n    // at startup: the MAC only changes on the first-ever no-dump launch.\n    const std::string identity_mac = read_identity_mac(\n        mod_state.bios_path.empty()\n            ? mod_state.default_bios_dir\n            : bios_dir_from_setting(mod_state.bios_path.c_str()));\n    const std::string identity_detail =\n        !identity_mac.empty()\n            ? \"Console MAC: \" + identity_mac + \" (generated identity)\"\n            : std::string(\"Console MAC: from the firmware dump, or created \"\n                          \"on the first no-dump launch.\");"
+    "    // Read-only identity detail for the dashboard ONLINE card. Prefer the\n    // mutable profile once it has been seeded; generated mode falls back to\n    // the installation identity before that first launch.\n    const std::filesystem::path selected_bios =\n        mod_state.bios_path.empty()\n            ? mod_state.default_bios_dir\n            : bios_dir_from_setting(mod_state.bios_path.c_str());\n    bool generated_identity = false;\n    if (mod_state.bios_path.empty()) {\n        bool conventional_dumps = true;\n        for (const NdsDump& dump : kNdsDumps) {\n            if (!std::filesystem::is_regular_file(selected_bios / dump.file))\n                conventional_dumps = false;\n        }\n        generated_identity = !conventional_dumps;\n    }\n    std::string identity_mac = read_firmware_state_mac(firmware_state_path(\n        mod_state.settings_path, generated_identity));\n    if (identity_mac.empty() && generated_identity)\n        identity_mac = read_identity_mac(selected_bios);\n    const std::string identity_detail =\n        !identity_mac.empty()\n            ? \"Console MAC: \" + identity_mac +\n                  (generated_identity\n                       ? \" (generated identity)\" : \" (firmware profile)\")\n            : std::string(\"Console MAC: from the firmware dump, or created \"\n                          \"on the first no-dump launch.\");"
+    "the upstream dashboard firmware identity block")
+
 set(MPH_PROFILE_LAUNCHER_SOURCE
     "${CMAKE_CURRENT_BINARY_DIR}/launcher_main_profile.cpp")
 file(WRITE "${MPH_PROFILE_LAUNCHER_SOURCE}" "${MPH_LAUNCHER_SOURCE}")
@@ -102,10 +122,6 @@ set(RECOMP_UI_ROOT "F:/Projects/recomp-ui" CACHE PATH
 enable_testing()
 add_executable(mph-mod-provider-test tests/launcher_mod_provider_test.cpp
     "${NDSRECOMP_ROOT}/recompiler/support/sha1.cpp")
-# The test #includes launcher_main.cpp whole, so it needs the SAME sha1.h the
-# launcher gets -- ndsrecomp's gba::sha1, not recomp-ui/src/common/sha1.h,
-# which is a different API and would be picked up first from the include path
-# below. Listed ahead of the recomp-ui directories for that reason.
 target_include_directories(mph-mod-provider-test PRIVATE
     "${NDSRECOMP_ROOT}/recompiler/support"
     "${CMAKE_CURRENT_SOURCE_DIR}"

@@ -9,11 +9,19 @@ rom_size = 0x04000000
 sha1 = "bdcd1dea293e24c98d4c481430e90d21198985a5"
 
 [display]
-# Keep EU1.1 bootstrap on native presentation until title-specific projection,
-# culling and HUD-address assumptions are validated for this revision.
 screen_layout = "separate"
 supersampling = 1
 antialiasing = 0
+# melonPrimeDS and mphCodex identify the revision-specific projection,
+# 3D-to-2D projection and Q12 culling-aspect locations for every retail MPH
+# revision. The runner applies those writes only after authoritative executable
+# checksum validation, so EU1.1 can expose the same 21:9 feature as US1.0.
+adaptive_widescreen = "top"
+adaptive_capability = "top"
+adaptive_width = 448
+adaptive_skybox_fill = false
+adaptive_hud_anchor = true
+adaptive_hud_center_width = 128
 
 [system]
 startup_mode = "automatic"

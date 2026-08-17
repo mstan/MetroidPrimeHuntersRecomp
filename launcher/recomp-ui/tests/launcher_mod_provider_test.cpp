@@ -14,6 +14,34 @@ bool require(bool condition, const char* label) {
 
 int main() {
     {
+        const std::filesystem::path root =
+            std::filesystem::temp_directory_path() /
+            "mph_firmware_state_launcher_test";
+        const std::filesystem::path settings = root / "mods.ini";
+        const std::filesystem::path generated =
+            firmware_state_path(settings, true);
+        const std::filesystem::path retail =
+            firmware_state_path(settings, false);
+        if (!require(generated.filename() == "firmware-generated.bin",
+                     "generated firmware state path")) return 85;
+        if (!require(retail.filename() == "firmware-retail.bin",
+                     "retail firmware state path")) return 86;
+        std::filesystem::create_directories(root);
+        std::vector<unsigned char> bytes(128u * 1024u, 0xFFu);
+        const unsigned char mac[6] = {0x00, 0x09, 0xBF, 0x12, 0x34, 0x56};
+        std::memcpy(bytes.data() + 0x36, mac, sizeof(mac));
+        {
+            std::ofstream file(generated, std::ios::binary);
+            file.write(reinterpret_cast<const char*>(bytes.data()),
+                       static_cast<std::streamsize>(bytes.size()));
+        }
+        if (!require(read_firmware_state_mac(generated) ==
+                         "00:09:BF:12:34:56",
+                     "firmware state identity display")) return 87;
+        std::filesystem::remove_all(root);
+    }
+
+    {
         ModState legacy_state{};
         legacy_state.settings_path =
             std::filesystem::temp_directory_path() /

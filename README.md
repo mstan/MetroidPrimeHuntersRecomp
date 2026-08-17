@@ -146,6 +146,12 @@ Nintendo WFC / Wiimmfi support is experimental. The current validated state is
 lobby connectivity: Metroid Prime Hunters can authenticate through Wiimmfi and
 reach a Friends and Rivals lobby where a locally hosted game is visible.
 
+The launcher keeps the console firmware profile in
+`%APPDATA%\MetroidPrimeHuntersRecomp`. Wi-Fi settings, console/game-card
+pairing, and WFC updates survive both the in-game system shutdown flow and a
+normal window close. Confirming the WFC settings shutdown prompt closes the
+application automatically.
+
 Actually joining a match and playing in-game online is not guaranteed. It may
 fail to connect, disconnect, or desync.
 

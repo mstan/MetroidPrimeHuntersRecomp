@@ -20,7 +20,11 @@ from pathlib import Path
 
 def replace_once(path: Path, old: str, new: str, marker: str) -> None:
     text = path.read_text(encoding="utf-8")
-    if marker in text and old not in text:
+    # The replacement may intentionally contain the original anchor (for
+    # example, adding one declaration immediately after an existing one).
+    # Therefore exact replacement text, not marker/anchor absence, is the
+    # reliable idempotency test.
+    if new in text:
         return
     count = text.count(old)
     if count != 1:

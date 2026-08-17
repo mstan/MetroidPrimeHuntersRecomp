@@ -95,10 +95,17 @@ jobs:
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DNDSRECOMP_ROOT="$PWD/../ndsrecomp" \
-            -DRECOMP_UI_ROOT="$PWD/../recomp-ui"
+            -DRECOMP_UI_ROOT="$PWD/../recomp-ui" \
+            '-DMPH_LAUNCHER_REGION=Auto (runtime detected)'
           cmake --build launcher/recomp-ui/build-nightly
           ctest --test-dir launcher/recomp-ui/build-nightly --output-on-failure
           test -s launcher/recomp-ui/build-nightly/mph-recomp-ui.exe
+          grep -q 'game.region = "Auto (runtime detected)";' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'game.known_sha1_hex = nullptr;' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'MPH_MULTIROM_DELEGATED_VERIFY' \
+            ../recomp-ui/src/common/backends/imgui/launcher_imgui.cpp
 
       - name: Package Windows Nightly payload
         shell: msys2 {0}

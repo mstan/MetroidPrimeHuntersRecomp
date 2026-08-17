@@ -234,14 +234,7 @@ Prime ControlsはEU1.1でも表示する。これはMorph/Aimの必要アドレ�
 
 ## 9. FMV runtime bank
 
-US1.0の
-
-```text
-config/mph_arm9_fmv_runtime.toml
-generated/capture/mph_arm9_fmv_runtime.bin
-```
-
-はUS1.0 runtime bytesとobserved PCsに対するbankである。
+US1.0の `config/mph_arm9_fmv_runtime.toml` と `generated/capture/mph_arm9_fmv_runtime.bin` はUS1.0 runtime bytesとobserved PCsに対するbankである。
 
 EU1.1 profileは `fmv_runtime = false` とし、このbankを絶対に登録しない。
 
@@ -261,7 +254,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
 
 `-RomPath` を省略した場合は選択profileの `launcher_default_rom` を使う。EU1.1なら `Metroid Prime Hunters (Europe Rev 1).nds` になる。
 
-現在のWindows buildはEU1.1についても以下まで一貫して行う。
+Windows buildはEU1.1についても以下まで一貫して行う。
 
 1. EU1.1 ROM identity verify
 2. EU1.1 ARM9/ARM7 extraction
@@ -350,41 +343,15 @@ mphCodexは引き続き、今後Recomp固有のhost enhancementがsemantic state
 
 ### Gate A - extraction / bank generation
 
-EU1.1実ROMで次を確認する。
-
-- `prepare_mph.py` がEU1.1 identityをaccept
-- ARM9 decompress成功
-- ARM7 extraction成功
-- ARM9 overlay table列挙成功
-- `generated/EU1_1/recomp/` にEU1.1専用bank生成
-- US1.0 artifactが混入していない
+EU1.1実ROMで、identity accept、ARM9 decompress、ARM7 extraction、ARM9 overlay table列挙、EU1.1専用bank生成、US1.0 artifact非混入を確認する。
 
 ### Gate B - boot / interpreter bootstrap
 
-- firmware boot
-- cartridge handoff
-- opening logos
-- opening FMV
-- title screen
-- attract loop
-
-static missはInterpreterへfallbackさせ、最初はcorrectnessを優先する。
+firmware boot、cartridge handoff、opening logos、opening FMV、title screen、attract loopを確認する。static missはInterpreterへfallbackさせ、最初はcorrectnessを優先する。
 
 ### Gate C - gameplay
 
-最低限:
-
-- Adventure file作成/読込
-- Celestial Archives landing
-- first-person gameplay
-- movement
-- aim
-- shoot
-- Morph Ball
-- Scan Visor
-- pause
-- save/reload
-- multiplayer menu
+Adventure file作成/読込、Celestial Archives landing、first-person gameplay、movement、aim、shoot、Morph Ball、Scan Visor、pause、save/reload、multiplayer menuを最低限確認する。
 
 ### Gate D - Prime Controls / Direct Mouse Aim semantic validation
 
@@ -396,29 +363,11 @@ Aim X       = 0x020DEE46
 Aim Y       = 0x020DEE4E
 ```
 
-実ROM Gate Dでは「そのアドレスを使うか」ではなく、ゲーム内semanticが期待通りかを確認する。
-
-- normal formでcenter touch保持
-- Morph Ball時にcenter touchを解除
-- mouse X/Y deltaでcamera aimが正しく変化
-- menu/touch操作へ戻れる
-- keyboard/gamepad Prime Controls
-- profile切替・再起動後にstale stateが残らない
+実ROM Gate Dでは「そのアドレスを使うか」ではなく、normal form / Morph Ballでのtouch behavior、camera aim、menu/touch復帰、keyboard/gamepad Prime Controls、再起動後のstale state非残存を確認する。
 
 ### Gate E - Adaptive Widescreen
 
-EU1.1では現在意図的に無効である。EU1.1を基本対応とするための必須条件ではない。
-
-将来EU1.1でも有効化する場合は、少なくとも次をEU1.1実ROMで確認する。
-
-- 3D projection
-- frustum/culling
-- upper-screen HUD anchoring
-- lower touchscreen native layout
-- Adventure camera / Scan Visor等の特殊scene
-- US1.0との差分があるsemantic addressを固定値で流用していないこと
-
-検証後にのみ `"adaptive_widescreen": true` とEU1.1 `game.toml` の対応display設定を同時に有効化する。
+EU1.1では現在意図的に無効であり、基本対応の必須条件ではない。将来有効化する場合のみ3D projection、frustum/culling、upper-screen HUD anchoring、lower touchscreen native layout、Adventure camera / Scan Visor等の特殊sceneをEU1.1実ROMで検証する。検証後にのみ `"adaptive_widescreen": true` とEU1.1 `game.toml` の対応display設定を同時に有効化する。
 
 ### Gate F - EU1.1 deterministic coverage
 

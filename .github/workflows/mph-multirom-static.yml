@@ -100,6 +100,16 @@ jobs:
           ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
           ! grep -q 'kMphUs10AimY' /tmp/ndsrecomp/runner/src/title_patches.cpp
 
+      - name: Compile patched headless runner
+        run: |
+          cmake -S /tmp/ndsrecomp/runner -B /tmp/nds-runner-profile-check \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNDS_BOOTSTRAP_FIRMWARE=ON \
+            -DNDS_ENABLE_COMPUTE_RENDERER=OFF \
+            -DNDS_ENABLE_PCAP_BACKEND=OFF
+          cmake --build /tmp/nds-runner-profile-check --target nds_runner -j2
+          test -x /tmp/nds-runner-profile-check/nds_runner
+
       - name: Compile US1.0 and EU1.1 ROM checkers
         run: |
           for profile in US1_0 EU1_1; do

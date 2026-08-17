@@ -23,3 +23,7 @@ When only the guest patch is enabled, the DS-native render surface remains 256x1
 Legacy `mods.ini` files from the comparison build may contain both values as `true`. The loader resolves that state while parsing and the next save writes a valid mutually-exclusive pair. The final process-launch argument construction also refuses to pass both widescreen mechanisms to the runner even if an invalid state is somehow introduced later.
 
 The runner logs the selected guest policy. Guest-side code/data writes remain fail-closed and require an authoritative supported MPH executable checksum; header-only fallback never authorizes the aspect-ratio patch.
+
+## Validation
+
+The separate host-only / guest-only presentation paths and the nearest-only Supersampling presentation fix were visually tested with MPH before mutual exclusion was enabled. The current launcher policy then passed the full ROM-free Windows/Linux build and static regression suite at head `50271f43a4d0be9fe4c02a87c278bec80f4a4a47`.

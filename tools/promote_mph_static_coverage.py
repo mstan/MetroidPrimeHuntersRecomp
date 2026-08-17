@@ -55,7 +55,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--trace", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--scenario", default="scenarios/adventure_start.json")
+    parser.add_argument("--scenario")
     parser.add_argument("--runner-commit", required=True)
     parser.add_argument("--version", default=DEFAULT_VERSION)
     parser.add_argument(
@@ -102,12 +102,19 @@ def main() -> int:
 
     trace = json.loads(args.trace.read_text(encoding="utf-8"))
     observed_profile = trace.get("mph_profile")
+    observed_sha1 = trace.get("rom_sha1")
+    expected_sha1 = str(profile["sha1"])
+    if args.version != DEFAULT_VERSION and (
+        observed_profile is None or observed_sha1 is None
+    ):
+        raise SystemExit(
+            f"{args.version} coverage promotion requires a profile-tagged trace; "
+            "recapture with the profile-aware fuzz/capture tooling"
+        )
     if observed_profile is not None and str(observed_profile) != args.version:
         raise SystemExit(
             f"trace profile {observed_profile!r} does not match {args.version!r}"
         )
-    observed_sha1 = trace.get("rom_sha1")
-    expected_sha1 = str(profile["sha1"])
     if observed_sha1 is not None and str(observed_sha1) != expected_sha1:
         raise SystemExit(
             f"trace ROM SHA-1 {observed_sha1!r} does not match "
@@ -155,11 +162,12 @@ def main() -> int:
         entry["kinds"] = sorted(entry["kinds"])
         by_cpu["arm7" if cpu == 7 else "arm9"].append(entry)
 
+    scenario = args.scenario if args.scenario is not None else trace.get("scenario")
     payload = {
         "schema": 1,
         "profile": args.version,
         "game_sha1": expected_sha1,
-        "scenario": args.scenario,
+        "scenario": scenario,
         "runner_commit": args.runner_commit,
         "selection": (
             "Tier-3 call and indirect targets inside the selected ROM's "

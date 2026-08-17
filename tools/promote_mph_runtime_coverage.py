@@ -105,15 +105,22 @@ def main() -> int:
                 f"benchmark for {args.version} has no runtime_capture metadata"
             )
         capture_sha1 = runtime_capture.get("sha1")
-        capture_bytes = runtime_capture.get("bytes")
+        capture_bytes_raw = runtime_capture.get("bytes")
         if capture_sha1 != identity:
             raise SystemExit(
                 f"runtime image SHA-1 {identity} does not match benchmark "
                 f"capture SHA-1 {capture_sha1!r}"
             )
-        if int(capture_bytes) != IMAGE_SIZE:
+        try:
+            capture_bytes = int(capture_bytes_raw)
+        except (TypeError, ValueError) as exc:
             raise SystemExit(
-                f"benchmark runtime capture size {capture_bytes!r} does not "
+                f"benchmark runtime capture has invalid byte count "
+                f"{capture_bytes_raw!r}"
+            ) from exc
+        if capture_bytes != IMAGE_SIZE:
+            raise SystemExit(
+                f"benchmark runtime capture size {capture_bytes} does not "
                 f"match 0x{IMAGE_SIZE:X}"
             )
 

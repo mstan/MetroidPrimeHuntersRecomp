@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
 """Apply the MPH multi-ROM runtime-profile shim to the pinned ndsrecomp runner.
 
-The upstream runner currently hard-codes Metroid Prime Hunters USA rev-0 RAM
-addresses for Prime Controls and direct mouse aim. Runtime address selection
-must follow the base game/revision, not the whole-ROM hash, so modified ROMs
-that preserve a supported MPH cartridge identity can use the correct layout.
+Runtime address selection follows melonPrimeDS's two-stage detector:
 
-The detector mirrors melonPrimeDS's fallback identity:
-NDS gameCode @0x0C + ROM revision @0x1E. Unlike melonPrimeDS, revisions outside
-the seven explicitly supported retail profiles fail closed instead of mapping
-all non-zero revisions to 1.1.
+1. authoritative executable checksum (CRC32 of header[0:0x40], ARM9, ARM7),
+2. exact NDS gameCode @0x0C + supported revision @0x1E as a fallback.
 
-Whole-ROM SHA-1 remains a clean-content/provenance identity. If a SHA-1 is one
-of the configured known-clean ROMs, its profile must agree with the header;
-an impossible clean-hash/header mismatch is rejected. An unknown SHA-1 does
-not by itself reject a recognized base profile.
+The fallback identifies a base profile but is *not* sufficient evidence for
+host-side Aim/Morph RAM accesses. Those writes are enabled only for a checksum
+explicitly known by the melonPrimeDS detector. This keeps unknown mods
+fail-closed instead of guessing that a matching header implies compatible RAM.
 
-Runtime address values are generated from config/mph_rom_profiles.json and
-cross-checked in CI against melonPrimeDS's MelonPrimeGameRomAddrTable.h.
-
-The source patch is intentionally small, idempotent, and fail-closed. If the
-pinned ndsrecomp source changes enough that the expected preimages are absent,
-this script stops instead of guessing a patch against unknown code.
+Whole-ROM SHA-1 has a separate role. It remains the actual-content identity
+used by generated banks/captures. A clean build may accept a different whole-
+ROM SHA only when the actual ROM has the canonical executable checksum of that
+same clean base profile (for example, a data-only mod outside header/ARM9/ARM7).
+Code-modified variants still require their own exact build/capture identity.
 """
 
 from __future__ import annotations
@@ -33,8 +27,12 @@ from pathlib import Path
 
 
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
+CHECKSUM_RE = re.compile(r"^0x[0-9A-F]{8}$")
 MAIN_RAM_MIN = 0x02000000
 MAIN_RAM_MAX = 0x023FFFFF
+EXPECTED_RUNTIME_KEYS = {
+    "US1_0", "US1_1", "EU1_0", "EU1_1", "JP1_0", "JP1_1", "KR1_0"
+}
 
 
 def parse_address(value: object, *, profile: str, field: str) -> int:
@@ -51,11 +49,28 @@ def parse_address(value: object, *, profile: str, field: str) -> int:
     return address
 
 
-def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
+def parse_checksum(value: object, *, where: str) -> int:
+    if not isinstance(value, str) or not CHECKSUM_RE.fullmatch(value):
+        raise SystemExit(f"{where}: expected uppercase 0xXXXXXXXX checksum")
+    return int(value, 16)
+
+
+def load_runtime_registry(
+    registry_path: Path,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
     runtime_profiles = registry.get("runtime_profiles")
     if not isinstance(runtime_profiles, dict) or not runtime_profiles:
         raise SystemExit("ROM profile registry has no runtime_profiles")
+
+    actual_keys = set(runtime_profiles)
+    if actual_keys != EXPECTED_RUNTIME_KEYS:
+        missing = ", ".join(sorted(EXPECTED_RUNTIME_KEYS - actual_keys)) or "none"
+        extra = ", ".join(sorted(actual_keys - EXPECTED_RUNTIME_KEYS)) or "none"
+        raise SystemExit(
+            "runtime profile set must be exactly the seven supported retail "
+            f"profiles (missing: {missing}; extra: {extra})"
+        )
 
     build_profiles = registry.get("profiles")
     if not isinstance(build_profiles, dict):
@@ -63,6 +78,7 @@ def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
 
     result: list[dict[str, object]] = []
     seen_identity: set[tuple[str, int]] = set()
+    seen_base_checksum: set[int] = set()
     seen_clean_sha1: set[str] = set()
 
     for key, profile in runtime_profiles.items():
@@ -89,6 +105,13 @@ def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
             )
         seen_identity.add(identity)
 
+        base_checksum = parse_checksum(
+            profile.get("base_checksum"), where=f"{key}.base_checksum"
+        )
+        if base_checksum in seen_base_checksum:
+            raise SystemExit(f"duplicate canonical executable checksum for {key}")
+        seen_base_checksum.add(base_checksum)
+
         known_clean_sha1 = ""
         clean = build_profiles.get(key)
         if clean is not None:
@@ -111,6 +134,7 @@ def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
                 "key": key,
                 "game_code": game_code,
                 "revision": revision,
+                "base_checksum": base_checksum,
                 "known_clean_sha1": known_clean_sha1,
                 "morph_state": parse_address(
                     runtime.get("morph_state"), profile=key, field="morph_state"
@@ -124,37 +148,68 @@ def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
             }
         )
 
-    expected = {
-        "US1_0", "US1_1", "EU1_0", "EU1_1", "JP1_0", "JP1_1", "KR1_0"
-    }
-    actual = {str(profile["key"]) for profile in result}
-    if actual != expected:
-        missing = ", ".join(sorted(expected - actual)) or "none"
-        extra = ", ".join(sorted(actual - expected)) or "none"
-        raise SystemExit(
-            f"runtime profile set must be exactly the seven supported retail "
-            f"profiles (missing: {missing}; extra: {extra})"
+    checksums_obj = registry.get("runtime_checksums")
+    if not isinstance(checksums_obj, list) or not checksums_obj:
+        raise SystemExit("ROM profile registry has no runtime_checksums")
+    checksums: list[dict[str, object]] = []
+    seen_checksums: set[int] = set()
+    canonical_seen: set[str] = set()
+    for index, item in enumerate(checksums_obj):
+        if not isinstance(item, dict):
+            raise SystemExit(f"runtime_checksums[{index}] must be an object")
+        checksum = parse_checksum(
+            item.get("crc32"), where=f"runtime_checksums[{index}].crc32"
         )
-    return result
+        profile_key = item.get("profile")
+        name = item.get("name")
+        if profile_key not in EXPECTED_RUNTIME_KEYS:
+            raise SystemExit(
+                f"runtime_checksums[{index}].profile is unknown: {profile_key!r}"
+            )
+        if not isinstance(name, str) or not name:
+            raise SystemExit(f"runtime_checksums[{index}].name must be non-empty")
+        if checksum in seen_checksums:
+            raise SystemExit(f"duplicate runtime checksum 0x{checksum:08X}")
+        seen_checksums.add(checksum)
+        profile = next(p for p in result if p["key"] == profile_key)
+        if checksum == profile["base_checksum"]:
+            canonical_seen.add(str(profile_key))
+        checksums.append(
+            {"crc32": checksum, "profile": profile_key, "name": name}
+        )
+
+    if canonical_seen != EXPECTED_RUNTIME_KEYS:
+        missing = ", ".join(sorted(EXPECTED_RUNTIME_KEYS - canonical_seen))
+        raise SystemExit(
+            f"runtime_checksums is missing canonical entries for: {missing}"
+        )
+    return result, checksums
 
 
-def generated_header(profiles: list[dict[str, object]]) -> str:
-    rows = []
+def generated_header(
+    profiles: list[dict[str, object]], checksums: list[dict[str, object]]
+) -> str:
+    profile_rows: list[str] = []
     for profile in profiles:
-        rows.append(
-            '    {"%s", "%s", %du, "%s", 0x%08Xu, 0x%08Xu, 0x%08Xu},'
-            "  // %s"
+        profile_rows.append(
+            '    {"%s", "%s", %du, "%s", 0x%08Xu, 0x%08Xu, 0x%08Xu, 0x%08Xu},  // %s'
             % (
                 profile["key"],
                 profile["game_code"],
                 profile["revision"],
                 profile["known_clean_sha1"],
+                profile["base_checksum"],
                 profile["morph_state"],
                 profile["aim_x"],
                 profile["aim_y"],
                 profile["key"],
             )
         )
+    checksum_rows = [
+        '    {0x%08Xu, "%s", "%s"},'
+        % (item["crc32"], item["profile"], item["name"])
+        for item in checksums
+    ]
     return """#pragma once
 
 #include <array>
@@ -163,23 +218,39 @@ def generated_header(profiles: list[dict[str, object]]) -> str:
 // Generated by MetroidPrimeHuntersRecomp/tools/patch_ndsrecomp_mph_runtime.py.
 // Do not edit in the ndsrecomp checkout; edit config/mph_rom_profiles.json.
 //
-// game_code + revision selects the base runtime layout. known_clean_sha1 is
-// provenance/consistency metadata only; an unknown SHA-1 is a supported variant
-// when its exact header identity matches one of these seven profiles.
+// The executable checksum mirrors melonPrimeDS CartCommon::Checksum(): CRC32 of
+// header[0:0x40], then ARM9, then ARM7. A checksum hit is authoritative for the
+// runtime layout. Header gameCode+revision is only a fail-closed fallback hint.
 struct NdsMphRuntimeProfile {
     const char* key;
     const char* game_code;
     uint8_t revision;
     const char* known_clean_sha1;
+    uint32_t base_checksum;
     uint32_t morph_state;
     uint32_t aim_x;
     uint32_t aim_y;
 };
 
+struct NdsMphRuntimeChecksum {
+    uint32_t checksum;
+    const char* profile_key;
+    const char* name;
+};
+
 inline constexpr std::array<NdsMphRuntimeProfile, %d> kNdsMphRuntimeProfiles{{
 %s
 }};
-""" % (len(rows), "\n".join(rows))
+
+inline constexpr std::array<NdsMphRuntimeChecksum, %d> kNdsMphRuntimeChecksums{{
+%s
+}};
+""" % (
+        len(profile_rows),
+        "\n".join(profile_rows),
+        len(checksum_rows),
+        "\n".join(checksum_rows),
+    )
 
 
 def patch_once(path: Path, old: str, new: str, marker: str) -> None:
@@ -204,21 +275,24 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         if not path.is_file():
             raise SystemExit(f"Pinned ndsrecomp runner file not found: {path}")
 
-    profiles = load_runtime_profiles(registry_path)
+    profiles, checksums = load_runtime_registry(registry_path)
     generated = runner_src / "mph_runtime_profiles.generated.h"
-    generated.write_text(generated_header(profiles), encoding="utf-8")
+    generated.write_text(generated_header(profiles, checksums), encoding="utf-8")
 
     patch_once(
         title_h,
         "void nds_title_patches_set_mph_mouse_aim(bool enabled);\n"
         "bool nds_title_patches_apply_mph_mouse_delta(int32_t dx, int32_t dy);\n",
-        "// MPH_MULTIROM_RUNTIME_PROFILE: base-profile detection from NDS header.\n"
+        "// MPH_MULTIROM_RUNTIME_PROFILE: melonPrimeDS-compatible base detector.\n"
         "bool nds_title_patches_select_mph_runtime_profile(\n"
-        "    const uint8_t* rom_data, uint64_t rom_size, const char* rom_sha1);\n"
+        "    const uint8_t* rom_data, uint64_t rom_size, const char* rom_sha1,\n"
+        "    const char* expected_rom_sha1);\n"
+        "bool nds_title_patches_mph_host_writes_compatible();\n"
+        "bool nds_title_patches_mph_allows_rom_sha1_mismatch();\n"
         "bool nds_title_patches_mph_in_ball();\n"
         "void nds_title_patches_set_mph_mouse_aim(bool enabled);\n"
         "bool nds_title_patches_apply_mph_mouse_delta(int32_t dx, int32_t dy);\n",
-        "base-profile detection from NDS header",
+        "melonPrimeDS-compatible base detector",
     )
 
     patch_once(
@@ -235,9 +309,57 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         "// path but removes the finite physical touchscreen edge.\n"
         "constexpr uint32_t kMphUs10AimX = 0x020DE526u;\n"
         "constexpr uint32_t kMphUs10AimY = 0x020DE52Eu;\n",
-        "// MPH_MULTIROM_RUNTIME_PROFILE: selected by exact gameCode + revision.\n"
-        "const NdsMphRuntimeProfile* g_mph_runtime_profile = nullptr;\n",
-        "selected by exact gameCode + revision",
+        "// MPH_MULTIROM_RUNTIME_PROFILE: runtime identity and safety state.\n"
+        "const NdsMphRuntimeProfile* g_mph_runtime_profile = nullptr;\n"
+        "bool g_mph_host_writes_compatible = false;\n"
+        "bool g_mph_allow_rom_sha1_mismatch = false;\n\n"
+        "uint32_t mph_read_le32(const uint8_t* p) {\n"
+        "    return static_cast<uint32_t>(p[0]) |\n"
+        "           (static_cast<uint32_t>(p[1]) << 8) |\n"
+        "           (static_cast<uint32_t>(p[2]) << 16) |\n"
+        "           (static_cast<uint32_t>(p[3]) << 24);\n"
+        "}\n\n"
+        "uint32_t mph_crc32(const uint8_t* data, uint32_t len, uint32_t start) {\n"
+        "    uint32_t crc = start ^ 0xFFFFFFFFu;\n"
+        "    for (uint32_t i = 0; i < len; ++i) {\n"
+        "        crc ^= data[i];\n"
+        "        for (int bit = 0; bit < 8; ++bit)\n"
+        "            crc = (crc >> 1) ^\n"
+        "                  (0xEDB88320u & (0u - (crc & 1u)));\n"
+        "    }\n"
+        "    return crc ^ 0xFFFFFFFFu;\n"
+        "}\n\n"
+        "bool mph_compute_executable_checksum(\n"
+        "    const uint8_t* rom, uint64_t rom_size, uint32_t* out) {\n"
+        "    if (!rom || !out || rom_size < 0x40u) return false;\n"
+        "    const uint32_t arm9_offset = mph_read_le32(rom + 0x20u);\n"
+        "    const uint32_t arm9_size = mph_read_le32(rom + 0x2Cu);\n"
+        "    const uint32_t arm7_offset = mph_read_le32(rom + 0x30u);\n"
+        "    const uint32_t arm7_size = mph_read_le32(rom + 0x3Cu);\n"
+        "    if (static_cast<uint64_t>(arm9_offset) + arm9_size > rom_size ||\n"
+        "        static_cast<uint64_t>(arm7_offset) + arm7_size > rom_size)\n"
+        "        return false;\n"
+        "    uint32_t crc = mph_crc32(rom, 0x40u, 0u);\n"
+        "    crc = mph_crc32(rom + arm9_offset, arm9_size, crc);\n"
+        "    crc = mph_crc32(rom + arm7_offset, arm7_size, crc);\n"
+        "    *out = crc;\n"
+        "    return true;\n"
+        "}\n\n"
+        "const NdsMphRuntimeProfile* mph_find_profile_by_key(const char* key) {\n"
+        "    for (const auto& profile : kNdsMphRuntimeProfiles)\n"
+        "        if (std::strcmp(profile.key, key) == 0) return &profile;\n"
+        "    return nullptr;\n"
+        "}\n\n"
+        "const NdsMphRuntimeProfile* mph_find_clean_sha1(const char* sha1) {\n"
+        "    if (!sha1 || sha1[0] == '\\0') return nullptr;\n"
+        "    for (const auto& profile : kNdsMphRuntimeProfiles) {\n"
+        "        if (profile.known_clean_sha1[0] != '\\0' &&\n"
+        "            std::strcmp(profile.known_clean_sha1, sha1) == 0)\n"
+        "            return &profile;\n"
+        "    }\n"
+        "    return nullptr;\n"
+        "}\n",
+        "runtime identity and safety state",
     )
     patch_once(
         title_cpp,
@@ -253,44 +375,72 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         "    return true;\n"
         "}\n",
         "bool nds_title_patches_select_mph_runtime_profile(\n"
-        "    const uint8_t* rom_data, uint64_t rom_size, const char* rom_sha1) {\n"
+        "    const uint8_t* rom_data, uint64_t rom_size, const char* rom_sha1,\n"
+        "    const char* expected_rom_sha1) {\n"
         "    g_mph_mouse_aim = false;\n"
         "    g_mph_runtime_profile = nullptr;\n"
-        "    // NDS header: game code @0x0C..0x0F, ROM version @0x1E.\n"
-        "    if (!rom_data || rom_size <= 0x1Eu || !rom_sha1) return false;\n\n"
-        "    const NdsMphRuntimeProfile* header_profile = nullptr;\n"
-        "    for (const NdsMphRuntimeProfile& profile : kNdsMphRuntimeProfiles) {\n"
-        "        if (std::memcmp(profile.game_code, rom_data + 0x0Cu, 4) == 0 &&\n"
-        "            profile.revision == rom_data[0x1Eu]) {\n"
-        "            if (header_profile) return false;  // ambiguous registry: fail closed\n"
-        "            header_profile = &profile;\n"
-        "        }\n"
-        "    }\n"
-        "    if (!header_profile) return false;\n\n"
-        "    // Whole-ROM SHA-1 is clean identity/provenance, not the selector.\n"
-        "    // If this content is a known clean dump, its header must agree with\n"
-        "    // the corresponding base profile. Unknown hashes are mod variants.\n"
-        "    const NdsMphRuntimeProfile* clean_profile = nullptr;\n"
-        "    for (const NdsMphRuntimeProfile& profile : kNdsMphRuntimeProfiles) {\n"
-        "        if (profile.known_clean_sha1[0] != '\\0' &&\n"
-        "            std::strcmp(profile.known_clean_sha1, rom_sha1) == 0) {\n"
-        "            clean_profile = &profile;\n"
+        "    g_mph_host_writes_compatible = false;\n"
+        "    g_mph_allow_rom_sha1_mismatch = false;\n"
+        "    if (!rom_data || !rom_sha1 || !expected_rom_sha1 || rom_size <= 0x1Eu)\n"
+        "        return false;\n\n"
+        "    uint32_t checksum = 0;\n"
+        "    if (!mph_compute_executable_checksum(rom_data, rom_size, &checksum))\n"
+        "        return false;\n\n"
+        "    const NdsMphRuntimeChecksum* checksum_hit = nullptr;\n"
+        "    const NdsMphRuntimeProfile* profile = nullptr;\n"
+        "    for (const auto& entry : kNdsMphRuntimeChecksums) {\n"
+        "        if (entry.checksum == checksum) {\n"
+        "            checksum_hit = &entry;\n"
+        "            profile = mph_find_profile_by_key(entry.profile_key);\n"
         "            break;\n"
         "        }\n"
+        "    }\n\n"
+        "    if (!profile) {\n"
+        "        // melonPrimeDS fallback, tightened to exact supported revisions.\n"
+        "        for (const auto& candidate : kNdsMphRuntimeProfiles) {\n"
+        "            if (std::memcmp(candidate.game_code, rom_data + 0x0Cu, 4) == 0 &&\n"
+        "                candidate.revision == rom_data[0x1Eu]) {\n"
+        "                if (profile) return false;  // ambiguous registry: fail closed\n"
+        "                profile = &candidate;\n"
+        "            }\n"
+        "        }\n"
         "    }\n"
-        "    if (clean_profile && clean_profile != header_profile) return false;\n\n"
-        "    g_mph_runtime_profile = header_profile;\n"
+        "    if (!profile) return false;\n\n"
+        "    // A known clean whole-ROM hash can only describe its own base profile.\n"
+        "    const NdsMphRuntimeProfile* actual_clean = mph_find_clean_sha1(rom_sha1);\n"
+        "    if (actual_clean && actual_clean != profile) return false;\n\n"
+        "    g_mph_runtime_profile = profile;\n"
+        "    // Unknown checksum + matching header is only a base-profile hint.\n"
+        "    // Do not perform host RAM reads/writes until the executable checksum\n"
+        "    // is explicitly represented by melonPrimeDS's authoritative table.\n"
+        "    g_mph_host_writes_compatible = checksum_hit != nullptr;\n\n"
+        "    // Whole-ROM mismatch may be relaxed only for a clean build whose\n"
+        "    // executable identity is byte-for-byte equivalent to the canonical\n"
+        "    // header+ARM9+ARM7 checksum. Code-modified known variants therefore\n"
+        "    // still require an exact mod-specific build/capture SHA.\n"
+        "    const NdsMphRuntimeProfile* expected_clean =\n"
+        "        mph_find_clean_sha1(expected_rom_sha1);\n"
+        "    g_mph_allow_rom_sha1_mismatch =\n"
+        "        std::strcmp(rom_sha1, expected_rom_sha1) != 0 &&\n"
+        "        expected_clean == profile && checksum == profile->base_checksum;\n"
         "    return true;\n"
         "}\n\n"
+        "bool nds_title_patches_mph_host_writes_compatible() {\n"
+        "    return g_mph_runtime_profile && g_mph_host_writes_compatible;\n"
+        "}\n\n"
+        "bool nds_title_patches_mph_allows_rom_sha1_mismatch() {\n"
+        "    return g_mph_runtime_profile && g_mph_allow_rom_sha1_mismatch;\n"
+        "}\n\n"
         "bool nds_title_patches_mph_in_ball() {\n"
-        "    return g_mph_runtime_profile &&\n"
+        "    return nds_title_patches_mph_host_writes_compatible() &&\n"
         "           bus_read_u8_slow(g_mph_runtime_profile->morph_state) == 0x02u;\n"
         "}\n\n"
         "void nds_title_patches_set_mph_mouse_aim(bool enabled) {\n"
-        "    g_mph_mouse_aim = enabled && g_mph_runtime_profile;\n"
+        "    g_mph_mouse_aim =\n"
+        "        enabled && nds_title_patches_mph_host_writes_compatible();\n"
         "}\n\n"
         "bool nds_title_patches_apply_mph_mouse_delta(int32_t dx, int32_t dy) {\n"
-        "    if (!g_mph_mouse_aim || !g_mph_runtime_profile ||\n"
+        "    if (!g_mph_mouse_aim || !nds_title_patches_mph_host_writes_compatible() ||\n"
         "        (dx == 0 && dy == 0)) return false;\n"
         "    if (dx != 0)\n"
         "        bus_write_u32_slow(g_mph_runtime_profile->aim_x,\n"
@@ -319,23 +469,57 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
 
     patch_once(
         main_cpp,
+        "        rom_sha1 = gba::sha1(rom.data(), rom.size()).hex();\n"
+        "        std::fprintf(stderr, \"[load] cartridge: %zu bytes, SHA-1 %s\\n\",\n"
+        "                     rom.size(), rom_sha1.c_str());\n"
+        "        if (!frontend_options.expected_rom_sha1.empty() &&\n"
+        "            rom_sha1 != frontend_options.expected_rom_sha1) {\n"
+        "            std::fprintf(stderr,\n"
+        "                         \"refusing to start: game config expects ROM SHA-1 \"\n"
+        "                         \"%s, got %s\\n\",\n"
+        "                         frontend_options.expected_rom_sha1.c_str(),\n"
+        "                         rom_sha1.c_str());\n"
+        "            return 1;\n"
+        "        }\n",
+        "        rom_sha1 = gba::sha1(rom.data(), rom.size()).hex();\n"
+        "        std::fprintf(stderr, \"[load] cartridge: %zu bytes, SHA-1 %s\\n\",\n"
+        "                     rom.size(), rom_sha1.c_str());\n"
+        "        // MPH_MULTIROM_CONTENT_GATE: choose a base layout before the\n"
+        "        // generic exact-SHA gate. The whole-ROM hash still identifies\n"
+        "        // generated content; only canonical executable-equivalent data\n"
+        "        // variants may reuse a clean build.\n"
+        "        nds_title_patches_select_mph_runtime_profile(\n"
+        "            rom.data(), static_cast<uint64_t>(rom.size()), rom_sha1.c_str(),\n"
+        "            frontend_options.expected_rom_sha1.c_str());\n"
+        "        if (!frontend_options.expected_rom_sha1.empty() &&\n"
+        "            rom_sha1 != frontend_options.expected_rom_sha1 &&\n"
+        "            !nds_title_patches_mph_allows_rom_sha1_mismatch()) {\n"
+        "            std::fprintf(stderr,\n"
+        "                         \"refusing to start: game config expects ROM SHA-1 \"\n"
+        "                         \"%s, got %s\\n\",\n"
+        "                         frontend_options.expected_rom_sha1.c_str(),\n"
+        "                         rom_sha1.c_str());\n"
+        "            return 1;\n"
+        "        }\n",
+        "MPH_MULTIROM_CONTENT_GATE",
+    )
+    patch_once(
+        main_cpp,
         "    mph_mouse_aim_policy =\n"
         "        rom_sha1 == \"90164d1ac127ee5f9815ea4ae7de798c7b5fc629\" &&\n"
         "        frontend_options.relative_mouse_touch;\n",
-        "    // MPH_MULTIROM_RUNTIME_PROFILE: select the base address layout from\n"
-        "    // gameCode + revision. SHA-1 only checks known-clean consistency;\n"
-        "    // modified ROMs with a supported exact header identity remain usable.\n"
-        "    const bool mph_runtime_profile =\n"
-        "        nds_title_patches_select_mph_runtime_profile(\n"
-        "            rom.data(), static_cast<uint64_t>(rom.size()), rom_sha1.c_str());\n"
+        "    // MPH_MULTIROM_HOST_WRITE_GATE: header fallback alone never enables\n"
+        "    // direct host RAM writes; an authoritative executable checksum is required.\n"
         "    mph_mouse_aim_policy =\n"
-        "        mph_runtime_profile && frontend_options.relative_mouse_touch;\n",
-        "SHA-1 only checks known-clean consistency",
+        "        nds_title_patches_mph_host_writes_compatible() &&\n"
+        "        frontend_options.relative_mouse_touch;\n",
+        "MPH_MULTIROM_HOST_WRITE_GATE",
     )
 
     print(
         f"Patched ndsrecomp MPH runtime base profiles: "
         + ", ".join(str(profile["key"]) for profile in profiles)
+        + f" ({len(checksums)} authoritative executable checksums)"
     )
 
 

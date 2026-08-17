@@ -1,11 +1,13 @@
 {
-  "schema": 3,
+  "schema": 4,
   "runtime_address_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h",
   "runtime_detection_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp",
+  "runtime_checksum_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/NDSCart/CartCommon.cpp",
   "runtime_profiles": {
     "US1_0": {
       "game_code": "AMHE",
       "revision": 0,
+      "base_checksum": "0x218DA42C",
       "runtime": {
         "morph_state": "0x020DA818",
         "aim_x": "0x020DE526",
@@ -15,6 +17,7 @@
     "US1_1": {
       "game_code": "AMHE",
       "revision": 1,
+      "base_checksum": "0x91B46577",
       "runtime": {
         "morph_state": "0x020DB098",
         "aim_x": "0x020DEDA6",
@@ -24,6 +27,7 @@
     "EU1_0": {
       "game_code": "AMHP",
       "revision": 0,
+      "base_checksum": "0xA4A8FE5A",
       "runtime": {
         "morph_state": "0x020DB0B8",
         "aim_x": "0x020DEDC6",
@@ -33,6 +37,7 @@
     "EU1_1": {
       "game_code": "AMHP",
       "revision": 1,
+      "base_checksum": "0x910018A5",
       "runtime": {
         "morph_state": "0x020DB138",
         "aim_x": "0x020DEE46",
@@ -42,6 +47,7 @@
     "JP1_0": {
       "game_code": "AMHJ",
       "revision": 0,
+      "base_checksum": "0xD75F539D",
       "runtime": {
         "morph_state": "0x020DC6D8",
         "aim_x": "0x020E03E6",
@@ -51,6 +57,7 @@
     "JP1_1": {
       "game_code": "AMHJ",
       "revision": 1,
+      "base_checksum": "0x42EBF348",
       "runtime": {
         "morph_state": "0x020DC698",
         "aim_x": "0x020E03A6",
@@ -60,6 +67,7 @@
     "KR1_0": {
       "game_code": "AMHK",
       "revision": 0,
+      "base_checksum": "0xE54682F3",
       "runtime": {
         "morph_state": "0x020D3EE4",
         "aim_x": "0x020D7C0E",
@@ -67,6 +75,25 @@
       }
     }
   },
+  "runtime_checksums": [
+    {"crc32": "0x91B46577", "profile": "US1_1", "name": "US1.1"},
+    {"crc32": "0x01476E8F", "profile": "US1_1", "name": "US1.1 ENCRYPTED"},
+    {"crc32": "0x218DA42C", "profile": "US1_0", "name": "US1.0"},
+    {"crc32": "0xE048CD92", "profile": "US1_0", "name": "US1.0 ENCRYPTED"},
+    {"crc32": "0x910018A5", "profile": "EU1_1", "name": "EU1.1"},
+    {"crc32": "0x31703770", "profile": "EU1_1", "name": "EU1.1 ENCRYPTED"},
+    {"crc32": "0x948B1E48", "profile": "EU1_1", "name": "EU1.1 BALANCED"},
+    {"crc32": "0x2970A14F", "profile": "EU1_1", "name": "EU1.1 BALANCED V1.2.11"},
+    {"crc32": "0x9E20F3A8", "profile": "EU1_1", "name": "EU1.1 RUSSIANED"},
+    {"crc32": "0xA4A8FE5A", "profile": "EU1_0", "name": "EU1.0"},
+    {"crc32": "0x979BB267", "profile": "EU1_0", "name": "EU1.0 ENCRYPTED"},
+    {"crc32": "0xD75F539D", "profile": "JP1_0", "name": "JP1.0"},
+    {"crc32": "0xE795A10C", "profile": "JP1_0", "name": "JP1.0 ENCRYPTED"},
+    {"crc32": "0x42EBF348", "profile": "JP1_1", "name": "JP1.1"},
+    {"crc32": "0x0A1203A5", "profile": "JP1_1", "name": "JP1.1 ENCRYPTED"},
+    {"crc32": "0xE54682F3", "profile": "KR1_0", "name": "KR1.0"},
+    {"crc32": "0xC26916F3", "profile": "KR1_0", "name": "KR1.0 ENCRYPTED"}
+  ],
   "profiles": {
     "US1_0": {
       "display_name": "Metroid Prime Hunters (USA rev 0)",

@@ -1,22 +1,26 @@
 <#
-Build and package the Metroid Prime Hunters Recomp Windows release.
+Build Metroid Prime Hunters Recomp for one configured retail revision.
 
-This script builds the title banks, the sibling ndsrecomp runner, and the
-Windows recomp-ui launcher, then stages a portable ZIP with tools\make_release.ps1.
-It does not publish a release.
+US1_0 keeps the existing release paths. Non-US profiles use isolated generated
+banks, a revision-specific game config, a profile-specific launcher
+identity/policy, and the shared runtime base-profile / executable-compatibility
+detector for Prime Controls/direct mouse aim.
 
 Usage:
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-    tools\build-windows.ps1 -Version 0.1.0
+    tools\build-windows.ps1 -Version 0.3.0 -MphVersion EU1_1 `
+    -RomPath 'D:\ROMs\Metroid Prime Hunters (Europe) (Rev 1).nds'
 #>
 param(
   [string]$Version = '0.1.0',
+  [string]$MphVersion = 'US1_0',
+  [string]$RomPath = '',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
-  [string]$GameBuildDir = 'build-release',
-  [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
-  [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
+  [string]$GameBuildDir = '',
+  [string]$RunnerBuildDir = '',
+  [string]$LauncherBuildDir = '',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$RecompUiRoot = 'F:\Projects\recomp-ui'
 )
@@ -28,21 +32,90 @@ if (-not (Test-Path -LiteralPath $cmakePath)) {
   throw "CMake not found: $cmakePath"
 }
 
+$profileFile = Join-Path $root 'config\mph_rom_profiles.json'
+$registry = Get-Content -LiteralPath $profileFile -Raw | ConvertFrom-Json
+$profileProperty = $registry.profiles.PSObject.Properties[$MphVersion]
+if ($null -eq $profileProperty) {
+  $choices = @($registry.profiles.PSObject.Properties.Name) -join ', '
+  throw "Unknown MPH profile '$MphVersion'. Configured profiles: $choices"
+}
+$profile = $profileProperty.Value
+$romSha1 = [string]$profile.sha1
+$region = [string]$profile.region
+$launcherDefaultRom = [string]$profile.launcher_default_rom
+$launcherAdaptive = if ([bool]$profile.adaptive_widescreen) { 'ON' } else { 'OFF' }
+$fmvRuntimeBank = [string]$profile.fmv_runtime_bank
+if ([string]::IsNullOrWhiteSpace($fmvRuntimeBank)) {
+  throw "Profile $MphVersion has no FMV runtime bank identity."
+}
+$gameConfig = [IO.Path]::GetFullPath(
+  (Join-Path $root ([string]$profile.game_config)))
+
+if ([string]::IsNullOrWhiteSpace($RomPath)) {
+  $RomPath = Join-Path $root $launcherDefaultRom
+}
+$romFull = [IO.Path]::GetFullPath($RomPath)
+if (-not (Test-Path -LiteralPath $romFull)) {
+  throw "ROM not found: $romFull"
+}
+
+if ([string]::IsNullOrWhiteSpace($GameBuildDir)) {
+  if ($MphVersion -eq 'US1_0') {
+    $GameBuildDir = 'build-release'
+  } else {
+    $GameBuildDir = "build-release-$MphVersion"
+  }
+}
+if ([string]::IsNullOrWhiteSpace($RunnerBuildDir)) {
+  if ($MphVersion -eq 'US1_0') {
+    $RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release'
+  } else {
+    $RunnerBuildDir = "..\ndsrecomp\runner\build-mph-release-$MphVersion"
+  }
+}
+if ([string]::IsNullOrWhiteSpace($LauncherBuildDir)) {
+  if ($MphVersion -eq 'US1_0') {
+    $LauncherBuildDir = 'launcher\recomp-ui\build-release'
+  } else {
+    $LauncherBuildDir = "launcher\recomp-ui\build-release-$MphVersion"
+  }
+}
+
 $frameworkRoot = [IO.Path]::GetFullPath((Join-Path $root '..\ndsrecomp'))
 $gameBuild = [IO.Path]::GetFullPath((Join-Path $root $GameBuildDir))
 $runnerBuild = [IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))
 $launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
-$titleBankDir = [IO.Path]::GetFullPath((Join-Path $root 'generated\recomp'))
-$romSha1 = '90164d1ac127ee5f9815ea4ae7de798c7b5fc629'
+if ($MphVersion -eq 'US1_0') {
+  $titleBankDir = [IO.Path]::GetFullPath((Join-Path $root 'generated\recomp'))
+} else {
+  $titleBankDir = [IO.Path]::GetFullPath(
+    (Join-Path $root "generated\$MphVersion\recomp"))
+}
+
+$patchPython = Join-Path $root '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $patchPython)) {
+  $patchPython = 'python'
+}
 
 Push-Location $root
 try {
+  Write-Host "Building MPH profile $MphVersion ($($profile.game_code) rev $($profile.revision))"
+  Write-Host "Launcher adaptive widescreen: $launcherAdaptive"
+  Write-Host "FMV runtime bank identity: $fmvRuntimeBank"
+
   & $cmakePath -G $Generator -S $root -B $gameBuild `
     -DCMAKE_BUILD_TYPE=Release `
-    -DNDSRECOMP_ROOT="$frameworkRoot"
+    -DNDSRECOMP_ROOT="$frameworkRoot" `
+    -DMPH_VERSION="$MphVersion" `
+    -DMPH_ROM="$romFull"
   if ($LASTEXITCODE -ne 0) { throw 'Game CMake configure failed.' }
+
   & $cmakePath --build $gameBuild --target metroidprimehuntersrecomp -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Game bank build failed.' }
+
+  & $patchPython "$root\tools\patch_ndsrecomp_mph_runtime.py" `
+    --framework-root "$frameworkRoot" --profiles "$profileFile"
+  if ($LASTEXITCODE -ne 0) { throw 'ndsrecomp MPH runtime-profile patch failed.' }
 
   & $cmakePath -G $Generator -S "$frameworkRoot\runner" -B $runnerBuild `
     -DCMAKE_BUILD_TYPE=Release `
@@ -50,23 +123,39 @@ try {
     "-DNDS_TITLE_BANK_DIR=$titleBankDir" `
     "-DNDS_TITLE_ROM_SHA1=$romSha1"
   if ($LASTEXITCODE -ne 0) { throw 'Runner CMake configure failed.' }
+
   & $cmakePath --build $runnerBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Runner build failed.' }
 
   & $cmakePath -G $Generator -S "$root\launcher\recomp-ui" -B $launcherBuild `
     -DCMAKE_BUILD_TYPE=Release `
+    -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
-    -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
+    -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake" `
+    "-DMPH_LAUNCHER_ROM_SHA1=$romSha1" `
+    "-DMPH_LAUNCHER_REGION=$region" `
+    "-DMPH_LAUNCHER_DEFAULT_ROM=$launcherDefaultRom" `
+    "-DMPH_LAUNCHER_ADAPTIVE_WIDESCREEN=$launcherAdaptive"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
+
   & $cmakePath --build $launcherBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed.' }
 
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-    "$root\tools\make_release.ps1" `
-    -Version $Version `
-    -RunnerBuildDir $RunnerBuildDir `
-    -LauncherBuildDir $LauncherBuildDir `
-    -RuntimeBinDir $RuntimeBinDir
+  $releaseArgs = @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+    "$root\tools\make_release.ps1",
+    '-Version', $Version,
+    '-RunnerBuildDir', $RunnerBuildDir,
+    '-LauncherBuildDir', $LauncherBuildDir,
+    '-RuntimeBinDir', $RuntimeBinDir,
+    '-GameConfig', $gameConfig,
+    '-Profile', $MphVersion,
+    '-FmvRuntimeBank', $fmvRuntimeBank
+  )
+  if (-not [bool]$profile.fmv_runtime) {
+    $releaseArgs += '-AllowNoFmvRuntime'
+  }
+  & powershell.exe @releaseArgs
   if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed.' }
 } finally {
   Pop-Location

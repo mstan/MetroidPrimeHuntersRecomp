@@ -13,6 +13,14 @@ from pathlib import Path
 from PIL import Image
 
 import capture_mph_checkpoints as capture_lib
+from mph_profile import (
+    DEFAULT_PROFILE_FILE,
+    DEFAULT_VERSION,
+    load_profile,
+    resolve_repo_path,
+    verify_game_config_identity,
+    verify_rom_identity,
+)
 
 
 KEY_BITS = {
@@ -263,6 +271,13 @@ def main() -> int:
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--config", type=Path)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--version", default=DEFAULT_VERSION)
+    parser.add_argument(
+        "--profiles",
+        type=Path,
+        default=DEFAULT_PROFILE_FILE,
+        help=f"ROM profile registry (default: {DEFAULT_PROFILE_FILE})",
+    )
     parser.add_argument("--port", type=int, default=19860)
     parser.add_argument("--seed", type=int, default=0x4D5048)
     parser.add_argument("--steps", type=int, default=100)
@@ -274,8 +289,17 @@ def main() -> int:
     parser.add_argument("--skip-start-tap", action="store_true")
     parser.add_argument("--capture-static-coverage", action="store_true")
     args = parser.parse_args()
-    if args.runner is not None and args.config is None:
-        parser.error("--config is required with --runner")
+
+    profile = load_profile(args.profiles.resolve(), args.version)
+    args.rom = args.rom.resolve()
+    rom_sha1 = verify_rom_identity(args.rom, profile, args.version)
+    if args.runner is not None:
+        args.config = (
+            args.config.resolve()
+            if args.config is not None
+            else resolve_repo_path(str(profile["game_config"])).resolve()
+        )
+        verify_game_config_identity(args.config, profile, args.version)
 
     output = args.out.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -287,6 +311,10 @@ def main() -> int:
 
     process = launch(args, output)
     trace: dict[str, object] = {
+        "mph_profile": args.version,
+        "rom_sha1": rom_sha1,
+        "display_name": profile["display_name"],
+        "scenario": args.actions.as_posix() if args.actions is not None else None,
         "seed": args.seed,
         "backend": "native" if args.runner is not None else "oracle",
         "start_vblank": args.start_vblank,

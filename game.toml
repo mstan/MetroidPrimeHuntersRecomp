@@ -18,7 +18,8 @@ antialiasing = 0
 
 # The shared host-side adaptive renderer expands only the upper 3D viewport to
 # 21:9. The lower touchscreen remains native 256x192 and independently
-# clickable. The exact game SHA-1 above gates this title-owned capability.
+# clickable. Runtime executable compatibility, not whole-ROM SHA-1, gates the
+# title-owned projection/culling patch.
 adaptive_widescreen = "top"
 adaptive_capability = "top"
 adaptive_width = 448
@@ -61,7 +62,7 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "46b12e6c18dea47f87d2c1f98c3054149dcbca5d"
+pin = "6c6a03bdcf99093f64555c4d05d16e522dc58634"
 branch = "main"
 
 [reference.mphread]

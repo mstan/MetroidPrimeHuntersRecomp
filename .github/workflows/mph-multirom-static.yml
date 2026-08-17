@@ -22,9 +22,13 @@ jobs:
       - name: Check Python syntax
         run: |
           python -m py_compile \
+            tools/mph_profile.py \
             tools/prepare_mph.py \
             tools/check_mph_multirom_profiles.py \
-            tools/patch_ndsrecomp_mph_runtime.py
+            tools/patch_ndsrecomp_mph_runtime.py \
+            tools/promote_mph_static_coverage.py \
+            tools/promote_mph_runtime_coverage.py \
+            tools/benchmark_mph_fmv.py
 
       - name: Check shell syntax
         run: bash -n tools/build-linux.sh
@@ -52,6 +56,83 @@ jobs:
             -o /tmp/MelonPrimeGameRomAddrTable.h
           python tools/check_mph_multirom_profiles.py \
             --melonprime-table /tmp/MelonPrimeGameRomAddrTable.h
+
+      - name: Test profile-aware coverage promotion
+        run: |
+          mkdir -p /tmp/eu-inputs
+          cat > /tmp/eu-inputs/arm9.toml <<'EOF'
+          [program]
+          id = "mph_amhp1_arm9"
+          load_address = 0x02004000
+          size = 0x00001000
+          entry_pc = 0x02004000
+          EOF
+          cat > /tmp/eu-inputs/arm7.toml <<'EOF'
+          [program]
+          id = "mph_amhp1_arm7"
+          load_address = 0x02380000
+          size = 0x00001000
+          entry_pc = 0x02380000
+          EOF
+          cat > /tmp/eu-trace.json <<'EOF'
+          {
+            "mph_profile": "EU1_1",
+            "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+            "static_coverage": {"tier3_entries9": 3},
+            "tier3_coverage": {"entries": [
+              {"cpu": 9, "pc": 33570816, "thumb": 0, "kind": 2, "hits": 99},
+              {"cpu": 9, "pc": 33570848, "thumb": 0, "kind": 2, "hits": 7},
+              {"cpu": 9, "pc": 33579008, "thumb": 0, "kind": 2, "hits": 5},
+              {"cpu": 7, "pc": 37224480, "thumb": 0, "kind": 3, "hits": 4}
+            ]}
+          }
+          EOF
+          python tools/promote_mph_static_coverage.py \
+            --version EU1_1 \
+            --inputs /tmp/eu-inputs \
+            --trace /tmp/eu-trace.json \
+            --out /tmp/eu-coverage.json \
+            --runner-commit 0123456789abcdef0123456789abcdef01234567
+          python - <<'PY'
+          import json
+          p = json.load(open('/tmp/eu-coverage.json', encoding='utf-8'))
+          assert p['profile'] == 'EU1_1'
+          assert p['game_sha1'] == 'bdcd1dea293e24c98d4c481430e90d21198985a5'
+          assert p['main_image']['arm9']['end'] == '0x02005000'
+          assert [e['addr'] for e in p['entry_points']['arm9']] == ['0x02004020']
+          assert [e['addr'] for e in p['entry_points']['arm7']] == ['0x02380020']
+          PY
+
+          truncate -s $((0x00408000)) /tmp/eu-runtime.bin
+          cat > /tmp/eu-before.json <<'EOF'
+          {
+            "mph_profile": "EU1_1",
+            "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+            "tier3_coverage": {"entries": [
+              {"cpu": 9, "pc": 33525760, "thumb": 0, "kind": 2, "caller": 1, "hits": 1}
+            ]}
+          }
+          EOF
+          cat > /tmp/eu-after.json <<'EOF'
+          {
+            "mph_profile": "EU1_1",
+            "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+            "tier3_coverage": {"entries": [
+              {"cpu": 9, "pc": 33525760, "thumb": 0, "kind": 2, "caller": 1, "hits": 2},
+              {"cpu": 9, "pc": 33525792, "thumb": 0, "kind": 3, "caller": 2, "hits": 3}
+            ]}
+          }
+          EOF
+          python tools/promote_mph_runtime_coverage.py \
+            --version EU1_1 \
+            --before-benchmark /tmp/eu-before.json \
+            --benchmark /tmp/eu-after.json \
+            --image /tmp/eu-runtime.bin \
+            --out /tmp/eu-runtime.toml
+          grep -q 'Profile: EU1_1' /tmp/eu-runtime.toml
+          grep -q 'Metroid Prime Hunters (Europe rev 1) ARM9 FMV runtime' /tmp/eu-runtime.toml
+          grep -q 'id           = "mph_amhp1_arm9_fmv_runtime"' /tmp/eu-runtime.toml
+          ! grep -q 'Metroid Prime Hunters (USA) ARM9 FMV runtime' /tmp/eu-runtime.toml
 
       - name: Fetch exact pinned ndsrecomp revision
         run: |
@@ -156,11 +237,6 @@ jobs:
 
       - name: Compile patched runner translation units
         run: |
-          # The pinned runner CMake expects locally generated BIOS-bank C files,
-          # which are deliberately absent from a clean source checkout. Empty
-          # placeholders are sufficient for CMake generation because this job
-          # compiles only the three modified runner C++ translation units and
-          # never links or executes the placeholder banks.
           mkdir -p /tmp/ndsrecomp/generated
           for source in \
             arm9_bios.c arm9_bios_dispatch.c \

@@ -225,9 +225,9 @@ def main() -> int:
             f"game code mismatch for {args.version}: got "
             f"{rom_bytes[0x0C:0x10]!r}, expected {expected_game_code!r}"
         )
-    if rom_bytes[0x1C] != expected_revision:
+    if rom_bytes[0x1E] != expected_revision:
         raise SystemExit(
-            f"ROM revision mismatch for {args.version}: got {rom_bytes[0x1C]}, "
+            f"ROM revision mismatch for {args.version}: got {rom_bytes[0x1E]}, "
             f"expected {expected_revision}"
         )
 

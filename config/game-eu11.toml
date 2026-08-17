@@ -1,0 +1,26 @@
+[game]
+name = "Metroid Prime Hunters"
+id = "AMHP"
+region = "Europe"
+revision = 1
+status = "EU1.1 bootstrap: ROM-header main banks with interpreter fallback"
+rom = "Metroid Prime Hunters (Europe Rev 1).nds"
+rom_size = 0x04000000
+sha1 = "bdcd1dea293e24c98d4c481430e90d21198985a5"
+
+[display]
+# Keep EU1.1 bootstrap on native presentation until title-specific projection,
+# culling and HUD-address assumptions are validated for this revision.
+screen_layout = "separate"
+supersampling = 1
+antialiasing = 0
+
+[system]
+startup_mode = "automatic"
+
+[cartridge]
+# Metroid Prime Hunters uses the same 256 KiB flash save geometry across the
+# retail revisions tracked by the project. Keep this game-owned rather than a
+# shared-runner default.
+save_type = "flash"
+save_size = 262144

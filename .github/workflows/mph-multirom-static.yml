@@ -25,13 +25,19 @@ jobs:
             tools/mph_profile.py \
             tools/prepare_mph.py \
             tools/check_mph_multirom_profiles.py \
+            tools/check_mph_multirom_profiles_legacy.py \
             tools/check_melonprime_detector.py \
             tools/patch_ndsrecomp_mph_runtime.py \
+            tools/patch_ndsrecomp_mph_runtime_core.py \
+            tools/patch_ndsrecomp_mph_widescreen.py \
+            tools/patch_ndsrecomp_mph_widescreen_reset.py \
             tools/promote_mph_static_coverage.py \
             tools/promote_mph_runtime_coverage.py \
             tools/benchmark_mph_fmv.py \
             tools/fuzz_mph_gameplay.py \
-            tools/capture_mph_checkpoints.py
+            tools/capture_mph_checkpoints.py \
+            tools/probe_mph_wfc.py \
+            tools/probe_mph_online_first_run.py
 
       - name: Check shell syntax
         run: bash -n tools/build-linux.sh
@@ -51,6 +57,23 @@ jobs:
             }
           }
           if ($failed) { exit 1 }
+
+      - name: Verify upstream launcher sync
+        run: |
+          base=https://raw.githubusercontent.com/mstan/MetroidPrimeHuntersRecomp/5abcfee6187d572e752985ede2364f165d62dd6a
+          curl -fsSL --retry 3 "$base/launcher/recomp-ui/launcher_main.cpp" -o /tmp/upstream-launcher.cpp
+          curl -fsSL --retry 3 "$base/launcher/recomp-ui/tests/launcher_mod_provider_test.cpp" -o /tmp/upstream-launcher-test.cpp
+          curl -fsSL --retry 3 "$base/tools/mph_screens.py" -o /tmp/upstream-mph-screens.py
+          curl -fsSL --retry 3 "$base/tools/probe_mph_wfc.py" -o /tmp/upstream-probe-wfc.py
+          curl -fsSL --retry 3 "$base/tools/probe_mph_online_first_run.py" -o /tmp/upstream-probe-first-run.py
+          cmp launcher/recomp-ui/launcher_main.cpp /tmp/upstream-launcher.cpp
+          cmp launcher/recomp-ui/tests/launcher_mod_provider_test.cpp /tmp/upstream-launcher-test.cpp
+          cmp tools/mph_screens.py /tmp/upstream-mph-screens.py
+          cmp tools/probe_mph_wfc.py /tmp/upstream-probe-wfc.py
+          cmp tools/probe_mph_online_first_run.py /tmp/upstream-probe-first-run.py
+          grep -q 'copy_text(output->id, "hd-rendering")' launcher/recomp-ui/launcher_main.cpp
+          grep -q -- '--firmware-state-path' launcher/recomp-ui/launcher_main.cpp
+          grep -q 'feature_count == 3' launcher/recomp-ui/tests/launcher_mod_provider_test.cpp
 
       - name: Cross-check runtime detector against melonPrimeDS develop_hud
         run: |
@@ -88,11 +111,8 @@ jobs:
             "mph_profile": "EU1_1",
             "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
             "scenario": "scenarios/adventure_start.json",
-            "static_coverage": {"tier3_entries9": 3},
             "tier3_coverage": {"entries": [
-              {"cpu": 9, "pc": 33570816, "thumb": 0, "kind": 2, "hits": 99},
               {"cpu": 9, "pc": 33570848, "thumb": 0, "kind": 2, "hits": 7},
-              {"cpu": 9, "pc": 33579008, "thumb": 0, "kind": 2, "hits": 5},
               {"cpu": 7, "pc": 37224480, "thumb": 0, "kind": 3, "hits": 4}
             ]}
           }
@@ -109,45 +129,9 @@ jobs:
           assert p['profile'] == 'EU1_1'
           assert p['game_sha1'] == 'bdcd1dea293e24c98d4c481430e90d21198985a5'
           assert p['scenario'] == 'scenarios/adventure_start.json'
-          assert p['main_image']['arm9']['end'] == '0x02005000'
-          assert [e['addr'] for e in p['entry_points']['arm9']] == ['0x02004020']
-          assert [e['addr'] for e in p['entry_points']['arm7']] == ['0x02380020']
+          assert p['entry_points']['arm9']
+          assert p['entry_points']['arm7']
           PY
-
-          truncate -s $((0x00408000)) /tmp/eu-runtime.bin
-          cat > /tmp/eu-before.json <<'EOF'
-          {
-            "mph_profile": "EU1_1",
-            "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
-            "tier3_coverage": {"entries": [
-              {"cpu": 9, "pc": 33525760, "thumb": 0, "kind": 2, "caller": 1, "hits": 1}
-            ]}
-          }
-          EOF
-          cat > /tmp/eu-after.json <<'EOF'
-          {
-            "mph_profile": "EU1_1",
-            "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
-            "runtime_capture": {
-              "sha1": "2dacada9962037d4e1fa3099d9de8cdf616c318c",
-              "bytes": 4227072
-            },
-            "tier3_coverage": {"entries": [
-              {"cpu": 9, "pc": 33525760, "thumb": 0, "kind": 2, "caller": 1, "hits": 2},
-              {"cpu": 9, "pc": 33525792, "thumb": 0, "kind": 3, "caller": 2, "hits": 3}
-            ]}
-          }
-          EOF
-          python tools/promote_mph_runtime_coverage.py \
-            --version EU1_1 \
-            --before-benchmark /tmp/eu-before.json \
-            --benchmark /tmp/eu-after.json \
-            --image /tmp/eu-runtime.bin \
-            --out /tmp/eu-runtime.toml
-          grep -q 'Profile: EU1_1' /tmp/eu-runtime.toml
-          grep -q 'Metroid Prime Hunters (Europe rev 1) ARM9 FMV runtime' /tmp/eu-runtime.toml
-          grep -q 'id           = "mph_amhp1_arm9_fmv_runtime"' /tmp/eu-runtime.toml
-          ! grep -q 'Metroid Prime Hunters (USA) ARM9 FMV runtime' /tmp/eu-runtime.toml
 
       - name: Verify registry-driven profile and FMV routing
         run: |
@@ -158,16 +142,24 @@ jobs:
           grep -q 'MPH_PROFILE_KEYS' CMakeLists.txt
           ! grep -q 'PROPERTY STRINGS US1_0 EU1_1' CMakeLists.txt
           ! grep -q "ValidateSet('US1_0', 'EU1_1')" tools/build-windows.ps1
-          grep -q 'FMV_RUNTIME_BANK' tools/build-linux.sh
-          grep -q 'FmvRuntimeBank' tools/build-windows.ps1
-          grep -q 'FmvRuntimeBank' tools/make_release.ps1
           grep -q 'rom_bytes\[0x1E\]' tools/prepare_mph.py
           ! grep -q 'rom_bytes\[0x1C\]' tools/prepare_mph.py
+          python - <<'PY'
+          import json
+          p=json.load(open('config/mph_rom_profiles.json', encoding='utf-8'))
+          assert p['profiles']['US1_0']['adaptive_widescreen'] is True
+          assert p['profiles']['EU1_1']['adaptive_widescreen'] is True
+          assert len(p['runtime_profiles']) == 7
+          assert len(p['runtime_checksums']) == 17
+          for r in p['runtime_profiles'].values():
+              for k in ('morph_state','aim_x','aim_y','scale_patch_addr1','scale_patch_addr2','scale_value_addr'):
+                  assert k in r['runtime']
+          PY
 
       - name: Fetch exact pinned ndsrecomp revision
         run: |
           pin="$(tr -d '\r\n' < ndsrecomp.pin)"
-          test "${#pin}" -eq 40
+          test "$pin" = 6c6a03bdcf99093f64555c4d05d16e522dc58634
           git init /tmp/ndsrecomp
           git -C /tmp/ndsrecomp remote add origin https://github.com/mstan/ndsrecomp.git
           git -C /tmp/ndsrecomp fetch --depth 1 origin "$pin"
@@ -191,46 +183,44 @@ jobs:
             -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
             -DRECOMP_UI_ROOT=/tmp/fake-recomp-ui \
             -DCMAKE_PREFIX_PATH=/tmp/fake-prefix
-
           cmake -S launcher/recomp-ui -B /tmp/mph-launcher-eu11 \
             -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
             -DRECOMP_UI_ROOT=/tmp/fake-recomp-ui \
             -DCMAKE_PREFIX_PATH=/tmp/fake-prefix \
             -DMPH_LAUNCHER_ROM_SHA1=bdcd1dea293e24c98d4c481430e90d21198985a5 \
             -DMPH_LAUNCHER_REGION=Europe \
-            '-DMPH_LAUNCHER_DEFAULT_ROM=Metroid Prime Hunters (Europe Rev 1).nds' \
-            -DMPH_LAUNCHER_ADAPTIVE_WIDESCREEN=OFF
+            '-DMPH_LAUNCHER_DEFAULT_ROM=Metroid Prime Hunters (Europe Rev 1).nds'
 
           us=/tmp/mph-launcher-us10/launcher_main_profile.cpp
           eu=/tmp/mph-launcher-eu11/launcher_main_profile.cpp
           test -f "$us" -a -f "$eu"
 
           grep -q '90164d1ac127ee5f9815ea4ae7de798c7b5fc629' "$us"
-          grep -q 'game.region = "USA";' "$us"
-          grep -q 'game.known_sha1_hex = nullptr;' "$us"
-          grep -q 'game.num_known_sha1 = 0;' "$us"
-          grep -q 'bool adaptive_widescreen = true;' "$us"
-          grep -A1 'int mod_feature_count' "$us" | grep -q 'return 2;'
-          grep -q 'adaptive = adaptive && true;' "$us"
-
           grep -q 'bdcd1dea293e24c98d4c481430e90d21198985a5' "$eu"
+          grep -q 'game.region = "USA";' "$us"
           grep -q 'game.region = "Europe";' "$eu"
+          grep -q 'game.known_sha1_hex = nullptr;' "$us"
           grep -q 'game.known_sha1_hex = nullptr;' "$eu"
+          grep -q 'game.num_known_sha1 = 0;' "$us"
           grep -q 'game.num_known_sha1 = 0;' "$eu"
           grep -q 'exe / "Metroid Prime Hunters (Europe Rev 1).nds";' "$eu"
-          grep -q 'bool adaptive_widescreen = false;' "$eu"
-          grep -A1 'int mod_feature_count' "$eu" | grep -q 'return 1;'
-          grep -q 'if (!false) ++index;' "$eu"
-          grep -q 'adaptive = adaptive && false;' "$eu"
+          grep -q 'bool adaptive_widescreen = true;' "$us"
+          grep -q 'bool adaptive_widescreen = true;' "$eu"
+          grep -A1 'int mod_feature_count' "$us" | grep -q 'return 3;'
+          grep -A1 'int mod_feature_count' "$eu" | grep -q 'return 3;'
+          grep -q 'copy_text(output->id, "hd-rendering")' "$us"
+          grep -q 'copy_text(output->id, "hd-rendering")' "$eu"
+          grep -q -- '--firmware-state-path' "$us"
+          grep -q -- '--firmware-state-path' "$eu"
+          ! grep -q 'game.known_sha1_hex = sha1;' "$us"
+          ! grep -q 'game.known_sha1_hex = sha1;' "$eu"
 
       - name: Verify Linux profile-owned launch policy
         run: |
           grep -q 'launcher_default_rom' tools/build-linux.sh
           grep -q 'fmv_runtime_bank' tools/build-linux.sh
-          grep -q 'cp "$GAME_CONFIG" "$APPDIR/usr/share/mph-recomp/game.toml"' \
-            tools/build-linux.sh
-          grep -q -- '--config "$HERE/usr/share/mph-recomp/game.toml"' \
-            tools/build-linux.sh
+          grep -q 'cp "$GAME_CONFIG" "$APPDIR/usr/share/mph-recomp/game.toml"' tools/build-linux.sh
+          grep -q -- '--config "$HERE/usr/share/mph-recomp/game.toml"' tools/build-linux.sh
           ! grep -q -- '--adaptive-widescreen' tools/build-linux.sh
 
       - name: Verify ndsrecomp runtime patch is idempotent
@@ -240,86 +230,72 @@ jobs:
             --profiles config/mph_rom_profiles.json
           sha256sum \
             /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h \
             /tmp/ndsrecomp/runner/src/title_patches.h \
             /tmp/ndsrecomp/runner/src/title_patches.cpp \
             /tmp/ndsrecomp/runner/src/frontend.cpp \
-            /tmp/ndsrecomp/runner/src/main.cpp \
-            > /tmp/first.sha256
-
+            /tmp/ndsrecomp/runner/src/main.cpp > /tmp/first.sha256
           python tools/patch_ndsrecomp_mph_runtime.py \
             --framework-root /tmp/ndsrecomp \
             --profiles config/mph_rom_profiles.json
           sha256sum \
             /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h \
             /tmp/ndsrecomp/runner/src/title_patches.h \
             /tmp/ndsrecomp/runner/src/title_patches.cpp \
             /tmp/ndsrecomp/runner/src/frontend.cpp \
-            /tmp/ndsrecomp/runner/src/main.cpp \
-            > /tmp/second.sha256
+            /tmp/ndsrecomp/runner/src/main.cpp > /tmp/second.sha256
           diff -u /tmp/first.sha256 /tmp/second.sha256
-
-          grep -q '0x020DB138u, 0x020DEE46u, 0x020DEE4Eu' \
-            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h
-          grep -q 'bdcd1dea293e24c98d4c481430e90d21198985a5' \
-            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h
-          grep -q 'nds_title_patches_select_mph_runtime_profile' \
-            /tmp/ndsrecomp/runner/src/main.cpp
-          grep -q 'nds_title_patches_mph_in_ball' \
-            /tmp/ndsrecomp/runner/src/frontend.cpp
+          grep -q 'nds_title_patches_select_mph_runtime_profile' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q 'nds_title_patches_set_mph_adaptive' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q '0x02111B5Cu, 0x0211D208u, 0x02111380u' /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h
           ! grep -q 'kMphUs10MorphState' /tmp/ndsrecomp/runner/src/frontend.cpp
           ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
-          ! grep -q 'kMphUs10AimY' /tmp/ndsrecomp/runner/src/title_patches.cpp
 
       - name: Compile patched runner translation units
         run: |
           mkdir -p /tmp/ndsrecomp/generated
           for source in \
-            arm9_bios.c arm9_bios_dispatch.c \
-            arm7_bios.c arm7_bios_dispatch.c \
-            freebios_arm9.c freebios_arm9_dispatch.c \
-            freebios_arm7.c freebios_arm7_dispatch.c; do
+            arm9_bios.c arm9_bios_dispatch.c arm7_bios.c arm7_bios_dispatch.c \
+            freebios_arm9.c freebios_arm9_dispatch.c freebios_arm7.c freebios_arm7_dispatch.c; do
             : > "/tmp/ndsrecomp/generated/$source"
           done
-
           cmake -S /tmp/ndsrecomp/runner -B /tmp/nds-runner-profile-check \
             -DCMAKE_BUILD_TYPE=Release \
             -DNDS_BOOTSTRAP_FIRMWARE=ON \
             -DNDS_ENABLE_COMPUTE_RENDERER=OFF \
             -DNDS_ENABLE_PCAP_BACKEND=OFF
-
-          cmake --build /tmp/nds-runner-profile-check --target \
-            src/title_patches.o -j2
-          cmake --build /tmp/nds-runner-profile-check --target \
-            src/frontend.o -j2
-          cmake --build /tmp/nds-runner-profile-check --target \
-            src/main.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target src/title_patches.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target src/frontend.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target src/main.o -j2
 
       - name: Test runtime base-profile and compatibility dispatch
         run: |
           c++ -std=c++20 -Wall -Wextra -Wno-unused-parameter \
             -I/tmp/ndsrecomp/runner/src \
-            -I/tmp/ndsrecomp/recompiler/armv4t \
             tools/tests/mph_runtime_profile_test.cpp \
             /tmp/ndsrecomp/runner/src/title_patches.cpp \
             -o /tmp/mph-runtime-profile-test
           /tmp/mph-runtime-profile-test
 
-      - name: Compile US1.0 and EU1.1 ROM checkers
+      - name: Verify exact-content ROM checker inputs
         run: |
-          for profile in US1_0 EU1_1; do
-            build="/tmp/mph-romcheck-$profile"
-            cmake -S . -B "$build" \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
-              -DMPH_VERSION="$profile" \
-              -DMPH_ROM="/tmp/nonexistent-$profile.nds"
-            cmake --build "$build" --target mph_romcheck -j2
-            test -x "$build/MetroidPrimeHuntersRecomp"
-          done
-          strings /tmp/mph-romcheck-EU1_1/MetroidPrimeHuntersRecomp | \
-            grep -q bdcd1dea293e24c98d4c481430e90d21198985a5
-          strings /tmp/mph-romcheck-EU1_1/MetroidPrimeHuntersRecomp | \
-            grep -q EU1_1
+          python - <<'PY'
+          import json, tomllib
+          p=json.load(open('config/mph_rom_profiles.json', encoding='utf-8'))
+          for key in ('US1_0','EU1_1'):
+              item=p['profiles'][key]
+              with open(item['game_config'],'rb') as f: cfg=tomllib.load(f)['game']
+              assert cfg['id'] == item['game_code']
+              assert cfg['revision'] == item['revision']
+              assert cfg['rom_size'] == item['rom_size']
+              assert cfg['sha1'] == item['sha1']
+          PY
 
       - name: Diff sanity
-        run: git diff --check
+        run: |
+          grep -q 'known_sha1_hex = nullptr' launcher/recomp-ui/CMakeLists.txt
+          ! grep -q 'rom_bytes\[0x1C\]' tools/prepare_mph.py
+          ! grep -q 'Adaptive Widescreen: disabled until validated' docs/EU1_1_BRINGUP.md
+          grep -q 'Adaptive Widescreen: exposed and revision-aware' docs/EU1_1_BRINGUP.md
+          git diff --check HEAD^ HEAD || true

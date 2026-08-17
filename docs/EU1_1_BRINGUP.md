@@ -1,499 +1,313 @@
-# Metroid Prime Hunters Recomp - EU1.1 Bring-up
+# Metroid Prime Hunters Multi-ROM / EU1.1 Bring-up
 
-作成日: 2026-08-17
-更新日: 2026-08-17
+This document describes the current multi-ROM architecture in this branch.
+It supersedes the earlier SHA-1-driven runtime-profile design.
 
-## 1. 目的
+## 1. Status
 
-`MetroidPrimeHuntersRecomp` を USA revision 0 (`AMHE`, revision 0) 固定からmulti-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revision 1) を安全にbring-upする。
+Runtime address layouts are statically prepared for all seven retail MPH base
+revisions:
 
-ROMなしで可能な基盤実装は完了しており、現在の残件はEU1.1実ROMを使うruntime validation、EU1.1固有coverageの実採取、必要に応じたEU1.1固有FMV runtime captureである。
+| Runtime base | Game code | Revision | Morph / Alt Form | Aim X | Aim Y |
+|---|---|---:|---:|---:|---:|
+| `US1_0` | `AMHE` | 0 | `0x020DA818` | `0x020DE526` | `0x020DE52E` |
+| `US1_1` | `AMHE` | 1 | `0x020DB098` | `0x020DEDA6` | `0x020DEDAE` |
+| `EU1_0` | `AMHP` | 0 | `0x020DB0B8` | `0x020DEDC6` | `0x020DEDCE` |
+| `EU1_1` | `AMHP` | 1 | `0x020DB138` | `0x020DEE46` | `0x020DEE4E` |
+| `JP1_0` | `AMHJ` | 0 | `0x020DC6D8` | `0x020E03E6` | `0x020E03EE` |
+| `JP1_1` | `AMHJ` | 1 | `0x020DC698` | `0x020E03A6` | `0x020E03AE` |
+| `KR1_0` | `AMHK` | 0 | `0x020D3EE4` | `0x020D7C0E` | `0x020D7C16` |
 
-## 2. EU1.1 identity
+Exact build/capture content profiles currently exist for:
 
-| Field | EU1.1 |
-|---|---|
-| Profile key | `EU1_1` |
-| Game Code | `AMHP` |
-| Revision | `1` |
-| ROM size | `0x04000000` / 64 MiB |
-| SHA-1 | `bdcd1dea293e24c98d4c481430e90d21198985a5` |
-| Program ID prefix | `mph_amhp1` |
-| Game config | `config/game-eu11.toml` |
-| Launcher default ROM | `Metroid Prime Hunters (Europe Rev 1).nds` |
-| Adaptive Widescreen | disabled until EU1.1 validation |
-| FMV runtime enabled | `false` |
-| Reserved EU1.1 FMV bank ID | `mph_amhp1_arm9_fmv_runtime` |
+- `US1_0` clean retail ROM
+- `EU1_1` clean retail ROM
 
-identityと版別policyは `config/mph_rom_profiles.json` に集約する。
+The other retail revisions and individual modified ROMs still require their own
+exact-content build/capture profile, coverage and generated artifacts before
+they can be called fully supported.
 
-## 3. ROM profile registry
+## 2. Sources of truth
 
-schema 2 profileは少なくとも以下を管理する。
+Runtime detection and addresses intentionally follow melonPrimeDS
+`develop_hud`:
 
-- `game_code`, `revision`, `rom_size`, `sha1`, `program_id`
-- `coverage`, `game_config`
-- `fmv_runtime`, `fmv_runtime_bank`
-- `launcher_default_rom`, `adaptive_widescreen`
-- `runtime.morph_state`, `runtime.aim_x`, `runtime.aim_y`
+- detector: `src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp`
+- address table: `src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h`
+- executable checksum algorithm: `src/NDSCart/CartCommon.cpp`, `CartCommon::Checksum()`
+- CRC32 implementation: `src/CRC32.cpp`
 
-host-side runtime addressのsource of truth:
+Repository:
 
-```text
-https://github.com/ag-advania/melonPrimeDS/blob/main/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h
-```
+`https://github.com/ag-advania/melonPrimeDS/tree/develop_hud`
 
-Aim/Morphアドレスはglobal relocation deltaから推測しない。
+The project registry records these source locations in
+`config/mph_rom_profiles.json`.
 
-CMakeのprofile候補とWindows buildの `-MphVersion` validationもregistryから導出する。新しいrevisionをprofile registryへ追加するとき、`US1_0/EU1_1` の固定列挙を別途更新する必要はない。
+## 3. Identity model
 
-## 4. melonPrimeDSから確定したEU1.1 runtime addresses
+The old design coupled runtime RAM addresses to an exact whole-ROM SHA-1.
+That is intentionally no longer the design.
 
-| Semantic | melonPrimeDS field | US1.0 | EU1.1 |
-|---|---|---:|---:|
-| Morph / Alt Form state | `baseIsAltForm` | `0x020DA818` | `0x020DB138` |
-| Direct Aim X | `baseAimX` | `0x020DE526` | `0x020DEE46` |
-| Direct Aim Y | `baseAimY` | `0x020DE52E` | `0x020DEE4E` |
+There are three separate identities.
 
-CIはmelonPrimeDS `main` の実ファイルを取得してprofileと自動照合する。
+### 3.1 Runtime Base Profile
 
-## 5. pinned ndsrecomp runtime profile shim
+A runtime base profile is one of the seven region/revision layouts above. It
+owns revision-specific host RAM addresses such as Aim X/Y and Morph / Alt Form.
 
-pinned framework:
+The runtime detector uses:
 
-```text
-46b12e6c18dea47f87d2c1f98c3054149dcbca5d
-```
+1. melonPrimeDS-compatible executable checksum, then
+2. exact NDS header `gameCode + revision` fallback.
 
-元runnerのUS1.0固定Morph/Aim addressとUS1.0-only Prime Controls policyは `tools/patch_ndsrecomp_mph_runtime.py` でexact-ROM profile選択へ変換する。
+NDS header offsets:
 
-```text
-ROM SHA-1
-  -> NdsMphRuntimeProfile
-      -> morph_state
-      -> aim_x
-      -> aim_y
-  -> known profileのみPrime Controls / Direct Mouse Aimを許可
-  -> unknown ROMはfail-closed
-```
+- game code: `0x0C..0x0F`
+- ROM revision/version: `0x1E`
 
-patcherはexact source preimageを要求し、idempotentで、profile切替時にold direct-aim enable stateをclearする。
+The Recomp detector is deliberately stricter than melonPrimeDS's generic
+`revision != 0 -> 1.1` fallback. Only the seven explicitly supported tuples are
+accepted. A hypothetical rev2+ is unknown.
 
-`tools/tests/mph_runtime_profile_test.cpp` はpatched `title_patches.cpp` を実際にリンクして以下を検証する。
+### 3.2 Executable Compatibility Identity
 
-- unknown SHA-1でAim write / Morph readなし
-- US1.0 address regressionなし
-- EU1.1は `0x020DB138 / 0x020DEE46 / 0x020DEE4E` のみ使用
-- profile切替後のstale stateなし
+melonPrimeDS `CartCommon::Checksum()` is reproduced exactly:
 
-## 6. EU1.1 static coverage pipeline
+1. CRC32 over ROM header bytes `0x00..0x3F`
+2. continue CRC32 over the ARM9 ROM image
+3. continue CRC32 over the ARM7 ROM image
 
-### 6.1 Bootstrap
+A hit in the audited melonPrimeDS checksum table is authoritative for the base
+runtime layout and may enable host-side Aim/Morph RAM access.
 
-`coverage/eu11-bootstrap-entry-points.json` は追加ARM9/ARM7 rootを空にする。ROM header entry PCは `prepare_mph.py` がseedし、未コンパイル領域はInterpreter fallbackへ送る。
+A header-only match is weaker. It identifies a candidate base profile, but it
+**does not authorize host RAM reads/writes**. Unknown executable content remains
+fail-closed.
 
-US1.0の `coverage/adventure-main-entry-points.json` に含まれるabsolute PCはEU1.1へコピーしない。EU1.1自身のexecution traceからのみcoverageを拡張する。
+This prevents a modified ROM that merely preserves `AMHE` revision 0 from being
+blindly treated as memory-compatible US1.0.
 
-### 6.2 US1.0固定rangeの除去
+### 3.3 Actual Content Identity
 
-旧 `tools/promote_mph_static_coverage.py` はUS1.0固定の以下を内蔵していた。
+Whole-ROM SHA-1 identifies the exact content used to generate or validate:
 
-```text
-GAME_SHA1
-ARM9 main-image start/end
-ARM7 main-image start/end
-ARM9/ARM7 existing entry PC
-```
+- build inputs
+- recomp banks
+- static coverage
+- runtime coverage
+- checkpoints
+- FMV/runtime captures
 
-現在はこれらを持たない。
+This identity is not the runtime-address selector.
 
-`prepare_mph.py` が選択ROMそのものから生成した
+Generated title banks remain registered against the actual ROM SHA-1. A bank
+captured/generated for clean ROM or MOD A is therefore not silently reused for
+MOD B.
 
-```text
-generated/<profile>/inputs/arm9.toml
-generated/<profile>/inputs/arm7.toml
-```
+## 4. Known melonPrimeDS executable checksums
 
-の `[program].load_address`, `size`, `entry_pc`, `id` を読み、実ROM由来のimmutable main-image geometryをcoverage filterへ使用する。
+The current registry mirrors the audited `develop_hud` detector table,
+including:
 
-EU1.1では既定で:
+- all seven clean retail revisions
+- encrypted variants
+- EU1.1 Balanced variants
+- EU1.1 Russian variant (`0x9E20F3A8`)
 
-```text
-generated/EU1_1/inputs/arm9.toml
-generated/EU1_1/inputs/arm7.toml
-```
+A known checksum establishes the runtime RAM layout. It does **not** by itself
+mean the clean recomp build is byte-compatible with that modified executable.
 
-を読む。
+For example, the known EU1.1 Russian executable can use the EU1.1 Aim/Morph RAM
+layout, but because its executable checksum differs from canonical clean EU1.1,
+it still requires a mod-specific exact build/capture content profile.
 
-したがってEU1.1のARM9/ARM7終端アドレスをUS1.0から推測・変換する処理はない。
+`Last Raven` is not present in the current audited `develop_hud` checksum table.
+It therefore remains fail-closed for host Aim/Morph access until its executable
+checksum/layout is explicitly validated.
 
-### 6.3 Trace provenance
+## 5. Clean ROM versus modified ROM startup
 
-`tools/fuzz_mph_gameplay.py` は現在profile-awareで、実行前にROMのsize/SHA-1/game code/revisionを検証する。
+The recomp-ui launcher intentionally does not enforce the clean whole-ROM SHA.
+The launcher passes the selected `.nds` file to the runner, where the stronger
+multi-layer detector can decide safely.
 
-生成する `trace.json` には少なくとも以下を記録する。
+The runner rules are:
+
+- exact expected whole-ROM SHA: normal exact-content build
+- different whole-ROM SHA + canonical clean header/ARM9/ARM7 checksum of the
+  expected base: clean build may be reused for a data-only variant
+- code-modified executable checksum: exact clean SHA gate is not bypassed;
+  prepare a mod-specific build/capture profile
+- unknown checksum + supported header: candidate base may be identified, but
+  host Aim/Morph RAM access and clean-build SHA bypass stay disabled
+- unknown game code/revision or malformed ARM image ranges: reject/fail closed
+
+The launcher SHA check is disabled specifically so it cannot reject a mod before
+these runner rules execute.
+
+## 6. Content profiles and `base_profile`
+
+`config/mph_rom_profiles.json` schema 5 separates content identity from runtime
+base identity.
+
+Canonical clean profiles reserve the seven base keys. Example:
 
 ```json
-{
-  "mph_profile": "EU1_1",
-  "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
-  "scenario": "scenarios/adventure_start.json"
+"US1_0": {
+  "base_profile": "US1_0",
+  "known_clean": true,
+  "game_code": "AMHE",
+  "revision": 0,
+  "sha1": "...exact clean whole-ROM SHA-1..."
 }
 ```
 
-EU1.1のcoverage昇格では、このprofile/ROM identityが欠落した旧traceや出所不明traceを拒否する。
+A future exact mod profile must use a distinct key and reference the compatible
+base layout:
 
-### 6.4 EU1.1 Adventure coverage採取
-
-EU1.1 runnerをbuild済みとする。
-
-```powershell
-python tools\fuzz_mph_gameplay.py `
-  --version EU1_1 `
-  --runner ..\ndsrecomp\runner\build-mph-release-EU1_1\nds_runner.exe `
-  --bios bios `
-  --rom "Metroid Prime Hunters (Europe Rev 1).nds" `
-  --out generated\EU1_1\capture\adventure-coverage `
-  --actions scenarios\adventure_start.json `
-  --steps 0 `
-  --capture-static-coverage
+```json
+"US1_0_LAST_RAVEN": {
+  "base_profile": "US1_0",
+  "known_clean": false,
+  "game_code": "AMHE",
+  "revision": 0,
+  "sha1": "...exact Last Raven whole-ROM SHA-1...",
+  "program_id": "mph_amhe0_last_raven",
+  "coverage": "coverage/last-raven-entry-points.json",
+  "game_config": "config/game-last-raven.toml",
+  "fmv_runtime": false,
+  "fmv_runtime_bank": "mph_amhe0_last_raven_arm9_fmv_runtime",
+  "launcher_default_rom": "Metroid Prime Hunters - Last Raven.nds",
+  "adaptive_widescreen": false
+}
 ```
 
-`--capture-static-coverage` によりrunnerは `--discover-static-misses` 付きで起動し、最後に `static_coverage` と `tier3_coverage` をdebug serverから回収する。
+The example is architectural only. Do not add a Last Raven profile until its
+actual SHA-1, executable checksum, game config and generated/captured artifacts
+are known and validated.
 
-### 6.5 EU1.1 static coverage昇格
+The static checker enforces that a mod cannot overwrite a canonical clean key.
 
-runner/framework commitは実際に採取へ使ったrevisionを記録する。
+## 7. EU1.1 current exact-content identity
 
-```powershell
-$runnerCommit = git -C ..\ndsrecomp rev-parse HEAD
+Current clean EU1.1 profile:
 
-python tools\promote_mph_static_coverage.py `
-  --version EU1_1 `
-  --trace generated\EU1_1\capture\adventure-coverage\trace.json `
-  --out coverage\eu11-adventure-main-entry-points.json `
-  --runner-commit $runnerCommit
-```
+- profile: `EU1_1`
+- base profile: `EU1_1`
+- game code: `AMHP`
+- revision: `1`
+- whole-ROM SHA-1: `bdcd1dea293e24c98d4c481430e90d21198985a5`
+- default launcher ROM: `Metroid Prime Hunters (Europe Rev 1).nds`
+- Adaptive Widescreen: disabled until validated
+- FMV runtime bank: disabled until an EU1.1-specific capture is validated
 
-昇格対象は以下のみ。
+Reserved EU1.1 runtime bank identity:
 
-- ARM9/ARM7 immutable main image内
-- Tier-3 `call`
-- Tier-3 `indirect`
+- config: `config/mph_amhp1_arm9_fmv_runtime.toml`
+- capture: `generated/EU1_1/capture/mph_amhp1_arm9_fmv_runtime.bin`
+- bank: `mph_amhp1_arm9_fmv_runtime`
 
-以下は除外する。
+No US1.0 FMV runtime capture is reused for EU1.1.
 
-- slice-resume root
-- main image範囲外runtime RAM
-- reused overlay virtual ranges
-- ROM header entry PCの重複
+## 8. Preparing a clean content profile
 
-実ROM検証後に `config/mph_rom_profiles.json` のEU1.1 `coverage` をbootstrap JSONからこの昇格済みJSONへ切り替える。
+The preparation path intentionally remains exact-content gated. This is not the
+runtime selector; it protects generated code provenance.
 
-## 7. Generated tree separation
-
-US1.0:
-
-```text
-generated/inputs/
-generated/recomp/
-generated/capture/
-```
-
-EU1.1:
-
-```text
-generated/EU1_1/inputs/
-generated/EU1_1/recomp/
-generated/EU1_1/capture/
-```
-
-異なるROM revisionのprepared binary、coverage capture、runtime image、generated bankを同じディレクトリへ混在させない。
-
-## 8. Launcher identity / feature policy separation
-
-`launcher/recomp-ui/CMakeLists.txt` はbaseline `launcher_main.cpp` からprofile-specific generated TUを作る。
-
-反映項目:
-
-- exact ROM SHA-1
-- Region
-- default ROM filename
-- Adaptive Widescreen availability/default
-
-EU1.1 generated launcher:
-
-```text
-SHA-1: bdcd1dea293e24c98d4c481430e90d21198985a5
-Region: Europe
-Default ROM: Metroid Prime Hunters (Europe Rev 1).nds
-Adaptive Widescreen: disabled / UI hidden
-```
-
-EU1.1 Adaptive Widescreenは三重にfail-closed:
-
-1. mod listから非表示
-2. persisted `adaptive_widescreen=true` をload後にfalseへ戻す
-3. `launch_runner()` 最終段でもprofile capabilityとANDする
-
-Prime ControlsはEU1.1でも表示する。必要なMorph/Aim address routingはROMなしunit testで固定済みだが、ゲーム内semantic correctnessは実ROMで確認する。
-
-## 9. EU1.1 FMV runtime capture pipeline
-
-### 9.1 US1.0 bankの非流用
-
-US1.0の既存bank:
-
-```text
-config/mph_arm9_fmv_runtime.toml
-generated/capture/mph_arm9_fmv_runtime.bin
-bank id: mph_arm9_fmv_runtime
-```
-
-はEU1.1へ流用しない。
-
-EU1.1用に予約しているidentity/path:
-
-```text
-config/mph_amhp1_arm9_fmv_runtime.toml
-generated/EU1_1/capture/mph_amhp1_arm9_fmv_runtime.bin
-bank id: mph_amhp1_arm9_fmv_runtime
-```
-
-現在 `fmv_runtime=false` なので、EU1.1 buildはこのbankを要求・登録しない。
-
-### 9.2 FMV benchmark/captureのprofile化
-
-`tools/benchmark_mph_fmv.py` は現在:
-
-- `--version EU1_1` を受ける
-- exact EU1.1 ROM identityを起動前に検証する
-- `--config` 省略時は `config/game-eu11.toml` を選ぶ
-- `--adaptive auto` が既定
-- EU1.1ではprofile policyに従い `--adaptive-widescreen none`
-- profileがAdaptive Widescreen未検証なら明示的な `--adaptive top` も拒否する
-- `benchmark.json` に `mph_profile` と `rom_sha1` を保存する
-- `--capture-runtime` 時はcapture SHA-1とbyte countも保存する
-
-EU1.1を誤ってUS1.0のAdaptive Widescreen有効状態でbenchmark/coverage captureする経路はfail-closedにした。
-
-### 9.3 Before window採取
-
-例としてVBlank 2400までの累積coverageを取る。
-
-```powershell
-python tools\benchmark_mph_fmv.py `
-  --version EU1_1 `
-  --runner ..\ndsrecomp\runner\build-mph-release-EU1_1\nds_runner.exe `
-  --bios bios `
-  --rom "Metroid Prime Hunters (Europe Rev 1).nds" `
-  --out generated\EU1_1\capture\fmv-before `
-  --targets 2400 `
-  --discover-static-misses
-```
-
-### 9.4 Target window + RAM capture
-
-```powershell
-python tools\benchmark_mph_fmv.py `
-  --version EU1_1 `
-  --runner ..\ndsrecomp\runner\build-mph-release-EU1_1\nds_runner.exe `
-  --bios bios `
-  --rom "Metroid Prime Hunters (Europe Rev 1).nds" `
-  --out generated\EU1_1\capture\fmv-3000 `
-  --targets 2400 3000 `
-  --discover-static-misses `
-  --capture-runtime generated\EU1_1\capture\mph_amhp1_arm9_fmv_runtime.bin
-```
-
-runtime imageはITCM + main RAMを連結した `0x00408000` bytes。
-
-### 9.5 EU1.1 runtime bank config昇格
-
-```powershell
-python tools\promote_mph_runtime_coverage.py `
-  --version EU1_1 `
-  --before-benchmark generated\EU1_1\capture\fmv-before\benchmark.json `
-  --benchmark generated\EU1_1\capture\fmv-3000\benchmark.json `
-  --image generated\EU1_1\capture\mph_amhp1_arm9_fmv_runtime.bin `
-  --out config\mph_amhp1_arm9_fmv_runtime.toml
-```
-
-EU1.1では昇格時に以下を全て要求する。
-
-- benchmarkの `mph_profile == EU1_1`
-- benchmarkの `rom_sha1 == EU1.1 SHA-1`
-- before benchmarkも同じidentity
-- benchmark内 `runtime_capture.sha1` と渡した`.bin`の実SHA-1が一致
-- benchmark内capture byte countが `0x00408000`
-- ARM9 runtime領域内のobserved call/indirect targetが存在
-
-これらのどれかが不一致ならTOMLを生成しない。
-
-実runtime validationとperformance確認後にのみ、EU1.1 profileの `fmv_runtime` を `true` へ変更する。
-
-## 10. FMV runtime bank build/release routing
-
-CMakeはFMV bank名を固定しない。profileの `fmv_runtime_bank` から以下を導出する。
-
-```text
-config/<fmv_runtime_bank>.toml
-generated/<profile>/capture/<fmv_runtime_bank>.bin
-generated/<profile>/recomp/<fmv_runtime_bank>_*.c
---bank <fmv_runtime_bank>
-```
-
-Windows/Linux release gateもprofileのbank IDをrunner内で確認する。
-
-従って将来EU1.1で `fmv_runtime=true` にした場合も、US1.0の `mph_arm9_fmv_runtime` を誤要求しない。
-
-## 11. Profile-aware checkpoint validation
-
-`tools/capture_mph_checkpoints.py` もprofile-awareにした。
-
-runner/oracleのどちらを使う場合も、起動前に選択ROMをprofileのsize/SHA-1/game code/revisionへ照合する。runner時は `--config` 省略でprofileのgame configを選び、config identityもROM profileへ照合する。
-
-各capture directoryには `metadata.json` を追加し、以下を保存する。
-
-```text
-mph_profile
-rom_sha1
-display_name
-backend
-boot
-targets
-game_config
-```
-
-これによりUS1.0 native checkpointとEU1.1 oracle checkpoint等を誤って同一比較セットとして扱う前に、capture provenanceを確認できる。
-
-EU1.1例:
-
-```powershell
-python tools\capture_mph_checkpoints.py `
-  --version EU1_1 `
-  --runner ..\ndsrecomp\runner\build-mph-release-EU1_1\nds_runner.exe `
-  --bios bios `
-  --rom "Metroid Prime Hunters (Europe Rev 1).nds" `
-  --out generated\EU1_1\capture\checkpoints `
-  --targets 300 600 900 1200
-```
-
-## 12. Build
-
-### Windows
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-  tools\build-windows.ps1 `
-  -Version 0.3.0 `
-  -MphVersion EU1_1 `
-  -RomPath 'D:\ROMs\Metroid Prime Hunters (Europe) (Rev 1).nds'
-```
-
-`-RomPath`省略時はprofileの `launcher_default_rom` を使う。
-
-WindowsはEU1.1 identity verify -> extraction -> static bank -> runtime-profile patch -> exact EU SHA runner -> profile-specific launcher -> EU game config packagingまで一貫して行う。
-
-### Linux
+Example EU1.1 preparation:
 
 ```bash
-tools/build-linux.sh \
-  --mph-version EU1_1 \
-  --rom '/path/to/Metroid Prime Hunters (Europe) (Rev 1).nds'
+python tools/prepare_mph.py \
+  --version EU1_1 \
+  --rom "/path/to/Metroid Prime Hunters (Europe Rev 1).nds" \
+  --coverage coverage/eu11-bootstrap-entry-points.json \
+  --out generated/EU1_1/inputs
 ```
 
-`--rom`省略時はEU1.1 profileのdefault ROM filenameをrepository rootから探す。AppRunはprofile別 `game.toml` をrunnerへ渡し、`--adaptive-widescreen` 等でtitle policyを上書きしない。
+`prepare_mph.py` checks:
 
-## 13. ROM不要static CI
+- exact whole-ROM SHA-1
+- expected ROM size
+- game code at `0x0C`
+- revision at `0x1E`
+- coverage `game_sha1`
 
-`.github/workflows/mph-multirom-static.yml` は以下を検証する。
+It then extracts ARM9, ARM7 and overlays and emits revision/content-specific
+seed configs.
 
-1. capture/promotion/checkpointを含むPython syntax
-2. Linux shell / Windows PowerShell syntax
-3. profile / coverage / game config / launcher / FMV bank policy整合性
-4. CMake/Windowsがprofile keyを固定列挙しないこと
-5. melonPrimeDS `MelonPrimeGameRomAddrTable.h` とのAim/Morph照合
-6. fake EU1.1 prepared ARM9/ARM7 geometryからstatic coverageを昇格
-7. main-image範囲外targetが除外されることを確認
-8. fake EU1.1 runtime image + tagged benchmarkからEU1.1 FMV TOMLを生成
-9. runtime image SHA/size metadata照合
-10. EU1.1 TOMLへUSA runtime名が混入しないことを確認
-11. CMake/Windows/Linuxがprofile-owned FMV bank IDを使用することを確認
-12. exact `ndsrecomp.pin` fetch
-13. US1.0/EU1.1 launcher generated source renderとidentity/policy確認
-14. Linux AppRunのprofile-owned config policy確認
-15. ndsrecomp runtime patchのidempotency
-16. US1.0固定Aim/Morph symbol除去確認
-17. patched runnerの `title_patches.cpp` / `frontend.cpp` / `main.cpp` compile
-18. exact-ROM runtime dispatch unit test実行
-19. US1.0/EU1.1 `mph_romcheck` compile
-20. `git diff --check`
+## 9. Building EU1.1
 
-ROM、BIOS、firmware dumpはCIで取得しない。
+Typical CMake configuration:
 
-## 14. mphCodexの役割
+```bash
+cmake -S . -B build-eu11 \
+  -DMPH_VERSION=EU1_1 \
+  -DMPH_ROM="/path/to/Metroid Prime Hunters (Europe Rev 1).nds"
+cmake --build build-eu11
+```
 
-Aim X/Y/MorphはmelonPrimeDS tableをsource of truthとする。その他Recomp固有host enhancementのcross-version semantic調査にはmphCodexを利用する。
+Windows and Linux build helpers consume the same registry-owned profile data.
+Profile choices are derived from `profiles`, not a hard-coded two-profile list.
 
-| Semantic | US1.0 | EU1.1 |
-|---|---:|---:|
-| Current Camera Sequence | `0x020D9CB0` | `0x020DA5D0` |
-| Game Mode | `0x020E78FC` | `0x020E845C` |
-| Upper HUD function | `0x0202F600` | `0x0202F5E0` |
-| Crosshair callsite | `0x0202F934` | `0x0202F904` |
-| Crosshair renderer | `0x020393D4` | `0x02039338` |
-| Local Player Pointer | `0x020BCA70` | `0x020BD370` |
-| HUD suppression storage | `0x020DE748` | `0x020DF068` |
+## 10. Coverage and capture safety
 
-単一delta変換は使用しない。
+Static and runtime promotion is profile/content aware.
 
-## 15. 実ROMで残るvalidation gates
+For non-US content, traces carry both:
 
-### Gate A - extraction / bank generation
+- content profile key
+- exact whole-ROM SHA-1
 
-EU1.1 identity accept、ARM9 decompress、ARM7 extraction、overlay列挙、EU1.1 bank生成、US1.0 artifact非混入。
+Main-image geometry is derived from the selected prepared ARM9/ARM7 configs,
+not reused from US1.0 constants.
 
-### Gate B - boot
+FMV/runtime capture promotion verifies exact content provenance. A capture from
+one content SHA must not be promoted into another content profile.
 
-firmware boot、cartridge handoff、opening logos/FMV、title、attract loop。
+## 11. Runtime safety tests
 
-### Gate C - gameplay
+CI patches the exact pinned ndsrecomp revision and compiles the patched runner
+translation units.
 
-Adventure file作成/読込、Celestial Archives、movement/aim/shoot、Morph Ball、Scan Visor、pause、save/reload、multiplayer menu。
+The runtime harness uses synthetic, non-copyrighted ROM images constructed to
+produce the canonical melonPrimeDS executable checksums. It verifies:
 
-### Gate D - Prime Controls / Direct Mouse Aim semantics
+- all seven runtime profiles dispatch the correct Aim/Morph addresses
+- checksum-authoritative profiles allow host Aim/Morph access
+- header-only fallback does not allow host RAM access
+- unsupported revisions fail closed
+- malformed ARM image ranges fail closed
+- known-clean SHA/header contradictions fail closed
+- canonical executable-equivalent data variants may pass the clean SHA gate
+- known code-modified EU1.1 Russian checksum gets EU1.1 RAM layout but cannot
+  reuse the clean EU1.1 build identity
+- runtime patching is idempotent
+- patched runner source files compile
 
-address routingはunit test済み。実ROMではnormal/Morph touch behavior、camera aim、menu/touch復帰、keyboard/gamepad操作を確認する。
+## 12. Remaining work for full multi-ROM support
 
-### Gate E - deterministic coverage
+The detector/address architecture is now prepared for all seven base revisions,
+but full player-facing support still requires exact content work per ROM:
 
-EU1.1自身のprofile-tagged execution traceからcoverageを採取し、EU1.1 prepared main-image geometryでfilterして昇格する。
+1. add verified clean content profiles for US1.1, EU1.0, JP1.0, JP1.1 and KR1.0
+2. prepare/extract each exact ROM
+3. capture deterministic coverage and promote it under that exact SHA
+4. generate revision-specific ARM9/ARM7/overlay banks
+5. validate boot, Adventure, pause, save/load and multiplayer-menu paths
+6. validate Prime Controls / Direct Mouse Aim semantics on real execution
+7. compare checkpoints against the reference/native execution path
+8. capture revision-specific FMV runtime code only where interpreter fallback needs optimization
+9. regression-test US1.0 after each new profile
 
-### Gate F - FMV runtime optimization
+For a modified ROM, additionally:
 
-必要な場合のみEU1.1 captureを作り、capture identity、content validation、correctness、performanceを確認してから `fmv_runtime=true` にする。
+1. compute the exact whole-ROM SHA-1
+2. compute the melonPrimeDS-compatible header+ARM9+ARM7 CRC32
+3. determine/validate its runtime base layout
+4. if code-modified, register the executable checksum only after address compatibility is established
+5. add a distinct content profile with `base_profile`
+6. generate/promote coverage and banks under that mod's exact content identity
 
-### Gate G - Adaptive Widescreen
-
-現在EU1.1では意図的に無効。基本対応の必須条件ではない。将来有効化する場合のみprojection、culling、HUD anchoring、touchscreen、特殊camera/visor sceneをEU1.1実ROMで検証し、profileとgame configを同時にenableする。
-
-## 16. Supported判定
-
-EU1.1をruntime検証済みsupportedと宣言するには、exact identity、EU1.1 ARM9/ARM7 banks、title/gameplay/save/load、Prime Controls/Direct Aim semantic validation、native/reference checkpoint比較、US1.0 regressionなしが必要である。
-
-Adaptive WidescreenとEU1.1 FMV runtime bankは基本correctnessの必須条件ではない。未検証機能はfail-closedを維持する。
-
-## 17. 現在の判定
-
-### Code / infrastructure
-
-**READY FOR EU1.1 ROM VALIDATION AND PROFILE-TAGGED COVERAGE CAPTURE**
-
-ROMなしで可能なprofile、extraction routing、bank isolation、runtime address selection、launcher identity/feature gating、coverage capture metadata、static/runtime coverage promotion、profile-owned FMV bank routing、checkpoint identity validation、Windows/Linux packaging、static CIまで実装済み。
-
-### Runtime correctness
-
-**NOT YET CLAIMED**
-
-EU1.1実ROMによるboot/gameplay/reference validationと実coverage/capture採取は別途必要である。
+Do not guess an unknown mod as US1.0 simply because its filename, region or
+header resembles US1.0.

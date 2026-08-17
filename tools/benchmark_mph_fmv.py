@@ -165,9 +165,16 @@ def main() -> int:
         else resolve_repo_path(str(profile["game_config"])).resolve()
     )
     verify_config(config_path, profile, args.version)
+
+    profile_adaptive = bool(profile["adaptive_widescreen"])
+    if args.adaptive == "top" and not profile_adaptive:
+        raise SystemExit(
+            f"{args.version} does not have validated Adaptive Widescreen; "
+            "refusing an FMV/coverage capture with --adaptive top"
+        )
     adaptive = args.adaptive
     if adaptive == "auto":
-        adaptive = "top" if bool(profile["adaptive_widescreen"]) else "none"
+        adaptive = "top" if profile_adaptive else "none"
 
     targets = sorted(set(args.targets))
     if not targets or targets[0] <= 0:

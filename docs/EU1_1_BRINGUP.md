@@ -45,6 +45,8 @@ https://github.com/ag-advania/melonPrimeDS/blob/main/src/frontend/qt_sdl/MelonPr
 
 Aim/Morphアドレスはglobal relocation deltaから推測しない。
 
+CMakeのprofile候補とWindows buildの `-MphVersion` validationもregistryから導出する。新しいrevisionをprofile registryへ追加するとき、`US1_0/EU1_1` の固定列挙を別途更新する必要はない。
+
 ## 4. melonPrimeDSから確定したEU1.1 runtime addresses
 
 | Semantic | melonPrimeDS field | US1.0 | EU1.1 |
@@ -344,7 +346,39 @@ Windows/Linux release gateもprofileのbank IDをrunner内で確認する。
 
 従って将来EU1.1で `fmv_runtime=true` にした場合も、US1.0の `mph_arm9_fmv_runtime` を誤要求しない。
 
-## 11. Build
+## 11. Profile-aware checkpoint validation
+
+`tools/capture_mph_checkpoints.py` もprofile-awareにした。
+
+runner/oracleのどちらを使う場合も、起動前に選択ROMをprofileのsize/SHA-1/game code/revisionへ照合する。runner時は `--config` 省略でprofileのgame configを選び、config identityもROM profileへ照合する。
+
+各capture directoryには `metadata.json` を追加し、以下を保存する。
+
+```text
+mph_profile
+rom_sha1
+display_name
+backend
+boot
+targets
+game_config
+```
+
+これによりUS1.0 native checkpointとEU1.1 oracle checkpoint等を誤って同一比較セットとして扱う前に、capture provenanceを確認できる。
+
+EU1.1例:
+
+```powershell
+python tools\capture_mph_checkpoints.py `
+  --version EU1_1 `
+  --runner ..\ndsrecomp\runner\build-mph-release-EU1_1\nds_runner.exe `
+  --bios bios `
+  --rom "Metroid Prime Hunters (Europe Rev 1).nds" `
+  --out generated\EU1_1\capture\checkpoints `
+  --targets 300 600 900 1200
+```
+
+## 12. Build
 
 ### Windows
 
@@ -370,32 +404,34 @@ tools/build-linux.sh \
 
 `--rom`省略時はEU1.1 profileのdefault ROM filenameをrepository rootから探す。AppRunはprofile別 `game.toml` をrunnerへ渡し、`--adaptive-widescreen` 等でtitle policyを上書きしない。
 
-## 12. ROM不要static CI
+## 13. ROM不要static CI
 
 `.github/workflows/mph-multirom-static.yml` は以下を検証する。
 
-1. capture/promotionを含むPython syntax
+1. capture/promotion/checkpointを含むPython syntax
 2. Linux shell / Windows PowerShell syntax
 3. profile / coverage / game config / launcher / FMV bank policy整合性
-4. melonPrimeDS `MelonPrimeGameRomAddrTable.h` とのAim/Morph照合
-5. fake EU1.1 prepared ARM9/ARM7 geometryからstatic coverageを昇格
-6. main-image範囲外targetが除外されることを確認
-7. fake EU1.1 runtime image + tagged benchmarkからEU1.1 FMV TOMLを生成
-8. EU1.1 TOMLへUSA runtime名が混入しないことを確認
-9. CMake/Windows/Linuxがprofile-owned FMV bank IDを使用することを確認
-10. exact `ndsrecomp.pin` fetch
-11. US1.0/EU1.1 launcher generated source renderとidentity/policy確認
-12. Linux AppRunのprofile-owned config policy確認
-13. ndsrecomp runtime patchのidempotency
-14. US1.0固定Aim/Morph symbol除去確認
-15. patched runnerの `title_patches.cpp` / `frontend.cpp` / `main.cpp` compile
-16. exact-ROM runtime dispatch unit test実行
-17. US1.0/EU1.1 `mph_romcheck` compile
-18. `git diff --check`
+4. CMake/Windowsがprofile keyを固定列挙しないこと
+5. melonPrimeDS `MelonPrimeGameRomAddrTable.h` とのAim/Morph照合
+6. fake EU1.1 prepared ARM9/ARM7 geometryからstatic coverageを昇格
+7. main-image範囲外targetが除外されることを確認
+8. fake EU1.1 runtime image + tagged benchmarkからEU1.1 FMV TOMLを生成
+9. runtime image SHA/size metadata照合
+10. EU1.1 TOMLへUSA runtime名が混入しないことを確認
+11. CMake/Windows/Linuxがprofile-owned FMV bank IDを使用することを確認
+12. exact `ndsrecomp.pin` fetch
+13. US1.0/EU1.1 launcher generated source renderとidentity/policy確認
+14. Linux AppRunのprofile-owned config policy確認
+15. ndsrecomp runtime patchのidempotency
+16. US1.0固定Aim/Morph symbol除去確認
+17. patched runnerの `title_patches.cpp` / `frontend.cpp` / `main.cpp` compile
+18. exact-ROM runtime dispatch unit test実行
+19. US1.0/EU1.1 `mph_romcheck` compile
+20. `git diff --check`
 
 ROM、BIOS、firmware dumpはCIで取得しない。
 
-## 13. mphCodexの役割
+## 14. mphCodexの役割
 
 Aim X/Y/MorphはmelonPrimeDS tableをsource of truthとする。その他Recomp固有host enhancementのcross-version semantic調査にはmphCodexを利用する。
 
@@ -411,7 +447,7 @@ Aim X/Y/MorphはmelonPrimeDS tableをsource of truthとする。その他Recomp�
 
 単一delta変換は使用しない。
 
-## 14. 実ROMで残るvalidation gates
+## 15. 実ROMで残るvalidation gates
 
 ### Gate A - extraction / bank generation
 
@@ -441,19 +477,19 @@ EU1.1自身のprofile-tagged execution traceからcoverageを採取し、EU1.1 p
 
 現在EU1.1では意図的に無効。基本対応の必須条件ではない。将来有効化する場合のみprojection、culling、HUD anchoring、touchscreen、特殊camera/visor sceneをEU1.1実ROMで検証し、profileとgame configを同時にenableする。
 
-## 15. Supported判定
+## 16. Supported判定
 
 EU1.1をruntime検証済みsupportedと宣言するには、exact identity、EU1.1 ARM9/ARM7 banks、title/gameplay/save/load、Prime Controls/Direct Aim semantic validation、native/reference checkpoint比較、US1.0 regressionなしが必要である。
 
 Adaptive WidescreenとEU1.1 FMV runtime bankは基本correctnessの必須条件ではない。未検証機能はfail-closedを維持する。
 
-## 16. 現在の判定
+## 17. 現在の判定
 
 ### Code / infrastructure
 
 **READY FOR EU1.1 ROM VALIDATION AND PROFILE-TAGGED COVERAGE CAPTURE**
 
-ROMなしで可能なprofile、extraction routing、bank isolation、runtime address selection、launcher identity/feature gating、coverage capture metadata、static/runtime coverage promotion、profile-owned FMV bank routing、Windows/Linux packaging、static CIまで実装済み。
+ROMなしで可能なprofile、extraction routing、bank isolation、runtime address selection、launcher identity/feature gating、coverage capture metadata、static/runtime coverage promotion、profile-owned FMV bank routing、checkpoint identity validation、Windows/Linux packaging、static CIまで実装済み。
 
 ### Runtime correctness
 

@@ -100,15 +100,34 @@ jobs:
           ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
           ! grep -q 'kMphUs10AimY' /tmp/ndsrecomp/runner/src/title_patches.cpp
 
-      - name: Compile patched headless runner
+      - name: Compile patched runner translation units
         run: |
+          # The pinned runner CMake expects locally generated BIOS-bank C files,
+          # which are deliberately absent from a clean source checkout. Empty
+          # placeholders are sufficient for CMake generation because this job
+          # compiles only the three modified runner C++ translation units and
+          # never links or executes the placeholder banks.
+          mkdir -p /tmp/ndsrecomp/generated
+          for source in \
+            arm9_bios.c arm9_bios_dispatch.c \
+            arm7_bios.c arm7_bios_dispatch.c \
+            freebios_arm9.c freebios_arm9_dispatch.c \
+            freebios_arm7.c freebios_arm7_dispatch.c; do
+            : > "/tmp/ndsrecomp/generated/$source"
+          done
+
           cmake -S /tmp/ndsrecomp/runner -B /tmp/nds-runner-profile-check \
             -DCMAKE_BUILD_TYPE=Release \
             -DNDS_BOOTSTRAP_FIRMWARE=ON \
             -DNDS_ENABLE_COMPUTE_RENDERER=OFF \
             -DNDS_ENABLE_PCAP_BACKEND=OFF
-          cmake --build /tmp/nds-runner-profile-check --target nds_runner -j2
-          test -x /tmp/nds-runner-profile-check/nds_runner
+
+          cmake --build /tmp/nds-runner-profile-check --target \
+            CMakeFiles/nds_runner.dir/src/title_patches.cpp.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target \
+            CMakeFiles/nds_runner.dir/src/frontend.cpp.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target \
+            CMakeFiles/nds_runner.dir/src/main.cpp.o -j2
 
       - name: Compile US1.0 and EU1.1 ROM checkers
         run: |

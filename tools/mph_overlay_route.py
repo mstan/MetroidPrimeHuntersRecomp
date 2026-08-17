@@ -53,14 +53,30 @@ class DebugClient:
     def vblank(self) -> int:
         return int(self.cmd("event_counts")["vblank9"])
 
+    def advance_to(self, target: int) -> None:
+        """Advance to an absolute vblank, resuming when the round budget runs out.
+
+        run_to_event caps at max_rounds and returns exhausted=True having gone
+        only part way -- reaching the title screen alone needs more than the
+        50M default. Not resuming silently under-ran every route: the boot
+        stopped at vblank 6461 instead of 7800 and every subsequent tap landed
+        at the wrong moment, which looked exactly like a regression in the
+        build under test. It was not; all builds stop at the same vblank.
+        """
+        for _ in range(200):
+            reply = self.cmd("run_to_event", event="vblank9", count=target,
+                             max_rounds=50_000_000)
+            if reply.get("terminal"):
+                raise RuntimeError(f"runner halted: {reply.get('reason9')} / "
+                                   f"{reply.get('reason7')}")
+            if reply.get("stalled"):
+                raise RuntimeError(f"stalled before vblank9 {target}")
+            if self.vblank() >= target:
+                return
+        raise RuntimeError(f"could not reach vblank9 {target}")
+
     def advance(self, frames: int) -> None:
-        target = self.vblank() + frames
-        reply = self.cmd("run_to_event", event="vblank9", count=target)
-        if reply.get("terminal"):
-            raise RuntimeError(f"runner halted: {reply.get('reason9')} / "
-                               f"{reply.get('reason7')}")
-        if reply.get("stalled"):
-            raise RuntimeError(f"stalled before vblank9 {target}")
+        self.advance_to(self.vblank() + frames)
 
     def tap(self, x: int, y: int, hold: int) -> None:
         self.cmd("touch", x=x, y=y, down=True)
@@ -138,7 +154,7 @@ def main() -> int:
 
         client.cmd("reset")
         target = args.start_vblank
-        client.cmd("run_to_event", event="vblank9", count=target)
+        client.advance_to(target)
         if not args.no_shots:
             client.screenshot(args.out / f"0000-{target:05d}-title.png")
         client.tap(128, 96, args.hold_frames)

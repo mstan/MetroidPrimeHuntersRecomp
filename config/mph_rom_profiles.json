@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "profiles": {
+    "US1_0": {
+      "display_name": "Metroid Prime Hunters (USA rev 0)",
+      "region": "USA",
+      "game_code": "AMHE",
+      "revision": 0,
+      "rom_size": 67108864,
+      "sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
+      "program_id": "mph_amhe0",
+      "coverage": "coverage/adventure-main-entry-points.json",
+      "game_config": "game.toml",
+      "fmv_runtime": true
+    },
+    "EU1_1": {
+      "display_name": "Metroid Prime Hunters (Europe rev 1)",
+      "region": "Europe",
+      "game_code": "AMHP",
+      "revision": 1,
+      "rom_size": 67108864,
+      "sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+      "program_id": "mph_amhp1",
+      "coverage": "coverage/eu11-bootstrap-entry-points.json",
+      "game_config": "config/game-eu11.toml",
+      "fmv_runtime": false
+    }
+  }
+}

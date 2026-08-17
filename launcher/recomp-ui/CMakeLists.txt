@@ -6,14 +6,15 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(SDL2 CONFIG REQUIRED)
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
     "Path to the ndsrecomp framework checkout (for the shared SHA-1 helper)")
 set(MPH_LAUNCHER_ROM_SHA1
     "90164d1ac127ee5f9815ea4ae7de798c7b5fc629" CACHE STRING
     "Clean retail ROM SHA-1 metadata rendered for this profile-specific launcher")
-set(MPH_LAUNCHER_REGION "USA" CACHE STRING
-    "Region label shown by the profile-specific launcher")
+set(MPH_LAUNCHER_REGION "Auto (runtime detected)" CACHE STRING
+    "Region label shown by the launcher; generic Nightly detection happens at runtime")
 set(MPH_LAUNCHER_DEFAULT_ROM "Metroid Prime Hunters.nds" CACHE STRING
     "Default ROM filename offered by this profile-specific launcher")
 
@@ -65,6 +66,24 @@ target_link_libraries(mph-recomp-ui PRIVATE SDL2::SDL2)
 
 set(RECOMP_UI_ROOT "F:/Projects/recomp-ui" CACHE PATH
     "Path to the shared recomp-ui checkout")
+option(MPH_PATCH_RECOMP_UI_MULTIROM
+    "Patch pinned recomp-ui so fingerprint-free MPH ROMs show runtime-delegated validation"
+    ON)
+if(MPH_PATCH_RECOMP_UI_MULTIROM)
+    execute_process(
+        COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/patch_recomp_ui_mph_multirom.py"
+            --recomp-ui-root "${RECOMP_UI_ROOT}"
+        RESULT_VARIABLE _mph_recomp_ui_patch_result
+        OUTPUT_VARIABLE _mph_recomp_ui_patch_stdout
+        ERROR_VARIABLE _mph_recomp_ui_patch_stderr)
+    if(NOT _mph_recomp_ui_patch_result EQUAL 0)
+        message(FATAL_ERROR
+            "Failed to apply MPH multi-ROM recomp-ui patch:\n"
+            "${_mph_recomp_ui_patch_stdout}${_mph_recomp_ui_patch_stderr}")
+    endif()
+    message(STATUS "${_mph_recomp_ui_patch_stdout}")
+endif()
 
 enable_testing()
 add_executable(mph-mod-provider-test tests/launcher_mod_provider_test.cpp

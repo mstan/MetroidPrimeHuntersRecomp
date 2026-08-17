@@ -100,5 +100,22 @@ jobs:
           ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
           ! grep -q 'kMphUs10AimY' /tmp/ndsrecomp/runner/src/title_patches.cpp
 
+      - name: Compile US1.0 and EU1.1 ROM checkers
+        run: |
+          for profile in US1_0 EU1_1; do
+            build="/tmp/mph-romcheck-$profile"
+            cmake -S . -B "$build" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
+              -DMPH_VERSION="$profile" \
+              -DMPH_ROM="/tmp/nonexistent-$profile.nds"
+            cmake --build "$build" --target mph_romcheck -j2
+            test -x "$build/MetroidPrimeHuntersRecomp"
+          done
+          strings /tmp/mph-romcheck-EU1_1/MetroidPrimeHuntersRecomp | \
+            grep -q bdcd1dea293e24c98d4c481430e90d21198985a5
+          strings /tmp/mph-romcheck-EU1_1/MetroidPrimeHuntersRecomp | \
+            grep -q EU1_1
+
       - name: Diff sanity
         run: git diff --check

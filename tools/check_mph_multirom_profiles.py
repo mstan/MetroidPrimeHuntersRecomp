@@ -254,8 +254,6 @@ def validate_registry(repo: Path, table: Path | None) -> None:
     if us.get("fmv_runtime_bank") != "mph_arm9_fmv_runtime":
         die("US1_0 historical FMV runtime bank identity changed unexpectedly")
 
-    # Explicit regression guard for the first non-US revision. These are the
-    # values currently published by melonPrimeDS's source-of-truth table.
     eu = profiles.get("EU1_1")
     if not isinstance(eu, dict):
         die("EU1_1 profile is required")

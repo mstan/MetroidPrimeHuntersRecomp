@@ -2,9 +2,9 @@
 
 This document describes the current multi-ROM architecture in this branch.
 It supersedes the earlier whole-ROM-SHA-1-driven runtime-profile design and
-includes the upstream Wi-Fi firmware-state persistence work integrated from
-`mstan/MetroidPrimeHuntersRecomp` commit
-`5abcfee6187d572e752985ede2364f165d62dd6a`.
+tracks upstream `mstan/MetroidPrimeHuntersRecomp` through commit
+`905ffab20ecd0d9c3c1017fb757aec73c435a1ad`. Upstream title-specific changes
+are integrated without restoring its US1.0-only runtime identity assumptions.
 
 ## 1. Status
 
@@ -25,14 +25,17 @@ Adaptive Widescreen is also statically address-mapped for all seven base
 revisions. It is no longer hidden for EU1.1. Actual guest code/data writes are
 still fail-closed and require an authoritative executable checksum.
 
-Exact build/capture content profiles currently exist for:
+The ROM-free generic runner can execute supported revisions through the
+reference/Tier-3 path without a revision-specific native title bank. Exact
+build/capture profiles are still useful for optimized AOT/JIT/cache provenance.
+Current exact content profiles are:
 
 - `US1_0` clean retail ROM
 - `EU1_1` clean retail ROM
 
-The other retail revisions and individual modified ROMs still require their own
-exact-content build/capture profile, coverage and generated artifacts before
-they can be called fully supported.
+The other retail revisions and individual modified ROMs can run through the
+runtime detector, but still need their own exact-content optimization coverage
+before a content-specific native cache/bank can be reused safely.
 
 ## 2. Sources of truth
 
@@ -108,6 +111,7 @@ Whole-ROM SHA-1 identifies the exact content used to generate or validate:
 - runtime coverage
 - checkpoints
 - FMV/runtime captures
+- future persistent optimization caches
 
 This identity is not the runtime-address selector.
 
@@ -217,12 +221,13 @@ Canonical clean profiles reserve the seven base keys. Example:
   "known_clean": true,
   "game_code": "AMHE",
   "revision": 0,
-  "sha1": "...exact clean whole-ROM SHA-1..."
+  "sha1": "...exact clean whole-ROM SHA-1...",
+  "game_config": "game.toml"
 }
 ```
 
 A future exact mod profile must use a distinct key and reference the compatible
-base layout:
+base layout. Frontend policy remains the shared runtime-generic `game.toml`:
 
 ```json
 "US1_0_LAST_RAVEN": {
@@ -233,7 +238,7 @@ base layout:
   "sha1": "...exact Last Raven whole-ROM SHA-1...",
   "program_id": "mph_amhe0_last_raven",
   "coverage": "coverage/last-raven-entry-points.json",
-  "game_config": "config/game-last-raven.toml",
+  "game_config": "game.toml",
   "fmv_runtime": false,
   "fmv_runtime_bank": "mph_amhe0_last_raven_arm9_fmv_runtime",
   "launcher_default_rom": "Metroid Prime Hunters - Last Raven.nds",
@@ -256,6 +261,7 @@ Current clean EU1.1 profile:
 - revision: `1`
 - whole-ROM SHA-1: `bdcd1dea293e24c98d4c481430e90d21198985a5`
 - default launcher ROM: `Metroid Prime Hunters (Europe Rev 1).nds`
+- shared frontend config: `game.toml`
 - Adaptive Widescreen: exposed and revision-aware
 - FMV runtime bank: disabled until an EU1.1-specific capture is validated
 
@@ -267,12 +273,21 @@ Reserved EU1.1 runtime bank identity:
 
 No US1.0 FMV runtime capture is reused for EU1.1.
 
-## 9. Upstream Wi-Fi firmware-state persistence
+## 9. Latest upstream launcher / Wi-Fi integration
 
-The branch integrates the upstream `5abcfee` Wi-Fi persistence behavior while
-preserving the multi-ROM launcher generation and SHA policy.
+The branch tracks upstream title changes through `905ffab` while preserving the
+multi-ROM launcher generation and runtime detector.
 
-The launcher now assigns mutable firmware state under:
+Relevant upstream additions now carried here include:
+
+- persistent mutable firmware/WFC state from `5abcfee`
+- local WFC peer routing support through ndsrecomp `302404ad...`
+- friend-match QA continuation from `1932f6`
+- persisted user-selected ROM path from `413c61`
+- offline multiplayer/bot coverage tooling and overlay-generation utilities
+- the `run_to_event` exhaustion fix in `905ffab`
+
+The launcher assigns mutable firmware state under:
 
 `%APPDATA%\MetroidPrimeHuntersRecomp`
 
@@ -285,17 +300,19 @@ The selected state file is passed to the runner through
 `--firmware-state-path`. Wi-Fi settings, WFC updates and console/game-card
 pairing can therefore persist across normal launches and guest shutdowns.
 
-The dashboard console-MAC display prefers the persisted mutable firmware state
-after it exists, falling back to the generated installation identity on the
-first generated-firmware launch.
+The launcher also remembers the selected ROM path. A remembered ROM is offered
+on the next launch only if it still exists. The multi-ROM launcher-generation
+layer adds a further guard so a missing conventional ROM filename is never
+presented to recomp-ui as an already-selected cartridge.
 
-This required updating the pinned ndsrecomp revision to:
+The pinned ndsrecomp revision is now:
 
-`6c6a03bdcf99093f64555c4d05d16e522dc58634`
+`302404ada0929528b680fa6808aad253b425c7a2`
 
-The new upstream runner still contains old US1.0 SHA/address assumptions in its
-baseline source, so the local multi-ROM patch stack remains authoritative and
-replaces them during the build.
+That revision adds per-instance slirp/local WFC peer routing. The upstream
+runner still contains US1.0 assumptions in title-specific baseline code, so the
+local multi-ROM patch stack remains authoritative and replaces those assumptions
+during the build.
 
 ## 10. Preparing an exact content profile
 
@@ -323,7 +340,7 @@ python tools/prepare_mph.py \
 It then extracts ARM9, ARM7 and overlays and emits content-specific seed
 configs.
 
-## 11. Coverage and capture safety
+## 11. Coverage, overlays and capture safety
 
 Static and runtime promotion is profile/content aware.
 
@@ -337,6 +354,14 @@ not reused from US1.0 constants.
 
 FMV/runtime capture promotion verifies exact content provenance. A capture from
 one content SHA must not be promoted into another content profile.
+
+The latest upstream sync also carries validated US1.0 overlay seed configs for
+overlays `0, 1, 2, 3, 4, 8, 9, 10, 15`, plus
+`tools/seed_overlay_from_coverage.py`, `tools/overlay_coverage_report.py` and
+`tools/mph_overlay_route.py`. These are **US1.0 exact-content optimization
+assets**, not runtime profiles and not generic multi-ROM banks. They must never
+be reused for another ROM content identity merely because that ROM shares the
+same runtime layout. The ROM-free Nightly still does not link these title banks.
 
 ## 12. CI and runtime safety tests
 
@@ -360,36 +385,28 @@ produce the canonical melonPrimeDS executable checksums. It verifies:
 - patched `title_patches.cpp`, `frontend.cpp` and `main.cpp` compile against the
   pinned runner
 - US1.0/EU1.1 launcher generation and exact-content ROM checkers compile
+- upstream launcher/tests and the imported overlay QA tools remain pinned to the
+  audited upstream title commit
 
-At the time of this update, `MPH Multi-ROM Static Checks` run #72 passes every
-main validation step.
+`MPH Multi-ROM Static Checks` #123 passed after the upstream `905ffab` / ndsrecomp
+`302404ad...` integration.
 
-## 13. Remaining work for full multi-ROM support
+## 13. Remaining optimization work
 
-The detector/address architecture is prepared for all seven base revisions, but
-full player-facing support still requires exact content work per ROM:
+Runtime execution is available through the generic ROM-free runner, but
+content-specific native optimization remains separate work per exact ROM.
 
-1. add verified clean content profiles for US1.1, EU1.0, JP1.0, JP1.1 and KR1.0
-2. prepare/extract each exact ROM
-3. capture deterministic coverage and promote it under that exact SHA
-4. generate revision-specific ARM9/ARM7/overlay banks
-5. validate boot, Adventure, pause, save/load and multiplayer-menu paths
-6. validate Prime Controls, Direct Mouse Aim and Adaptive Widescreen semantics
-   on real execution
-7. compare checkpoints against reference/native execution
-8. capture revision-specific FMV runtime code only where interpreter fallback
-   needs optimization
-9. regression-test US1.0 after each new profile
+For another retail revision or modified ROM:
 
-For a modified ROM, additionally:
-
-1. compute the exact whole-ROM SHA-1
+1. compute/record the exact whole-ROM SHA-1 for cache/provenance identity
 2. compute the melonPrimeDS-compatible header+ARM9+ARM7 CRC32
 3. determine and validate its runtime base layout
 4. if code-modified, register the executable checksum only after Aim/Morph/
    Widescreen address compatibility is established
-5. add a distinct content profile with `base_profile`
-6. generate/promote coverage and banks under that mod's exact content identity
+5. add a distinct exact content profile when persistent optimization artifacts
+   are required
+6. generate/promote coverage and banks/cache entries under that exact content
+   identity
 
 Do not guess an unknown mod as US1.0 simply because its filename, region or
 header resembles US1.0.

@@ -96,7 +96,9 @@ SETTINGS_CONFIRM = (212, 172)
 # ...and that lands on SELECT HUNTER, the third setup tab. Only the first three
 # portraits are selectable; the leftmost is Samus.
 HUNTER_SAMUS = (27, 132)
+HOST_START_DISC = (240, 149)
 CONFIG_CAPTURE_FRAMES = (600, 1200, 2400)
+POST_JOIN_CAPTURE_FRAMES = (240, 240, 240, 240, 240, 240, 240, 240)
 
 
 @dataclass
@@ -140,10 +142,11 @@ def launch_instance(args: argparse.Namespace, index: int) -> Instance:
         "on",
         "--wfc-provider",
         args.wfc_provider,
-        # Prepared per-profile firmware carries the identity, so every instance
-        # keeps slot 0 and is differentiated by the injected image instead.
+        # Prepared per-profile firmware carries the console identity. The
+        # runner instance index is still useful for host-side networking:
+        # slirp uses it to place each emulated DS on a distinct virtual LAN.
         "--instance-index",
-        "0",
+        str(index),
         "--save-path",
         str(save_path),
     ]
@@ -516,6 +519,52 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
 
     for_each(instances, join_phase)
 
+    post_join_log: list[dict[str, Any]] = []
+
+    def post_join_action(
+        label: str,
+        actor: Instance,
+        action: tuple[Any, ...],
+        capture_frames: tuple[int, ...] = POST_JOIN_CAPTURE_FRAMES,
+    ) -> None:
+        def input_step(instance: Instance) -> None:
+            assert instance.client is not None
+            beat(instance, action if instance is actor else None, 0)
+
+        for_each(instances, input_step)
+
+        for index, frames in enumerate(capture_frames):
+            for_each(
+                instances,
+                lambda instance, frames=frames: input_lib.advance_frames(
+                    instance.client, frames
+                ),
+            )
+            for instance in instances:
+                role = "host" if instance is host else "guest"
+                save_checkpoint(instance, f"{role}-postjoin-{label}-{index}")
+
+    if any(entry["joined"] for entry in join_log):
+        guest = next(instance for instance in instances if instance is not host)
+        post_join_action("guest-samus", guest, ("tap", *HUNTER_SAMUS))
+        post_join_action("guest-confirm", guest, ("key", "a"))
+        post_join_action("host-disc", host, ("tap", *HOST_START_DISC))
+        for instance in instances:
+            state = current_screen(instance)
+            post_join_log.append(
+                {
+                    "instance": instance.index,
+                    "screen": state,
+                    "final_image": instance.report[-1]["image"],
+                    "final_vblank9": instance.report[-1]["vblank9"],
+                }
+            )
+            print(
+                f"[post-join] instance {instance.index}: {state} "
+                f"{instance.report[-1]['image']}",
+                flush=True,
+            )
+
     for target in args.targets:
         for_each(
             instances,
@@ -579,6 +628,7 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
         "wfc_provider": args.wfc_provider,
         "join_attempts": join_log,
         "joined": any(entry["joined"] for entry in join_log),
+        "post_join": post_join_log,
         "summaries": summaries,
         "backend_clean": all(s["backend_clean"] for s in summaries),
     }

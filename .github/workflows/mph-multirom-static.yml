@@ -38,7 +38,11 @@ jobs:
             tools/promote_mph_static_coverage.py \
             tools/promote_mph_runtime_coverage.py \
             tools/probe_mph_wfc.py \
-            tools/probe_mph_online_first_run.py
+            tools/probe_mph_online_first_run.py \
+            tools/run_mph_friend_match.py \
+            tools/mph_overlay_route.py \
+            tools/overlay_coverage_report.py \
+            tools/seed_overlay_from_coverage.py
           bash -n tools/build-linux.sh
           pwsh -NoProfile -Command '
             $failed = $false
@@ -55,20 +59,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base=https://raw.githubusercontent.com/mstan/MetroidPrimeHuntersRecomp/5abcfee6187d572e752985ede2364f165d62dd6a
+          base=https://raw.githubusercontent.com/mstan/MetroidPrimeHuntersRecomp/905ffab20ecd0d9c3c1017fb757aec73c435a1ad
           curl -fsSL --retry 3 "$base/launcher/recomp-ui/launcher_main.cpp" -o /tmp/upstream-launcher.cpp
           curl -fsSL --retry 3 "$base/launcher/recomp-ui/tests/launcher_mod_provider_test.cpp" -o /tmp/upstream-launcher-test.cpp
           curl -fsSL --retry 3 "$base/tools/mph_screens.py" -o /tmp/upstream-mph-screens.py
           curl -fsSL --retry 3 "$base/tools/probe_mph_wfc.py" -o /tmp/upstream-probe-wfc.py
           curl -fsSL --retry 3 "$base/tools/probe_mph_online_first_run.py" -o /tmp/upstream-probe-first-run.py
+          curl -fsSL --retry 3 "$base/tools/run_mph_friend_match.py" -o /tmp/upstream-friend-match.py
+          curl -fsSL --retry 3 "$base/tools/mph_overlay_route.py" -o /tmp/upstream-overlay-route.py
+          curl -fsSL --retry 3 "$base/tools/overlay_coverage_report.py" -o /tmp/upstream-overlay-report.py
+          curl -fsSL --retry 3 "$base/tools/seed_overlay_from_coverage.py" -o /tmp/upstream-overlay-seed.py
           cmp launcher/recomp-ui/launcher_main.cpp /tmp/upstream-launcher.cpp
           cmp launcher/recomp-ui/tests/launcher_mod_provider_test.cpp /tmp/upstream-launcher-test.cpp
           cmp tools/mph_screens.py /tmp/upstream-mph-screens.py
           cmp tools/probe_mph_wfc.py /tmp/upstream-probe-wfc.py
           cmp tools/probe_mph_online_first_run.py /tmp/upstream-probe-first-run.py
+          cmp tools/run_mph_friend_match.py /tmp/upstream-friend-match.py
+          cmp tools/mph_overlay_route.py /tmp/upstream-overlay-route.py
+          cmp tools/overlay_coverage_report.py /tmp/upstream-overlay-report.py
+          cmp tools/seed_overlay_from_coverage.py /tmp/upstream-overlay-seed.py
           grep -q 'copy_text(output->id, "hd-rendering")' launcher/recomp-ui/launcher_main.cpp
           grep -q -- '--firmware-state-path' launcher/recomp-ui/launcher_main.cpp
+          grep -q 'std::string rom_path;' launcher/recomp-ui/launcher_main.cpp
           grep -q 'feature_count == 3' launcher/recomp-ui/tests/launcher_mod_provider_test.cpp
+          grep -q 'rom path round trip' launcher/recomp-ui/tests/launcher_mod_provider_test.cpp
+          for ov in 000 001 002 003 004 008 009 010 015; do
+            test -f "config/mph_arm9_ov${ov}.toml"
+          done
 
       - name: Cross-check melonPrimeDS detector and widescreen table
         shell: bash
@@ -148,7 +165,8 @@ jobs:
         run: |
           set -euo pipefail
           pin="$(tr -d '\r\n' < ndsrecomp.pin)"
-          test "$pin" = 6c6a03bdcf99093f64555c4d05d16e522dc58634
+          test "$pin" = 302404ada0929528b680fa6808aad253b425c7a2
+          grep -q "pin = \"$pin\"" game.toml
           git init /tmp/ndsrecomp
           git -C /tmp/ndsrecomp remote add origin https://github.com/mstan/ndsrecomp.git
           git -C /tmp/ndsrecomp fetch --depth 1 origin "$pin"
@@ -185,6 +203,8 @@ jobs:
             grep -q 'copy_text(output->id, "hd-rendering")' "$file"
             grep -q -- '--firmware-state-path' "$file"
             grep -q 'bool adaptive_widescreen = true;' "$file"
+            grep -q 'std::filesystem::is_regular_file(default_rom, initial_rom_error)' "$file"
+            grep -q 'exe.string().c_str(), initial_rom.c_str(),' "$file"
           done
           grep -q 'game.region = "Europe";' /tmp/mph-launcher-eu11/launcher_main_profile.cpp
           grep -q 'exe / "Metroid Prime Hunters (Europe Rev 1).nds";' /tmp/mph-launcher-eu11/launcher_main_profile.cpp
@@ -214,6 +234,7 @@ jobs:
           diff -u /tmp/first.sha256 /tmp/second.sha256
           grep -q 'nds_title_patches_select_mph_runtime_profile' /tmp/ndsrecomp/runner/src/main.cpp
           grep -q 'nds_title_patches_set_mph_adaptive' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q 'slirp_virtual_network_instance' /tmp/ndsrecomp/runner/src/main.cpp
           grep -q '0x02111B5Cu, 0x0211D208u, 0x02111380u' /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h
           ! grep -q 'kMphUs10MorphState' /tmp/ndsrecomp/runner/src/frontend.cpp
           ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp

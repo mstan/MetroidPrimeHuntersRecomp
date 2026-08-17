@@ -146,7 +146,7 @@
       "sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
       "program_id": "mph_amhp1",
       "coverage": "coverage/eu11-bootstrap-entry-points.json",
-      "game_config": "config/game-eu11.toml",
+      "game_config": "game.toml",
       "fmv_runtime": false,
       "fmv_runtime_bank": "mph_amhp1_arm9_fmv_runtime",
       "launcher_default_rom": "Metroid Prime Hunters (Europe Rev 1).nds",

@@ -105,6 +105,28 @@ jobs:
             exit 1
           fi
 
+      - name: Smoke-test generic frontend config
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mph-generic-config-smoke
+          set +e
+          output="$(../ndsrecomp/runner/build-mph-nightly/nds_runner \
+            /tmp/mph-generic-config-smoke \
+            --rom /tmp/mph-generic-config-smoke/missing.nds \
+            --config "$PWD/game.toml" \
+            --freebios --generated-firmware --boot direct 2>&1)"
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+          test "$status" -ne 0
+          if grep -q 'invalid frontend config' <<<"$output"; then
+            echo 'Generic game.toml was rejected by the runner frontend parser' >&2
+            exit 1
+          fi
+          grep -q 'cartridge image is missing or truncated' <<<"$output"
+          grep -q 'MPH_MULTIROM_RUNTIME_ADAPTIVE_CAPABILITY' \
+            ../ndsrecomp/runner/src/main.cpp
+
       - name: Install pinned AppImage packaging tools
         run: |
           set -euo pipefail

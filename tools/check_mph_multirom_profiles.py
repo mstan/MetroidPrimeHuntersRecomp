@@ -2,9 +2,9 @@
 """Static consistency checks for Metroid Prime Hunters ROM profiles.
 
 This intentionally does not need a copyrighted ROM. It verifies that each
-profile's identity, coverage seed, game config, launcher policy, and host-side
-runtime addresses agree. When --melonprime-table is provided, Aim/Morph
-addresses are also cross-checked against melonPrimeDS's
+profile's identity, coverage seed, game config, launcher policy, FMV bank
+identity, and host-side runtime addresses agree. When --melonprime-table is
+provided, Aim/Morph addresses are also cross-checked against melonPrimeDS's
 MelonPrimeGameRomAddrTable.h, which is the source of truth for those fields.
 """
 
@@ -19,6 +19,7 @@ from typing import NoReturn
 
 
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
+BANK_RE = re.compile(r"^[A-Za-z0-9_]+$")
 HEX_RE = re.compile(r"0x[0-9A-Fa-f]+u?")
 REQUIRED_RUNTIME_FIELDS = {
     "morph_state": "baseIsAltForm",
@@ -112,6 +113,7 @@ def validate_registry(repo: Path, table: Path | None) -> None:
     melon = parse_melonprime_table(table) if table else None
     seen_sha1: set[str] = set()
     seen_identity: set[tuple[str, int]] = set()
+    seen_fmv_banks: set[str] = set()
 
     for key, profile in profiles.items():
         if not isinstance(profile, dict):
@@ -145,6 +147,40 @@ def validate_registry(repo: Path, table: Path | None) -> None:
         adaptive_widescreen = profile.get("adaptive_widescreen")
         if not isinstance(adaptive_widescreen, bool):
             die(f"{key}.adaptive_widescreen must be boolean")
+
+        fmv_runtime = profile.get("fmv_runtime")
+        if not isinstance(fmv_runtime, bool):
+            die(f"{key}.fmv_runtime must be boolean")
+        fmv_runtime_bank = profile.get("fmv_runtime_bank")
+        if (
+            not isinstance(fmv_runtime_bank, str)
+            or not BANK_RE.fullmatch(fmv_runtime_bank)
+            or "_arm9_" not in fmv_runtime_bank
+        ):
+            die(
+                f"{key}.fmv_runtime_bank must be a C identifier-style ARM9 bank name"
+            )
+        if fmv_runtime_bank in seen_fmv_banks:
+            die(f"duplicate FMV runtime bank identity: {fmv_runtime_bank}")
+        seen_fmv_banks.add(fmv_runtime_bank)
+
+        if fmv_runtime:
+            runtime_config_path = repo / "config" / f"{fmv_runtime_bank}.toml"
+            if not runtime_config_path.is_file():
+                die(
+                    f"{key} enables FMV runtime but config is missing: "
+                    f"{runtime_config_path}"
+                )
+            with runtime_config_path.open("rb") as f:
+                runtime_config = tomllib.load(f)
+            runtime_program = runtime_config.get("program")
+            if not isinstance(runtime_program, dict):
+                die(f"{runtime_config_path} has no [program] table")
+            if runtime_program.get("id") != fmv_runtime_bank:
+                die(
+                    f"{runtime_config_path} program.id={runtime_program.get('id')!r}; "
+                    f"expected {fmv_runtime_bank!r}"
+                )
 
         runtime = profile.get("runtime")
         if not isinstance(runtime, dict):
@@ -212,6 +248,12 @@ def validate_registry(repo: Path, table: Path | None) -> None:
                 f"game config enables {config_adaptive!r}"
             )
 
+    us = profiles.get("US1_0")
+    if not isinstance(us, dict):
+        die("US1_0 profile is required")
+    if us.get("fmv_runtime_bank") != "mph_arm9_fmv_runtime":
+        die("US1_0 historical FMV runtime bank identity changed unexpectedly")
+
     # Explicit regression guard for the first non-US revision. These are the
     # values currently published by melonPrimeDS's source-of-truth table.
     eu = profiles.get("EU1_1")
@@ -231,6 +273,8 @@ def validate_registry(repo: Path, table: Path | None) -> None:
         die(f"EU1_1 runtime profile changed unexpectedly: {eu_runtime!r}")
     if eu.get("fmv_runtime") is not False:
         die("EU1_1 must not reuse the US1.0 FMV runtime capture")
+    if eu.get("fmv_runtime_bank") != "mph_amhp1_arm9_fmv_runtime":
+        die("EU1_1 FMV runtime bank identity changed unexpectedly")
     if eu.get("adaptive_widescreen") is not False:
         die("EU1_1 adaptive widescreen must remain disabled until validated")
     if eu.get("launcher_default_rom") != "Metroid Prime Hunters (Europe Rev 1).nds":

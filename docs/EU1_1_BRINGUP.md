@@ -22,6 +22,7 @@ multi-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revi
 9. Windows/Linux build入口をprofile-awareにする。
 10. ROM不要CIでmelonPrimeDS address tableとの照合、pinned ndsrecomp patch、runner C++ compile、exact-ROM runtime dispatchを検証する。
 11. ROM不要CIでUS1.0/EU1.1のlauncher generated sourceを生成し、identityとfeature policyを直接検証する。
+12. Linux AppRunではprofile別 `game.toml` を唯一のtitle presentation policyとし、Adaptive Widescreen等をCLIで上書きしない。
 
 未完了なのは、EU1.1実ROMと実行環境を必要とするruntime validation、
 EU1.1固有coverageの拡張、必要に応じたEU1.1固有FMV runtime captureである。
@@ -307,6 +308,8 @@ tools/build-linux.sh \
   --rom '/path/to/Metroid Prime Hunters (Europe) (Rev 1).nds'
 ```
 
+`--rom`を省略した場合、EU1.1ではprofileの `launcher_default_rom`、すなわち `Metroid Prime Hunters (Europe Rev 1).nds` をrepository rootから探す。
+
 EU1.1 package名には `EU1_1` suffixを付け、US1.0のhistorical filenameとは分離する。
 
 Linux AppRunはprofile別 `game.toml` をrunnerへ渡し、launcherのようなUS1.0固定Adaptive Widescreen CLI overrideを行わない。EU1.1では `config/game-eu11.toml` のnative presentation policyがそのまま有効になることを維持する。
@@ -328,18 +331,19 @@ PRごとに以下を検証する。
 9. fake SDL2 / recomp-ui CMake interfaceでEU1.1 launcher sourceを生成
 10. generated EU1.1 launcherがEU SHA-1 / Europe / EU default ROM filenameを持つことを確認
 11. generated EU1.1 launcherがAdaptive Widescreen default OFF / UI hidden / final launch gate OFFであることを確認
-12. runtime-profile patchを適用
-13. 同じpatchを2回適用し、対象ファイルhashが完全一致することを確認
-14. US1.0固定Aim/Morph symbolがpatched runnerから除去されていることを確認
-15. patched `title_patches.cpp` / `frontend.cpp` / `main.cpp` をpinned runnerの実CMake compile flagsでcompile
-16. `tools/tests/mph_runtime_profile_test.cpp` をpatched `title_patches.cpp` とリンクして実行
-17. US1.0/EU1.1それぞれの`mph_romcheck`をcompile
-18. EU1.1 checkerにEU1.1 SHA-1/profile keyが埋め込まれていることを確認
-19. `git diff --check`
+12. Linux buildがprofile別 `game.toml` をAppRunへ渡し、`--adaptive-widescreen` を強制していないことを確認
+13. runtime-profile patchを適用
+14. 同じpatchを2回適用し、対象ファイルhashが完全一致することを確認
+15. US1.0固定Aim/Morph symbolがpatched runnerから除去されていることを確認
+16. patched `title_patches.cpp` / `frontend.cpp` / `main.cpp` をpinned runnerの実CMake compile flagsでcompile
+17. `tools/tests/mph_runtime_profile_test.cpp` をpatched `title_patches.cpp` とリンクして実行
+18. US1.0/EU1.1それぞれの`mph_romcheck`をcompile
+19. EU1.1 checkerにEU1.1 SHA-1/profile keyが埋め込まれていることを確認
+20. `git diff --check`
 
 このCIはROM、BIOS、firmware dumpを一切取得・保存しない。
 
-2026-08-17時点の最新CIでは上記項目がすべてPASSしている。
+2026-08-17時点の最新CIでは上記項目を継続検証している。
 
 ## 12. mphCodexの役割
 
@@ -504,6 +508,7 @@ ROMなしで可能なidentity/profile、extraction routing、bank isolation、ru
 - EU1.1 exact Aim/Morph dispatch
 - US1.0/EU1.1 launcher generated sourceのprofile分離
 - EU1.1 Adaptive WidescreenのUI/persisted state/launch command三重gate
+- Linux AppRunのprofile-owned game config policy
 - US1.0/EU1.1 ROM checker compile
 
 ### Runtime correctness

@@ -1,0 +1,178 @@
+{
+  "description": "Probe: at the 3-bot lobby, try each candidate start control in turn with a screenshot after each. Known DISPROVED already: START key, A key, touch (105,133) which is a bot-level star control.",
+  "actions": [
+    {
+      "kind": "touch",
+      "x": 160,
+      "y": 92
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 128,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 62
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 27,
+      "y": 132
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 133
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 148,
+      "y": 60
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 60
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 20,
+      "y": 16
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "start"
+    },
+    {
+      "kind": "wait",
+      "frames": 400
+    }
+  ]
+}

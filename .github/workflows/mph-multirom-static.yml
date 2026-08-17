@@ -1,0 +1,295 @@
+name: MPH Multi-ROM Static Checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-multirom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check script syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            tools/mph_profile.py \
+            tools/prepare_mph.py \
+            tools/check_mph_multirom_profiles.py \
+            tools/check_mph_multirom_profiles_legacy.py \
+            tools/check_melonprime_detector.py \
+            tools/patch_ndsrecomp_mph_runtime.py \
+            tools/patch_ndsrecomp_mph_runtime_core.py \
+            tools/patch_ndsrecomp_mph_widescreen.py \
+            tools/patch_ndsrecomp_mph_widescreen_reset.py \
+            tools/promote_mph_static_coverage.py \
+            tools/promote_mph_runtime_coverage.py \
+            tools/probe_mph_wfc.py \
+            tools/probe_mph_online_first_run.py \
+            tools/run_mph_friend_match.py \
+            tools/mph_overlay_route.py \
+            tools/overlay_coverage_report.py \
+            tools/seed_overlay_from_coverage.py
+          bash -n tools/build-linux.sh
+          pwsh -NoProfile -Command '
+            $failed = $false
+            foreach ($path in @("tools/build-windows.ps1", "tools/make_release.ps1")) {
+              $tokens = $null; $errors = $null
+              [System.Management.Automation.Language.Parser]::ParseFile(
+                (Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
+              if ($errors.Count -ne 0) { $failed = $true; Write-Error ($errors | Out-String) }
+            }
+            if ($failed) { exit 1 }
+          '
+
+      - name: Verify upstream launcher and QA sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=https://raw.githubusercontent.com/mstan/MetroidPrimeHuntersRecomp/905ffab20ecd0d9c3c1017fb757aec73c435a1ad
+          curl -fsSL --retry 3 "$base/launcher/recomp-ui/launcher_main.cpp" -o /tmp/upstream-launcher.cpp
+          curl -fsSL --retry 3 "$base/launcher/recomp-ui/tests/launcher_mod_provider_test.cpp" -o /tmp/upstream-launcher-test.cpp
+          curl -fsSL --retry 3 "$base/tools/mph_screens.py" -o /tmp/upstream-mph-screens.py
+          curl -fsSL --retry 3 "$base/tools/probe_mph_wfc.py" -o /tmp/upstream-probe-wfc.py
+          curl -fsSL --retry 3 "$base/tools/probe_mph_online_first_run.py" -o /tmp/upstream-probe-first-run.py
+          curl -fsSL --retry 3 "$base/tools/run_mph_friend_match.py" -o /tmp/upstream-friend-match.py
+          curl -fsSL --retry 3 "$base/tools/mph_overlay_route.py" -o /tmp/upstream-overlay-route.py
+          curl -fsSL --retry 3 "$base/tools/overlay_coverage_report.py" -o /tmp/upstream-overlay-report.py
+          curl -fsSL --retry 3 "$base/tools/seed_overlay_from_coverage.py" -o /tmp/upstream-overlay-seed.py
+          cmp launcher/recomp-ui/launcher_main.cpp /tmp/upstream-launcher.cpp
+          cmp launcher/recomp-ui/tests/launcher_mod_provider_test.cpp /tmp/upstream-launcher-test.cpp
+          cmp tools/mph_screens.py /tmp/upstream-mph-screens.py
+          cmp tools/probe_mph_wfc.py /tmp/upstream-probe-wfc.py
+          cmp tools/probe_mph_online_first_run.py /tmp/upstream-probe-first-run.py
+          cmp tools/run_mph_friend_match.py /tmp/upstream-friend-match.py
+          cmp tools/mph_overlay_route.py /tmp/upstream-overlay-route.py
+          cmp tools/overlay_coverage_report.py /tmp/upstream-overlay-report.py
+          cmp tools/seed_overlay_from_coverage.py /tmp/upstream-overlay-seed.py
+          grep -q 'copy_text(output->id, "hd-rendering")' launcher/recomp-ui/launcher_main.cpp
+          grep -q -- '--firmware-state-path' launcher/recomp-ui/launcher_main.cpp
+          grep -q 'std::string rom_path;' launcher/recomp-ui/launcher_main.cpp
+          grep -q 'feature_count == 3' launcher/recomp-ui/tests/launcher_mod_provider_test.cpp
+          grep -q 'rom path round trip' launcher/recomp-ui/tests/launcher_mod_provider_test.cpp
+          for ov in 000 001 002 003 004 008 009 010 015; do
+            test -f "config/mph_arm9_ov${ov}.toml"
+          done
+
+      - name: Cross-check melonPrimeDS detector and widescreen table
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/ag-advania/melonPrimeDS/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h \
+            -o /tmp/MelonPrimeGameRomAddrTable.h
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/ag-advania/melonPrimeDS/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp \
+            -o /tmp/MelonPrimeGameRomDetect.cpp
+          python tools/check_mph_multirom_profiles.py \
+            --melonprime-table /tmp/MelonPrimeGameRomAddrTable.h
+          python tools/check_melonprime_detector.py \
+            --profiles config/mph_rom_profiles.json \
+            --detector /tmp/MelonPrimeGameRomDetect.cpp
+          python - <<'PY'
+          import json
+          p=json.load(open('config/mph_rom_profiles.json', encoding='utf-8'))
+          assert p['schema'] == 5
+          assert len(p['runtime_profiles']) == 7
+          assert len(p['runtime_checksums']) == 17
+          assert p['profiles']['US1_0']['adaptive_widescreen'] is True
+          assert p['profiles']['EU1_1']['adaptive_widescreen'] is True
+          for r in p['runtime_profiles'].values():
+              for k in ('morph_state','aim_x','aim_y','scale_patch_addr1','scale_patch_addr2','scale_value_addr'):
+                  assert k in r['runtime']
+          PY
+
+      - name: Verify profile-aware coverage routing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/eu-inputs
+          cat > /tmp/eu-inputs/arm9.toml <<'EOF'
+          [program]
+          id = "mph_amhp1_arm9"
+          load_address = 0x02004000
+          size = 0x00001000
+          entry_pc = 0x02004000
+          EOF
+          cat > /tmp/eu-inputs/arm7.toml <<'EOF'
+          [program]
+          id = "mph_amhp1_arm7"
+          load_address = 0x02380000
+          size = 0x00001000
+          entry_pc = 0x02380000
+          EOF
+          cat > /tmp/eu-trace.json <<'EOF'
+          {
+            "mph_profile": "EU1_1",
+            "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+            "scenario": "scenarios/adventure_start.json",
+            "tier3_coverage": {"entries": [
+              {"cpu": 9, "pc": 33570848, "thumb": 0, "kind": 2, "hits": 7},
+              {"cpu": 7, "pc": 37224480, "thumb": 0, "kind": 3, "hits": 4}
+            ]}
+          }
+          EOF
+          python tools/promote_mph_static_coverage.py \
+            --version EU1_1 --inputs /tmp/eu-inputs --trace /tmp/eu-trace.json \
+            --out /tmp/eu-coverage.json \
+            --runner-commit 0123456789abcdef0123456789abcdef01234567
+          python - <<'PY'
+          import json
+          p=json.load(open('/tmp/eu-coverage.json', encoding='utf-8'))
+          assert p['profile'] == 'EU1_1'
+          assert p['game_sha1'] == 'bdcd1dea293e24c98d4c481430e90d21198985a5'
+          assert p['entry_points']['arm9'] and p['entry_points']['arm7']
+          PY
+          grep -q 'rom_bytes\[0x1E\]' tools/prepare_mph.py
+          ! grep -q 'rom_bytes\[0x1C\]' tools/prepare_mph.py
+          ! grep -q -- '--adaptive-widescreen' tools/build-linux.sh
+
+      - name: Fetch exact pinned ndsrecomp revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          pin="$(tr -d '\r\n' < ndsrecomp.pin)"
+          test "$pin" = 302404ada0929528b680fa6808aad253b425c7a2
+          grep -q "pin = \"$pin\"" game.toml
+          git init /tmp/ndsrecomp
+          git -C /tmp/ndsrecomp remote add origin https://github.com/mstan/ndsrecomp.git
+          git -C /tmp/ndsrecomp fetch --depth 1 origin "$pin"
+          git -C /tmp/ndsrecomp checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/ndsrecomp rev-parse HEAD)" = "$pin"
+
+      - name: Render US1.0 and EU1.1 launcher profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/fake-prefix/lib/cmake/SDL2 /tmp/fake-recomp-ui
+          cat > /tmp/fake-prefix/lib/cmake/SDL2/SDL2Config.cmake <<'EOF'
+          if(NOT TARGET SDL2::SDL2)
+            add_library(SDL2::SDL2 INTERFACE IMPORTED)
+          endif()
+          EOF
+          cat > /tmp/fake-recomp-ui/recomp_ui.cmake <<'EOF'
+          function(recomp_target_launcher_ui)
+          endfunction()
+          EOF
+          cmake -S launcher/recomp-ui -B /tmp/mph-launcher-us10 \
+            -DNDSRECOMP_ROOT=/tmp/ndsrecomp -DRECOMP_UI_ROOT=/tmp/fake-recomp-ui \
+            -DCMAKE_PREFIX_PATH=/tmp/fake-prefix
+          cmake -S launcher/recomp-ui -B /tmp/mph-launcher-eu11 \
+            -DNDSRECOMP_ROOT=/tmp/ndsrecomp -DRECOMP_UI_ROOT=/tmp/fake-recomp-ui \
+            -DCMAKE_PREFIX_PATH=/tmp/fake-prefix \
+            -DMPH_LAUNCHER_ROM_SHA1=bdcd1dea293e24c98d4c481430e90d21198985a5 \
+            -DMPH_LAUNCHER_REGION=Europe \
+            '-DMPH_LAUNCHER_DEFAULT_ROM=Metroid Prime Hunters (Europe Rev 1).nds'
+          for file in /tmp/mph-launcher-us10/launcher_main_profile.cpp /tmp/mph-launcher-eu11/launcher_main_profile.cpp; do
+            grep -q 'game.known_sha1_hex = nullptr;' "$file"
+            grep -q 'game.num_known_sha1 = 0;' "$file"
+            grep -A1 'int mod_feature_count' "$file" | grep -q 'return 3;'
+            grep -q 'copy_text(output->id, "hd-rendering")' "$file"
+            grep -q -- '--firmware-state-path' "$file"
+            grep -q 'bool adaptive_widescreen = true;' "$file"
+            grep -q 'std::filesystem::is_regular_file(default_rom, initial_rom_error)' "$file"
+            grep -q 'exe.string().c_str(), initial_rom.c_str(),' "$file"
+          done
+          grep -q 'game.region = "Europe";' /tmp/mph-launcher-eu11/launcher_main_profile.cpp
+          grep -q 'exe / "Metroid Prime Hunters (Europe Rev 1).nds";' /tmp/mph-launcher-eu11/launcher_main_profile.cpp
+
+      - name: Patch pinned runner and verify idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root /tmp/ndsrecomp --profiles config/mph_rom_profiles.json
+          sha256sum \
+            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/title_patches.h \
+            /tmp/ndsrecomp/runner/src/title_patches.cpp \
+            /tmp/ndsrecomp/runner/src/frontend.cpp \
+            /tmp/ndsrecomp/runner/src/main.cpp > /tmp/first.sha256
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root /tmp/ndsrecomp --profiles config/mph_rom_profiles.json
+          sha256sum \
+            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/title_patches.h \
+            /tmp/ndsrecomp/runner/src/title_patches.cpp \
+            /tmp/ndsrecomp/runner/src/frontend.cpp \
+            /tmp/ndsrecomp/runner/src/main.cpp > /tmp/second.sha256
+          diff -u /tmp/first.sha256 /tmp/second.sha256
+          grep -q 'nds_title_patches_select_mph_runtime_profile' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q 'nds_title_patches_set_mph_adaptive' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q 'slirp_virtual_network_instance' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q '0x02111B5Cu, 0x0211D208u, 0x02111380u' /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h
+          ! grep -q 'kMphUs10MorphState' /tmp/ndsrecomp/runner/src/frontend.cpp
+          ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
+
+      - name: Compile patched runner translation units
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/ndsrecomp/generated
+          for source in \
+            arm9_bios.c arm9_bios_dispatch.c arm7_bios.c arm7_bios_dispatch.c \
+            freebios_arm9.c freebios_arm9_dispatch.c freebios_arm7.c freebios_arm7_dispatch.c; do
+            : > "/tmp/ndsrecomp/generated/$source"
+          done
+          cmake -S /tmp/ndsrecomp/runner -B /tmp/nds-runner-profile-check \
+            -DCMAKE_BUILD_TYPE=Release -DNDS_BOOTSTRAP_FIRMWARE=ON \
+            -DNDS_ENABLE_COMPUTE_RENDERER=OFF -DNDS_ENABLE_PCAP_BACKEND=OFF
+          cmake --build /tmp/nds-runner-profile-check --target src/title_patches.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target src/frontend.o -j2
+          cmake --build /tmp/nds-runner-profile-check --target src/main.o -j2
+
+      - name: Test seven-version runtime dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          c++ -std=c++20 -Wall -Wextra -Wno-unused-parameter \
+            -I/tmp/ndsrecomp/runner/src \
+            -I/tmp/ndsrecomp/recompiler/armv4t \
+            tools/tests/mph_runtime_profile_test.cpp \
+            /tmp/ndsrecomp/runner/src/title_patches.cpp \
+            -o /tmp/mph-runtime-profile-test
+          /tmp/mph-runtime-profile-test
+
+      - name: Compile exact-content ROM checkers
+        shell: bash
+        run: |
+          set -euo pipefail
+          for profile in US1_0 EU1_1; do
+            build="/tmp/mph-romcheck-$profile"
+            cmake -S . -B "$build" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
+              -DMPH_VERSION="$profile" \
+              -DMPH_ROM="/tmp/nonexistent-$profile.nds"
+            cmake --build "$build" --target mph_romcheck -j2
+            test -x "$build/MetroidPrimeHuntersRecomp"
+          done
+          strings /tmp/mph-romcheck-EU1_1/MetroidPrimeHuntersRecomp | grep -q bdcd1dea293e24c98d4c481430e90d21198985a5
+          strings /tmp/mph-romcheck-EU1_1/MetroidPrimeHuntersRecomp | grep -q EU1_1
+
+      - name: Diff sanity
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'known_sha1_hex = nullptr' launcher/recomp-ui/CMakeLists.txt
+          ! grep -q 'Adaptive Widescreen: disabled until validated' docs/EU1_1_BRINGUP.md
+          grep -q 'Adaptive Widescreen: exposed and revision-aware' docs/EU1_1_BRINGUP.md
+          git diff --check HEAD^ HEAD

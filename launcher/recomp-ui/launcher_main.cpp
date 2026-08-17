@@ -17,6 +17,13 @@ namespace {
 
 struct ModState {
     bool adaptive_widescreen = true;
+    // HD rendering. Off by default: it costs GPU time and VRAM, and the
+    // faithful native output stays the reference. internal_resolution
+    // multiplies 3D sample density; texture_upscale filters each decoded DS
+    // texture once on a cache miss. Both are inert when hd_rendering is off.
+    bool hd_rendering = false;
+    int internal_resolution = 2;
+    int texture_upscale = 2;
     bool mouse_aim = true;
     int mouse_sensitivity = 30;
     bool mouse_invert_y = false;
@@ -72,6 +79,12 @@ struct ModState {
     std::string pad_weapon6 = "None";
     std::string pad_virtual_stylus = "None";
     std::string pad_menu = "Pad Start";
+    // Persisted ROM choice (beads-lqa.3). The shared launcher writes its own
+    // rom.cfg sidecars but never reads them back (beads-0fu.1), so the ROM the
+    // user picked was lost on every relaunch and the hardcoded bundled default
+    // was re-offered -- "ROM not found" for anyone whose dump lives elsewhere.
+    // Owning the path here keeps the fix independent of the recomp-ui build.
+    std::string rom_path;
     // Persisted BIOS choice, psxrecomp-style: any one of the three retail
     // dump files (its folder is used at launch). Empty = the built-in
     // FreeBIOS + generated firmware.
@@ -93,6 +106,24 @@ struct ModState {
     std::filesystem::path settings_path;
     std::string last_error;
 };
+
+struct HdChoice {
+    int value;
+    const char* label;
+};
+
+constexpr std::array<HdChoice, 4> kInternalResolutionChoices{{
+    {1, "1x (native)"},
+    {2, "2x"},
+    {3, "3x"},
+    {4, "4x"},
+}};
+
+constexpr std::array<HdChoice, 3> kTextureUpscaleChoices{{
+    {1, "Off"},
+    {2, "2x"},
+    {4, "4x"},
+}};
 
 struct SensitivityChoice {
     int percent;
@@ -296,6 +327,27 @@ std::string read_identity_mac(const std::filesystem::path& bios_dir) {
     return text;
 }
 
+std::filesystem::path firmware_state_path(
+    const std::filesystem::path& settings_path, bool generated) {
+    return settings_path.parent_path() /
+        (generated ? "firmware-generated.bin" : "firmware-retail.bin");
+}
+
+std::string read_firmware_state_mac(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return {};
+    file.seekg(0x36, std::ios::beg);
+    unsigned char mac[6]{};
+    file.read(reinterpret_cast<char*>(mac), sizeof(mac));
+    if (file.gcount() != static_cast<std::streamsize>(sizeof(mac)) ||
+        (mac[0] & 0x01u))
+        return {};
+    char text[32];
+    std::snprintf(text, sizeof(text), "%02X:%02X:%02X:%02X:%02X:%02X",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return text;
+}
+
 template <size_t N>
 void copy_text(char (&target)[N], const char* source) {
     std::snprintf(target, N, "%s", source ? source : "");
@@ -328,6 +380,19 @@ void load_mod_state(ModState& state) {
                 settings_version = static_cast<int>(parsed);
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
+        } else if (key == "hd_rendering") {
+            state.hd_rendering = value == "true";
+        } else if (key == "internal_resolution") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 1 && parsed <= 4)
+                state.internal_resolution = static_cast<int>(parsed);
+        } else if (key == "texture_upscale") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 &&
+                (parsed == 1 || parsed == 2 || parsed == 4))
+                state.texture_upscale = static_cast<int>(parsed);
         } else if (key == "mouse_aim") {
             state.mouse_aim = value != "false";
         } else if (key == "mouse_sensitivity") {
@@ -340,6 +405,11 @@ void load_mod_state(ModState& state) {
             state.mouse_invert_y = value == "true";
         } else if (key == "prime_controls") {
             state.prime_controls = value != "false";
+        } else if (key == "rom_path") {
+            // Kept verbatim. Existence is checked at use, not here: a dump on
+            // removable media that is absent this launch should not erase the
+            // remembered pick.
+            state.rom_path = value;
         } else if (key == "bios_path") {
             state.bios_path = value;
         } else if (key == "player_name_override") {
@@ -407,9 +477,13 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=2\n"
+        file << "settings_version=3\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
+             << "hd_rendering="
+             << (state.hd_rendering ? "true" : "false") << '\n'
+             << "internal_resolution=" << state.internal_resolution << '\n'
+             << "texture_upscale=" << state.texture_upscale << '\n'
              << "mouse_aim=" << (state.prime_controls ? "true" : "false")
              << '\n'
              << "mouse_sensitivity=" << state.mouse_sensitivity << '\n'
@@ -420,6 +494,7 @@ bool save_mod_state(ModState& state) {
              << "virtual_stylus_sensitivity="
              << state.virtual_stylus_sensitivity << '\n'
              << "pad_aim_sensitivity=" << state.pad_aim_sensitivity << '\n'
+             << "rom_path=" << state.rom_path << '\n'
              << "bios_path=" << state.bios_path << '\n'
              << "player_name=" << state.player_name << '\n';
         for (const BindingOption& option : kBindingOptions)
@@ -446,12 +521,12 @@ bool save_mod_state(ModState& state) {
 // directly under the controller card. Only the two real gameplay mods
 // remain here.
 int mod_feature_count(void*) {
-    return 2;
+    return 3;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 1) return 0;
+    if (!context || !output || index < 0 || index > 2) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
     if (index == 0) {
@@ -469,6 +544,27 @@ int mod_feature_get(void* context, int index,
         copy_text(output->status,
                   state->adaptive_widescreen ? "Enabled" : "Disabled");
         output->enabled = state->adaptive_widescreen ? 1 : 0;
+    } else if (index == 2) {
+        copy_text(output->id, "hd-rendering");
+        copy_text(output->package_id, "mph-hd-rendering");
+        copy_text(output->package_version, "0.1.0");
+        copy_text(output->package_name, "MPH HD Rendering");
+        copy_text(output->name, "HD Rendering");
+        copy_text(output->author, "ndsrecomp");
+        copy_text(
+            output->description,
+            "Renders the 3D engine above one sample per DS pixel and "
+            "filters decoded textures, so the widescreen image gains detail "
+            "instead of just area. The 2D layers stay native, exactly as the "
+            "hardware draws them.");
+        copy_text(output->source_name, "Hyllian xBR-lv2 (MIT)");
+        copy_text(output->source_url,
+                  "https://github.com/libretro/glsl-shaders");
+        copy_text(output->group, "Display enhancements");
+        copy_text(output->status,
+                  state->hd_rendering ? "Enabled" : "Disabled");
+        output->enabled = state->hd_rendering ? 1 : 0;
+        output->option_count = 2;
     } else {
         copy_text(output->id, "prime-controls");
         copy_text(output->package_id, "mph-prime-controls");
@@ -512,6 +608,11 @@ int mod_feature_enable(void* context, const char* package_id,
         state->mouse_aim = state->prime_controls;
         return 1;
     }
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        state->hd_rendering = enabled != 0;
+        return 1;
+    }
     return 0;
 }
 
@@ -528,6 +629,41 @@ int mod_feature_option_get(void* context, const char* package_id,
                            RecompLauncherCModOption* output) {
     if (!context || !package_id || !feature_id || !output || index < 0)
         return 0;
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        if (index > 1) return 0;
+        const auto* hd = static_cast<const ModState*>(context);
+        std::memset(output, 0, sizeof(*output));
+        if (index == 0) {
+            copy_text(output->id, "internal-resolution");
+            copy_text(output->label, "Internal resolution");
+            copy_text(output->description,
+                      "Sample density of the 3D engine. Costs GPU time and "
+                      "VRAM; 2D layers are unaffected.");
+            copy_text(output->group, "Resolution");
+            std::snprintf(output->value, sizeof(output->value), "%d",
+                          hd->internal_resolution);
+            copy_text(output->default_value, "2");
+            output->type = RECOMP_MOD_OPTION_CHOICE;
+            output->choice_count =
+                static_cast<int>(kInternalResolutionChoices.size());
+            return 1;
+        }
+        copy_text(output->id, "texture-upscale");
+        copy_text(output->label, "Texture upscaling");
+        copy_text(output->description,
+                  "Filters each decoded DS texture once when it enters the "
+                  "cache, so higher internal resolution shows detail rather "
+                  "than larger texels.");
+        copy_text(output->group, "Textures");
+        std::snprintf(output->value, sizeof(output->value), "%d",
+                      hd->texture_upscale);
+        copy_text(output->default_value, "2");
+        output->type = RECOMP_MOD_OPTION_CHOICE;
+        output->choice_count =
+            static_cast<int>(kTextureUpscaleChoices.size());
+        return 1;
+    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
         index >= 4 + static_cast<int>(kBindingOptions.size()) +
@@ -615,6 +751,30 @@ int mod_feature_choice_get(void*, const char* package_id,
                            int index, RecompLauncherCModChoice* output) {
     if (!package_id || !feature_id || !option_id || !output || index < 0)
         return 0;
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        if (std::strcmp(option_id, "internal-resolution") == 0) {
+            if (index >= static_cast<int>(kInternalResolutionChoices.size()))
+                return 0;
+            std::memset(output, 0, sizeof(*output));
+            const HdChoice& choice = kInternalResolutionChoices[index];
+            std::snprintf(output->value, sizeof(output->value), "%d",
+                          choice.value);
+            copy_text(output->label, choice.label);
+            return 1;
+        }
+        if (std::strcmp(option_id, "texture-upscale") == 0) {
+            if (index >= static_cast<int>(kTextureUpscaleChoices.size()))
+                return 0;
+            std::memset(output, 0, sizeof(*output));
+            const HdChoice& choice = kTextureUpscaleChoices[index];
+            std::snprintf(output->value, sizeof(output->value), "%d",
+                          choice.value);
+            copy_text(output->label, choice.label);
+            return 1;
+        }
+        return 0;
+    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0) {
         return 0;
@@ -663,6 +823,30 @@ int mod_feature_set_option(void* context, const char* package_id,
                            const char* value) {
     if (!context || !package_id || !feature_id || !option_id || !value)
         return 0;
+    auto* hd_state = static_cast<ModState*>(context);
+    if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
+        std::strcmp(feature_id, "hd-rendering") == 0) {
+        char* hd_end = nullptr;
+        const long hd_parsed = std::strtol(value, &hd_end, 10);
+        if (!hd_end || *hd_end != 0) return 0;
+        if (std::strcmp(option_id, "internal-resolution") == 0) {
+            for (const HdChoice& choice : kInternalResolutionChoices) {
+                if (choice.value != hd_parsed) continue;
+                hd_state->internal_resolution = static_cast<int>(hd_parsed);
+                return 1;
+            }
+            return 0;
+        }
+        if (std::strcmp(option_id, "texture-upscale") == 0) {
+            for (const HdChoice& choice : kTextureUpscaleChoices) {
+                if (choice.value != hd_parsed) continue;
+                hd_state->texture_upscale = static_cast<int>(hd_parsed);
+                return 1;
+            }
+            return 0;
+        }
+        return 0;
+    }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0) {
         return 0;
@@ -822,9 +1006,14 @@ int nds_bios_verify(const char* bios_path, RecompLauncherCBiosVerify* out) {
 
 int nds_persist_setup(void* context, const char* rom_path,
                       const char* bios_path) {
-    (void)rom_path;
     if (!context) return 1;
     auto* state = static_cast<ModState*>(context);
+    // beads-lqa.3: the ROM path used to be discarded here, which is why the
+    // pick never survived a relaunch. An empty callback value means "no ROM
+    // selected right now", not "forget the remembered one" -- the launcher
+    // fires this on BIOS browse too, and clearing on those would resurrect the
+    // original bug.
+    if (rom_path && rom_path[0]) state->rom_path = rom_path;
     state->bios_path = bios_path ? bios_path : "";
     return save_mod_state(*state) ? 0 : 1;
 }
@@ -908,6 +1097,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
             std::filesystem::create_directories(bios, error);
         }
     }
+    const std::filesystem::path firmware_state = firmware_state_path(
+        mods.settings_path, no_dumps_mode);
 
     std::wstring command =
         quote(runner.wstring()) + L" " + quote(bios.wstring()) +
@@ -919,6 +1110,12 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
             : L"stacked") +
         L" --adaptive-widescreen " +
         (adaptive ? L"top" : L"none") +
+        // Inert unless the HD mod is on, so the faithful native output stays
+        // the default for anyone who never opens the Mods page.
+        L" --internal-resolution " +
+        std::to_wstring(mods.hd_rendering ? mods.internal_resolution : 1) +
+        L" --texture-upscale " +
+        std::to_wstring(mods.hd_rendering ? mods.texture_upscale : 1) +
         L" --supersampling " + std::to_wstring(supersampling) +
         L" --antialiasing " + std::to_wstring(antialiasing) +
         L" --relative-mouse-touch " +
@@ -939,6 +1136,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         // a player launching through the UI expects Nintendo WFC to work,
         // so the launcher turns it on and points it at Wiimmfi.
         L" --network on --wfc on --wfc-provider wiimmfi";
+    append_arg(command, L"--firmware-state-path", firmware_state.wstring());
     // beads-yjp.16: the firmware console nickname. Passed only when the
     // player both configured a name and left the identity feature on;
     // otherwise the runner leaves the firmware's own name alone (a retail
@@ -1005,15 +1203,31 @@ int main(int argc, char** argv) {
     copy_text(settings.bios_path, mod_state.bios_path.c_str());
     copy_text(settings.player_name, mod_state.player_name.c_str());
 
-    // Read-only identity detail for the dashboard ONLINE card. Captured once
-    // at startup: the MAC only changes on the first-ever no-dump launch.
-    const std::string identity_mac = read_identity_mac(
+    // Read-only identity detail for the dashboard ONLINE card. Prefer the
+    // mutable profile once it has been seeded; generated mode falls back to
+    // the installation identity before that first launch.
+    const std::filesystem::path selected_bios =
         mod_state.bios_path.empty()
             ? mod_state.default_bios_dir
-            : bios_dir_from_setting(mod_state.bios_path.c_str()));
+            : bios_dir_from_setting(mod_state.bios_path.c_str());
+    bool generated_identity = false;
+    if (mod_state.bios_path.empty()) {
+        bool conventional_dumps = true;
+        for (const NdsDump& dump : kNdsDumps) {
+            if (!std::filesystem::is_regular_file(selected_bios / dump.file))
+                conventional_dumps = false;
+        }
+        generated_identity = !conventional_dumps;
+    }
+    std::string identity_mac = read_firmware_state_mac(firmware_state_path(
+        mod_state.settings_path, generated_identity));
+    if (identity_mac.empty() && generated_identity)
+        identity_mac = read_identity_mac(selected_bios);
     const std::string identity_detail =
         !identity_mac.empty()
-            ? "Console MAC: " + identity_mac + " (generated identity)"
+            ? "Console MAC: " + identity_mac +
+                  (generated_identity
+                       ? " (generated identity)" : " (firmware profile)")
             : std::string("Console MAC: from the firmware dump, or created "
                           "on the first no-dump launch.");
 
@@ -1037,8 +1251,17 @@ int main(int argc, char** argv) {
     game.persist_setup = nds_persist_setup;
     game.persist_setup_ctx = &mod_state;
 
-    const std::filesystem::path default_rom =
-        exe / "Metroid Prime Hunters.nds";
+    // beads-lqa.3: prefer the remembered pick, fall back to the bundled dump
+    // next to the exe. A remembered path whose file is gone falls back too,
+    // so a moved or deleted ROM presents the bundled default rather than a
+    // stale selection the user cannot launch.
+    std::filesystem::path default_rom = exe / "Metroid Prime Hunters.nds";
+    if (!mod_state.rom_path.empty()) {
+        std::error_code rom_error;
+        const std::filesystem::path remembered(mod_state.rom_path);
+        if (std::filesystem::is_regular_file(remembered, rom_error))
+            default_rom = remembered;
+    }
     char selected_rom[1024]{};
     const int result = recomp_launcher_run_window(
         "Metroid Prime Hunters - Launcher", &settings, &game,
@@ -1052,6 +1275,10 @@ int main(int argc, char** argv) {
     // The UI's final BIOS selection is authoritative for this launch even if
     // a persist callback was missed (persistence is best-effort UX).
     mod_state.bios_path = settings.bios_path;
+    // Same for the ROM (beads-lqa.3). PLAY can be pressed without the persist
+    // callback ever firing for the ROM, so treat what we are about to launch
+    // as the thing to remember.
+    if (selected_rom[0]) mod_state.rom_path = selected_rom;
     // Same for the ONLINE card's player name. An invalid entry is surfaced
     // and dropped rather than silently reshaped or allowed to block launch.
     {

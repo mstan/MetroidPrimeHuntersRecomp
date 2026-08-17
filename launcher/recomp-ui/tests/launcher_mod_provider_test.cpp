@@ -14,6 +14,34 @@ bool require(bool condition, const char* label) {
 
 int main() {
     {
+        const std::filesystem::path root =
+            std::filesystem::temp_directory_path() /
+            "mph_firmware_state_launcher_test";
+        const std::filesystem::path settings = root / "mods.ini";
+        const std::filesystem::path generated =
+            firmware_state_path(settings, true);
+        const std::filesystem::path retail =
+            firmware_state_path(settings, false);
+        if (!require(generated.filename() == "firmware-generated.bin",
+                     "generated firmware state path")) return 85;
+        if (!require(retail.filename() == "firmware-retail.bin",
+                     "retail firmware state path")) return 86;
+        std::filesystem::create_directories(root);
+        std::vector<unsigned char> bytes(128u * 1024u, 0xFFu);
+        const unsigned char mac[6] = {0x00, 0x09, 0xBF, 0x12, 0x34, 0x56};
+        std::memcpy(bytes.data() + 0x36, mac, sizeof(mac));
+        {
+            std::ofstream file(generated, std::ios::binary);
+            file.write(reinterpret_cast<const char*>(bytes.data()),
+                       static_cast<std::streamsize>(bytes.size()));
+        }
+        if (!require(read_firmware_state_mac(generated) ==
+                         "00:09:BF:12:34:56",
+                     "firmware state identity display")) return 87;
+        std::filesystem::remove_all(root);
+    }
+
+    {
         ModState legacy_state{};
         legacy_state.settings_path =
             std::filesystem::temp_directory_path() /
@@ -41,9 +69,11 @@ int main() {
 
     if (!require(provider.feature_count != nullptr, "feature_count callback"))
         return 3;
-    // Two gameplay mods; the online identity is a dashboard card, not a mod.
+    // Three gameplay mods; the online identity is a dashboard card, not a
+    // mod. Index 1 stays prime controls so the assertions below are
+    // unaffected by HD rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 2, "feature_count == 2")) return 4;
+    if (!require(feature_count == 3, "feature_count == 3")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 1, &feature),
@@ -261,9 +291,9 @@ int main() {
 
     // The online identity is NOT a mod feature: it lives on the dashboard
     // ONLINE card (GameInfo.has_player_name + the NDS "identity" panel).
-    // Exactly the two gameplay mods remain.
-    if (!require(!provider.feature_get(provider.ctx, 2, &feature),
-                 "exactly two mod features (identity is not a mod)")) {
+    // Exactly the three gameplay mods remain; index 3 must not resolve.
+    if (!require(!provider.feature_get(provider.ctx, 3, &feature),
+                 "exactly three mod features (identity is not a mod)")) {
         return 37;
     }
 
@@ -310,6 +340,130 @@ int main() {
             return 59;
         }
         std::filesystem::remove(saved.settings_path);
+    }
+
+    // HD rendering: off by default, so a player who never opens the Mods
+    // page gets the faithful native output.
+    {
+        RecompLauncherCModFeature hd{};
+        if (!require(provider.feature_get(provider.ctx, 2, &hd),
+                     "feature_get hd rendering")) return 60;
+        if (!require(std::strcmp(hd.id, "hd-rendering") == 0,
+                     "hd feature id")) return 61;
+        if (!require(std::strcmp(hd.package_id, "mph-hd-rendering") == 0,
+                     "hd package id")) return 62;
+        if (!require(hd.enabled == 0, "hd disabled by default")) return 63;
+        if (!require(hd.option_count == 2, "hd option count")) return 64;
+
+        // Both options must reject values outside their choice list, so a
+        // hand-edited mods.ini cannot hand the runner a scale it refuses.
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "internal-resolution", "4") == 1,
+                     "hd internal resolution accepts 4")) return 65;
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "internal-resolution", "8") == 0,
+                     "hd internal resolution rejects 8")) return 66;
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "texture-upscale", "3") == 0,
+                     "hd texture upscale rejects 3")) return 67;
+        if (!require(provider.feature_set_option(
+                         provider.ctx, "mph-hd-rendering", "hd-rendering",
+                         "texture-upscale", "4") == 1,
+                     "hd texture upscale accepts 4")) return 68;
+
+        ModState hd_saved{};
+        hd_saved.settings_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_hd_settings.ini";
+        hd_saved.hd_rendering = true;
+        hd_saved.internal_resolution = 3;
+        hd_saved.texture_upscale = 4;
+        if (!require(save_mod_state(hd_saved), "hd save")) return 69;
+        ModState hd_loaded{};
+        hd_loaded.settings_path = hd_saved.settings_path;
+        load_mod_state(hd_loaded);
+        if (!require(hd_loaded.hd_rendering, "hd enable round trip"))
+            return 70;
+        if (!require(hd_loaded.internal_resolution == 3,
+                     "hd internal resolution round trip")) return 71;
+        if (!require(hd_loaded.texture_upscale == 4,
+                     "hd texture upscale round trip")) return 72;
+        std::filesystem::remove(hd_saved.settings_path);
+    }
+
+    // beads-lqa.3: the chosen ROM must survive a relaunch. It used to be
+    // discarded in nds_persist_setup, so every launch fell back to the bundled
+    // default path and anyone whose dump lived elsewhere saw "ROM not found"
+    // forever.
+    {
+        const std::filesystem::path settings_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_rom_settings.ini";
+
+        ModState saved{};
+        saved.settings_path = settings_path;
+        saved.rom_path = "D:\\Games\\NDS\\Metroid Prime Hunters.nds";
+        saved.bios_path = "D:\\Games\\NDS\\bios\\biosnds9.rom";
+        if (!require(save_mod_state(saved), "rom save")) return 73;
+
+        ModState loaded{};
+        loaded.settings_path = settings_path;
+        load_mod_state(loaded);
+        if (!require(loaded.rom_path == saved.rom_path,
+                     "rom path round trip")) return 74;
+
+        // The callback fires on BIOS browse too, with no ROM. An empty value
+        // means "nothing selected right now", never "forget the pick" --
+        // clearing here would reintroduce the original bug.
+        if (!require(nds_persist_setup(&loaded, "", "E:\\dumps\\biosnds7.rom")
+                         == 0,
+                     "persist_setup with empty rom succeeds")) return 75;
+        if (!require(loaded.rom_path == saved.rom_path,
+                     "empty persist_setup rom does not clear the pick"))
+            return 76;
+        if (!require(loaded.bios_path == "E:\\dumps\\biosnds7.rom",
+                     "persist_setup still updates bios")) return 77;
+
+        if (!require(nds_persist_setup(&loaded, "E:\\other\\MPH.nds", "") == 0,
+                     "persist_setup with a rom succeeds")) return 78;
+        if (!require(loaded.rom_path == "E:\\other\\MPH.nds",
+                     "persist_setup records a new rom pick")) return 79;
+
+        // A path containing '=' must survive: load_mod_state splits on the
+        // FIRST '=', so everything after it is the value.
+        ModState equals_saved{};
+        equals_saved.settings_path = settings_path;
+        equals_saved.rom_path = "D:\\ROMs\\a=b\\Metroid Prime Hunters.nds";
+        if (!require(save_mod_state(equals_saved), "rom save with equals"))
+            return 80;
+        ModState equals_loaded{};
+        equals_loaded.settings_path = settings_path;
+        load_mod_state(equals_loaded);
+        if (!require(equals_loaded.rom_path == equals_saved.rom_path,
+                     "rom path with '=' round trip")) return 81;
+
+        // A pre-existing version-2 file has no rom_path key. It must load
+        // cleanly with an empty pick and keep everything else.
+        {
+            std::ofstream file(settings_path, std::ios::trunc);
+            file << "settings_version=2\n"
+                    "bios_path=F:\\keepme\\biosnds9.rom\n"
+                    "player_name=Samus\n";
+        }
+        ModState migrated{};
+        migrated.settings_path = settings_path;
+        load_mod_state(migrated);
+        if (!require(migrated.rom_path.empty(),
+                     "version 2 settings have no remembered rom")) return 82;
+        if (!require(migrated.bios_path == "F:\\keepme\\biosnds9.rom",
+                     "version 2 migration keeps bios_path")) return 83;
+        if (!require(migrated.player_name == "Samus",
+                     "version 2 migration keeps player_name")) return 84;
+
+        std::filesystem::remove(settings_path);
     }
 
     return 0;

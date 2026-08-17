@@ -1,70 +1,45 @@
 [game]
 name = "Metroid Prime Hunters"
-id = "AMHE"
-region = "USA"
-revision = 0
-status = "ROM-gated main banks enter Celestial Archives gameplay with interpreter fallback"
-rom = "Metroid Prime Hunters.nds"
-rom_size = 0x04000000
-sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
-sha256 = "7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855"
+status = "Generic multi-ROM runtime config; ROM version is selected by the executable-compatible runtime detector"
 
 [display]
-# Prime Hunters uses both screens heavily. Keep them independently presentable
-# from the beginning, matching the established SM64DS host layout.
+# Prime Hunters uses both screens heavily. Keep them independently presentable.
 screen_layout = "separate"
 supersampling = 1
 antialiasing = 0
 
 # The shared host-side adaptive renderer expands only the upper 3D viewport to
 # 21:9. The lower touchscreen remains native 256x192 and independently
-# clickable. The exact game SHA-1 above gates this title-owned capability.
+# clickable. Runtime executable compatibility, not whole-ROM SHA-1, gates the
+# title-owned projection/culling patch for all supported revisions.
 adaptive_widescreen = "top"
-adaptive_capability = "top"
+# Do not declare display.adaptive_capability here. ndsrecomp intentionally
+# requires an exact game.sha1 for TOML-declared title capabilities. This shared
+# config has no exact content identity, so the MPH runtime patch grants TOP
+# capability only after the executable-compatible detector selects a supported
+# base profile. Unknown/header-only content remains fail-closed.
 adaptive_width = 448
-# SM64DS needs a cylindrical-sky repair heuristic. Prime Hunters does not opt
-# into that title-specific treatment; uncovered geometry remains visible
-# during the MPH projection/culling audit.
 adaptive_skybox_fill = false
-# Gameplay enables three transparent text-tile planes for the visor and HUD.
-# Anchor their authored left/center/right bands over the widened 3D world
-# instead of falling back to a pillarboxed native composite.
 adaptive_hud_anchor = true
-# MPH's centered location banner and energy assembly are wider than the
-# framework's conservative 64-pixel default. Preserve source X=64..191 as one
-# centered unit so text and bars never cross an anchor seam.
 adaptive_hud_center_width = 128
 
 [system]
-# Exercise the authentic BIOS/firmware/card path and automatically launch the
-# inserted cartridge after the normal firmware sequence.
+# The ROM-free launcher uses FreeBIOS/generated firmware with direct boot.
+# Other callers may override the boot path through CLI options.
 startup_mode = "automatic"
 
 [cartridge]
-# melonDS ROMList entry AMHE: SaveMemType 5 (256 KiB flash).
+# Metroid Prime Hunters uses the same 256 KiB flash save geometry across the
+# supported retail revisions.
 save_type = "flash"
 save_size = 262144
 
-[arm9]
-rom_offset = 0x00004000
-entry_pc = 0x02004800
-load_address = 0x02004000
-compressed_size = 0x0007e6c4
-decompressed_size = 0x000dd9d8
-overlay_count = 18
-
-[arm7]
-rom_offset = 0x0013aa00
-entry_pc = 0x02380000
-load_address = 0x02380000
-size = 0x00028464
-
 [framework]
 path = "../ndsrecomp"
-pin = "46b12e6c18dea47f87d2c1f98c3054149dcbca5d"
+pin = "302404ada0929528b680fa6808aad253b425c7a2"
 branch = "main"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"
 pin = "26cd8a6fe93dc5e525d1a1bb304fe96001111e55"
-use = "AMHE0-aware gameplay, save, room/entity, model, animation, collision, audio, and file-format research"
+use = "MPH gameplay, save, room/entity, model, animation, collision, audio, and file-format research"

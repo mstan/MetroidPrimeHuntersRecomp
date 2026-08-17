@@ -6,11 +6,12 @@
 > audio issues, input quirks, networking failures, and possible desyncs. Testing,
 > issues, and PRs are welcome.
 
-MetroidPrimeHuntersRecomp runs **Metroid Prime Hunters** as an ndsrecomp target.
-Runtime base-version detection supports the known US1.0, US1.1, EU1.0, EU1.1,
-JP1.0, JP1.1, and KR1.0 layouts using executable-compatible detection rather
-than using whole-ROM SHA-1 as the base-profile selector. You provide your own
-legally obtained ROM. No Nintendo ROM, BIOS, firmware, save data, or generated
+MetroidPrimeHuntersRecomp currently ships generated content profiles for the
+validated ROM revisions tracked by this branch. Runtime base detection is
+prepared for all seven retail Metroid Prime Hunters revisions and uses
+melonPrimeDS-compatible executable checksums; whole-ROM SHA-1 is content
+provenance, not the runtime address selector. You provide your own legally
+obtained ROM. No Nintendo ROM, BIOS, firmware, save data, or generated
 ROM-derived source is distributed.
 
 ## Gameplay Preview
@@ -21,132 +22,195 @@ Click the image to watch the gameplay preview on YouTube.
 
 ## Current Release
 
-The project version is **v0.4.0-alpha**. Development Nightly builds are produced
-from `develop` under the fixed `nightly-release` prerelease tag after the
-Windows and Linux build workflows and release-payload safety checks succeed.
+Latest upstream release:
+**[v0.4.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.0-alpha)**.
 
-The Nightly build path is deliberately **ROM-free**: GitHub Actions never needs
-or downloads a Metroid Prime Hunters ROM, private ROM URL, proprietary BIOS or
-firmware dump, save file, or ROM-derived MPH title bank. Users supply their ROM
-at runtime. In the current Nightly architecture, title code without a linked
-content-specific native bank executes through ndsrecomp Tier-3. This is a safe
-correctness fallback and may be slower than an optimized tagged build.
+Downloads:
 
-The package reserves a portable optimization-cache root beside the executable
-or AppImage at `cache/banks/<content-sha1>/`. The current Nightly does not yet
-generate native title banks there. The intended next step is a compiler-free
-local optimization/JIT cache; see [`docs/LOCAL_BANK_CACHE.md`](docs/LOCAL_BANK_CACHE.md).
+- Windows:
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.0.zip`
+- Linux:
+  `MetroidPrimeHuntersRecomp-linux-x86_64-v0.4.0.AppImage`
+
+This is an early ndsrecomp title and should still be treated as an alpha test
+build rather than a polished game release.
+
+New in upstream v0.4.0 is an opt-in **HD Rendering** mod on the launcher Mods
+page. It can raise the internal 3D resolution up to 4x and optionally upscale
+decoded textures. It is disabled by default; native rendering remains the
+reference path. This branch keeps that upstream feature alongside the
+multi-ROM-safe Adaptive Widescreen and Prime Controls work.
+
+## Nightly builds and local optimization cache
+
+The `develop` branch publishes a fixed `nightly-release` prerelease after the
+Windows and Linux build workflows and release-payload checks succeed. This
+public Nightly path is deliberately **ROM-free**: GitHub Actions does not fetch
+or receive a Metroid Prime Hunters ROM, private ROM URL/secret, proprietary BIOS
+or firmware dump, save data, or ROM-derived MPH title bank.
+
+When a content-specific native title bank is not linked, direct-booted MPH code
+uses ndsrecomp's Tier-3 correctness fallback. This makes a ROM-free Nightly
+possible, but it can be slower than an optimized tagged build, especially in
+known hot runtime-code paths such as opening movies.
+
+Nightly packages reserve the portable-first optimization-cache namespace
+`cache/banks/<content-sha1>/` beside the executable/AppImage. Whole-ROM SHA-1 is
+used there only as exact cache/content identity; runtime base-profile selection
+continues to use the executable-compatible MPH detector. The current Nightly
+does **not** generate a native title bank in this directory yet. The intended
+next step is a compiler-free local bank/JIT cache. See
+[`docs/LOCAL_BANK_CACHE.md`](docs/LOCAL_BANK_CACHE.md).
 
 ## Quick Start
 
 Windows:
 
 1. Download and fully extract the Windows ZIP.
-2. Put your own Metroid Prime Hunters `.nds` ROM next to
-   `MetroidPrimeHuntersRecomp.exe`, or select it in the launcher.
+2. Put your own supported Metroid Prime Hunters `.nds` ROM next to the launcher.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the AppImage and make it executable if required by your desktop.
-2. Put your own Metroid Prime Hunters `.nds` ROM next to the AppImage.
+1. Download the AppImage.
+2. Put your own supported Metroid Prime Hunters `.nds` ROM next to the AppImage.
 3. Run the AppImage.
 
 The current release can use the built-in FreeBIOS + generated firmware path, so
 retail DS BIOS and firmware dumps are not required for the default no-dump
-startup path. The ROM-free Nightly generates its native FreeBIOS banks only
-from the redistributable BSD-2-Clause FreeBIOS source path at build time.
+startup path. If you choose to use your own BIOS/firmware dumps, they must be
+from hardware you own and must match the hashes listed in the release's
+`bios/README.txt`.
 
-## ROM identity and multi-ROM behavior
+## ROM identity and multi-ROM support
 
-Three identity layers are kept separate:
+Runtime address selection does **not** use whole-ROM SHA-1. The runner first
+uses the melonPrimeDS executable checksum (CRC32 over header + ARM9 + ARM7),
+then uses exact game code + supported revision only as a fallback base-profile
+hint. Header-only matches never authorize host RAM/code writes.
 
-1. **Runtime base profile:** executable checksum / exact supported header tuple.
-2. **Executable compatibility:** determines whether dangerous host RAM/code
-   writes such as Aim/Morph/Adaptive Widescreen patches are authorized.
-3. **Exact content identity:** whole-ROM SHA-1 for provenance, generated banks,
-   captures, and the future local optimization-cache namespace.
+Known compatible executable checksums can use the revision-specific Prime
+Controls and Adaptive Widescreen addresses. Whole-ROM SHA-1 remains the exact
+content identity for generated banks, coverage, checkpoints and capture data,
+so one modified ROM cannot silently reuse another modified ROM's generated
+content.
 
-Whole-ROM SHA-1 therefore does not decide that a modified ROM is US1.0 or EU1.1.
-Unknown or ambiguous executable content never silently falls back to US1.0, and
-host writes fail closed unless executable compatibility is authoritative.
+The current branch has runtime address profiles for US1.0, US1.1, EU1.0,
+EU1.1, JP1.0, JP1.1 and KR1.0. A revision still needs its own generated
+content/capture coverage before it is considered fully brought up.
 
-Exact clean-content profiles currently validated in the repository include the
-US1.0 and EU1.1 bring-up tracks. Other base layouts are prepared at runtime, but
-full per-ROM extraction, coverage, gameplay validation, and optimized bank work
-must still be completed before they should be described as equally validated
-release targets.
+## What Works
 
-## Enhancements
+- Boots supported content profiles through the ndsrecomp runner.
+- Reaches Metroid Prime Hunters gameplay in tested routes.
+- Includes an adaptive 21:9 upper-screen widescreen option using per-revision
+  projection/culling addresses from melonPrimeDS/mphCodex.
+- Includes Prime-style keyboard and mouse controls.
+- Includes full remappable gamepad bindings in the launcher.
+- Includes upstream HD Rendering controls for internal resolution and texture
+  upscaling.
+- Supports mouse-driven touchscreen input.
+- Can authenticate through Wiimmfi and reach a Friends and Rivals lobby in
+  validated flows.
+- Persists mutable firmware/WFC state between launches through the upstream
+  firmware-state path.
 
-### Adaptive Widescreen
+## Known Limits
 
-The launcher exposes an adaptive 21:9 upper-screen mode. The implementation
-combines ndsrecomp's widened host renderer/compositor and HUD anchoring with
-profile-aware Metroid Prime Hunters projection/culling corrections derived from
-the audited melonPrimeDS/mphCodex address tables. Unsupported/unsafe runtime
-identity falls back rather than applying guessed guest writes.
+- This is an alpha. Bugs, crashes, hangs, graphical issues, audio issues, and
+  gameplay problems are expected.
+- Gameplay coverage is incomplete. Do not assume the campaign is fully
+  validated from start to finish.
+- Widescreen is still being audited. Some scenes, effects, HUD placement,
+  movies, fades, or screen-routing behavior may be wrong.
+- HD texture upscaling remains opt-in and should not be treated as the native
+  reference rendering path.
+- ROM-free Nightly builds can be slower while MPH title code is using Tier-3
+  instead of a validated native optimization bank.
+- The local `cache/banks/<content-sha1>/` path is currently a cache contract;
+  dynamic native/JIT bank generation is not implemented yet.
+- Online play is experimental. Wiimmfi can reach the lobby in validated flows,
+  but in-game play is ultimately untested. There is no guarantee that a match
+  will connect, stay connected, or avoid desync.
+- Save behavior and settings are still part of early release testing. Keep
+  backups of anything you care about.
 
-### Prime Controls
+## Controls
 
-Prime-style keyboard/mouse controls and remappable gamepad bindings are exposed
-through the launcher. Defaults include WASD movement, mouse aim, Mouse 1 fire,
-and the existing touch-helper mappings.
+Prime Controls are enabled by default.
 
-### HD Rendering
+Keyboard and mouse defaults:
 
-HD Rendering is opt-in. It raises the 3D engine above native DS sample density
-(up to the supported internal-resolution choices) and can upscale decoded
-textures. The native 2D path remains the reference and HD Rendering is off by
-default.
+- `WASD`: move
+- Mouse: aim
+- Mouse 1 / Mouse 2: fire / scan-fire
+- `Space`: jump
+- `Left Ctrl`: morph ball
+- `Left Shift`: boost / map zoom
+- `C`: scan visor
+- `F`: OK
+- `Q` / `E`: scan-message arrows
+- `V`: menu
+- Mouse 4: missiles
+- Mouse 5: beam
+- `1` through `6`: subweapons
+- `Tab`: virtual stylus
+
+Gamepad defaults:
+
+- Left stick: move and menu D-pad
+- Right stick: aim
+- `RT` / `LT`: shoot / scan-fire
+- `A`: jump
+- `B`: morph ball
+- `X`: missile
+- `Y`: UI OK
+- `LB` / `RB`: beam / boost or zoom
+- `R3`: scan visor
+- D-pad left/right: scan-message arrows
+- `Start`: menu
+
+Keyboard, mouse, and gamepad bindings are editable from the launcher Mods page.
 
 ## Online Play
 
-Nintendo WFC / Wiimmfi support remains experimental. The launcher persists the
-console firmware profile in the user's application-data location so Wi-Fi
-settings, console/game-card pairing, and WFC updates survive later launches.
-Online play may still fail to connect, disconnect, or desync.
+Nintendo WFC / Wiimmfi support is experimental. The current validated state is
+lobby connectivity: Metroid Prime Hunters can authenticate through Wiimmfi and
+reach a Friends and Rivals lobby where a locally hosted game is visible.
+
+The launcher keeps the console firmware profile in
+`%APPDATA%\MetroidPrimeHuntersRecomp`. Wi-Fi settings, console/game-card
+pairing, and WFC updates survive both the in-game system shutdown flow and a
+normal window close. Confirming the WFC settings shutdown prompt closes the
+application automatically.
+
+Actually joining a match and playing in-game online is not guaranteed. It may
+fail to connect, disconnect, or desync.
 
 The Wi-Fi implementation is built on
 [melonDS](https://github.com/melonDS-emu/melonDS)'s Wi-Fi work in the shared
 ndsrecomp runner. Full credit to the melonDS team for the Wi-Fi controller,
 emulated access point, and network backend foundation.
 
-## Known Limits
-
-- This is an alpha. Bugs, crashes, hangs, graphical issues, audio issues, and
-  gameplay problems are expected.
-- Gameplay coverage is incomplete across the seven base layouts.
-- The ROM-free Nightly's Tier-3 title fallback can be substantially slower than
-  a build with validated native MPH optimization banks, especially in known hot
-  paths such as opening movies.
-- The local `cache/banks/<content-sha1>/` directory is currently a reserved
-  cache contract; dynamic native/JIT bank generation is not implemented yet.
-- Widescreen still requires sustained gameplay auditing across scenes, effects,
-  HUD placement, movies, fades, and screen routing.
-- Online play is experimental.
-- Save behavior and settings remain part of early release testing. Keep backups
-  of anything you care about.
-
 ## Credits
 
 - [melonDS](https://github.com/melonDS-emu/melonDS): Wi-Fi implementation
   foundation used by the shared ndsrecomp runner.
-- [melonPrimeDS](https://github.com/ag-advania/melonPrimeDS): reference for
-  Prime-style controls, ROM/version address tables, and aspect-ratio research.
-- [mphCodex](https://github.com/Zection6V/mphCodex): game-code/disassembly and
-  Metroid Prime Hunters behavior research.
+- [melonPrimeDS](https://github.com/ag-advania/melonPrimeDS): runtime-version
+  detection, Prime-style controls, and per-version aspect-ratio patch reference.
+- [mphCodex](https://github.com/Zection6V/mphCodex): MPH game-code analysis,
+  including the seven-version widescreen projection/culling mapping.
 - [MphRead](https://github.com/NoneGiven/MphRead): Metroid Prime Hunters file
   format and behavior reference.
 
-See the ndsrecomp `THIRD_PARTY_ATTRIBUTION.md` for shared-runtime provenance and
-licensing details.
+See the ndsrecomp
+[`THIRD_PARTY_ATTRIBUTION.md`](https://github.com/mstan/ndsrecomp/blob/main/THIRD_PARTY_ATTRIBUTION.md)
+for provenance and licensing details for shared runtime components.
 
 ## Developers
 
-Bring-up and validation notes live under [`docs/`](docs/). The ROM-free Nightly
-and local-cache direction is documented in
-[`docs/LOCAL_BANK_CACHE.md`](docs/LOCAL_BANK_CACHE.md).
+This README is intentionally player-facing. Development notes, validation
+history, and bring-up details live in [`docs/BRINGUP.md`](docs/BRINGUP.md).
 
 The original code in this repository is MIT licensed. Metroid Prime Hunters,
 Nintendo DS firmware/BIOS images, ROMs, saves, and all derived game data remain

@@ -19,9 +19,17 @@ import sys
 from pathlib import Path
 
 
+def _framework_root(args: list[str]) -> Path | None:
+    for index, arg in enumerate(args[:-1]):
+        if arg == "--framework-root":
+            return Path(args[index + 1]).resolve()
+    return None
+
+
 def main() -> None:
     here = Path(__file__).resolve().parent
     args = sys.argv[1:]
+    framework_root = _framework_root(args)
     for script in (
         here / "patch_ndsrecomp_mph_runtime_core.py",
         here / "patch_ndsrecomp_mph_widescreen.py",
@@ -31,6 +39,18 @@ def main() -> None:
         here / "patch_ndsrecomp_mph_aspect_ratio_mod.py",
         here / "patch_ndsrecomp_nearest_presentation.py",
     ):
+        # The aspect layer consists of several coordinated edits across main,
+        # title_patches and frontend. Its primary marker in main is enough to
+        # establish that the complete layer was applied by a prior successful
+        # stack invocation. Skip the whole layer on rerun rather than trying to
+        # match already-transformed frontend width expressions piecemeal.
+        if (script.name == "patch_ndsrecomp_mph_aspect_ratio_mod.py" and
+                framework_root is not None):
+            main_cpp = framework_root / "runner" / "src" / "main.cpp"
+            if main_cpp.is_file() and "MPH_ASPECT_RATIO_MOD_CLI_VAR" in \
+                    main_cpp.read_text(encoding="utf-8"):
+                print("MPH independent aspect-ratio mod already applied")
+                continue
         subprocess.run([sys.executable, str(script), *args], check=True)
 
 

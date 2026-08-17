@@ -37,9 +37,12 @@ def load_profile(path: Path, version: str) -> dict[str, object]:
         "rom_size": int,
         "sha1": str,
         "program_id": str,
+        "coverage": str,
         "game_config": str,
-        "adaptive_widescreen": bool,
+        "fmv_runtime": bool,
         "fmv_runtime_bank": str,
+        "launcher_default_rom": str,
+        "adaptive_widescreen": bool,
     }
     for key, expected_type in required.items():
         value = profile.get(key)
@@ -64,6 +67,12 @@ def load_profile(path: Path, version: str) -> dict[str, object]:
         raise SystemExit(f"ROM profile {version!r} revision must fit one byte")
     if int(profile["rom_size"]) <= 0:
         raise SystemExit(f"ROM profile {version!r} rom_size must be positive")
+
+    bank = str(profile["fmv_runtime_bank"])
+    if not bank or "_arm9_" not in bank or not bank.replace("_", "a").isalnum():
+        raise SystemExit(
+            f"ROM profile {version!r} fmv_runtime_bank must be an ARM9 bank identifier"
+        )
 
     return profile
 

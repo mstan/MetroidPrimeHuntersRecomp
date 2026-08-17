@@ -1,1 +1,0 @@
-TEST ONLY: guest MPH 21:9 projection/culling ON; host adaptive 448px render/HUD OFF; native 256x192 top image stretched to 448x192 only at final presentation.

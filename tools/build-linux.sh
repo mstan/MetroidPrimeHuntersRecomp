@@ -199,7 +199,11 @@ echo "[4/4] package AppImage"
   --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null
 
-APP="$OUT/$APP_NAME-$MPH_VERSION-linux-v$VERSION-x86_64.AppImage"
+if [ "$MPH_VERSION" = "US1_0" ]; then
+  APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
+else
+  APP="$OUT/$APP_NAME-$MPH_VERSION-linux-v$VERSION-x86_64.AppImage"
+fi
 rm -f "$APP"
 ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run "$APPDIR" "$APP" >/dev/null
 chmod +x "$APP"

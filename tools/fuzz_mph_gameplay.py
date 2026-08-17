@@ -314,6 +314,7 @@ def main() -> int:
         "mph_profile": args.version,
         "rom_sha1": rom_sha1,
         "display_name": profile["display_name"],
+        "scenario": args.actions.as_posix() if args.actions is not None else None,
         "seed": args.seed,
         "backend": "native" if args.runner is not None else "oracle",
         "start_vblank": args.start_vblank,

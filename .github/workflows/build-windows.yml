@@ -107,7 +107,10 @@ jobs:
           version="$(sed -n 's/^project(MetroidPrimeHuntersRecomp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
           test -n "$version"
           runtime_bin="$(cygpath -w /mingw64/bin)"
-          pwsh -NoProfile -File tools/package-windows-nightly.ps1 \
+          ps_exe="$(cygpath -u "${SYSTEMROOT}")/System32/WindowsPowerShell/v1.0/powershell.exe"
+          script_path="$(cygpath -w "$PWD/tools/package-windows-nightly.ps1")"
+          test -x "$ps_exe"
+          "$ps_exe" -NoProfile -ExecutionPolicy Bypass -File "$script_path" \
             -Version "$version" \
             -RunnerBuildDir '..\ndsrecomp\runner\build-mph-nightly' \
             -LauncherBuildDir 'launcher\recomp-ui\build-nightly' \

@@ -7,6 +7,10 @@ the melonPrimeDS/mphCodex profile-aware 21:9 projection/culling patch, grant
 adaptive TOP capability only after authoritative MPH executable detection, make
 that patch re-eligible after an in-process guest reset, and finally add
 end-user startup diagnostics plus the ROM-free multi-ROM content-gate policy.
+
+This comparison branch appends one final experiment layer that keeps the guest
+projection/culling patch enabled while forcing the host adaptive framebuffer and
+HUD anchoring off. It is not intended for develop.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ def main() -> None:
         here / "patch_ndsrecomp_mph_adaptive_capability.py",
         here / "patch_ndsrecomp_mph_widescreen_reset.py",
         here / "patch_ndsrecomp_mph_diagnostics.py",
+        here / "patch_ndsrecomp_mph_guest_wide_host_off.py",
     ):
         subprocess.run([sys.executable, str(script), *args], check=True)
 

@@ -28,7 +28,8 @@ jobs:
             tools/patch_ndsrecomp_mph_runtime.py \
             tools/promote_mph_static_coverage.py \
             tools/promote_mph_runtime_coverage.py \
-            tools/benchmark_mph_fmv.py
+            tools/benchmark_mph_fmv.py \
+            tools/fuzz_mph_gameplay.py
 
       - name: Check shell syntax
         run: bash -n tools/build-linux.sh
@@ -134,6 +135,16 @@ jobs:
           grep -q 'id           = "mph_amhp1_arm9_fmv_runtime"' /tmp/eu-runtime.toml
           ! grep -q 'Metroid Prime Hunters (USA) ARM9 FMV runtime' /tmp/eu-runtime.toml
 
+      - name: Verify profile-owned FMV build naming
+        run: |
+          grep -q 'MPH_PROFILE_FMV_RUNTIME_BANK' CMakeLists.txt
+          grep -q 'config/${MPH_PROFILE_FMV_RUNTIME_BANK}.toml' CMakeLists.txt
+          grep -q 'capture/${MPH_PROFILE_FMV_RUNTIME_BANK}.bin' CMakeLists.txt
+          ! grep -q -- '--bank mph_arm9_fmv_runtime' CMakeLists.txt
+          grep -q 'FMV_RUNTIME_BANK' tools/build-linux.sh
+          grep -q 'FmvRuntimeBank' tools/build-windows.ps1
+          grep -q 'FmvRuntimeBank' tools/make_release.ps1
+
       - name: Fetch exact pinned ndsrecomp revision
         run: |
           pin="$(tr -d '\r\n' < ndsrecomp.pin)"
@@ -192,6 +203,7 @@ jobs:
       - name: Verify Linux profile-owned launch policy
         run: |
           grep -q 'launcher_default_rom' tools/build-linux.sh
+          grep -q 'fmv_runtime_bank' tools/build-linux.sh
           grep -q 'cp "$GAME_CONFIG" "$APPDIR/usr/share/mph-recomp/game.toml"' \
             tools/build-linux.sh
           grep -q -- '--config "$HERE/usr/share/mph-recomp/game.toml"' \

@@ -104,6 +104,8 @@ jobs:
             launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
           grep -q 'game.known_sha1_hex = nullptr;' \
             launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          # Fresh ROM-free extraction must start with no ROM selected. The
+          # conventional filename is auto-selected only when the file exists.
           grep -q 'std::filesystem::is_regular_file(default_rom, initial_rom_error)' \
             launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
           grep -q 'exe.string().c_str(), initial_rom.c_str(),' \

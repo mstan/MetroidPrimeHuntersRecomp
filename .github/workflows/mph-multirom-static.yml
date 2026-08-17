@@ -123,11 +123,11 @@ jobs:
             -DNDS_ENABLE_PCAP_BACKEND=OFF
 
           cmake --build /tmp/nds-runner-profile-check --target \
-            CMakeFiles/nds_runner.dir/src/title_patches.cpp.o -j2
+            src/title_patches.o -j2
           cmake --build /tmp/nds-runner-profile-check --target \
-            CMakeFiles/nds_runner.dir/src/frontend.cpp.o -j2
+            src/frontend.o -j2
           cmake --build /tmp/nds-runner-profile-check --target \
-            CMakeFiles/nds_runner.dir/src/main.cpp.o -j2
+            src/main.o -j2
 
       - name: Compile US1.0 and EU1.1 ROM checkers
         run: |

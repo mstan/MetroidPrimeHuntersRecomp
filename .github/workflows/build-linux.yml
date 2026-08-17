@@ -1,0 +1,124 @@
+name: Build Linux
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux ROM-free build
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out title sources
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build git curl ca-certificates \
+            libsdl2-dev libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev \
+            libxcursor-dev libxi-dev libxinerama-dev libwayland-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch pinned ndsrecomp
+        run: |
+          set -euo pipefail
+          nds_pin="$(tr -d '\r\n' < ndsrecomp.pin)"
+          git clone --filter=blob:none https://github.com/mstan/ndsrecomp.git ../ndsrecomp
+          git -C ../ndsrecomp checkout --detach "$nds_pin"
+          git -C ../ndsrecomp submodule update --init --recursive
+          test "$(git -C ../ndsrecomp rev-parse HEAD)" = "$nds_pin"
+
+      - name: Apply MPH and ROM-free runner integration
+        run: |
+          set -euo pipefail
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root ../ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          python tools/patch_ndsrecomp_rom_free_release.py \
+            --framework-root ../ndsrecomp
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root ../ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          python tools/patch_ndsrecomp_rom_free_release.py \
+            --framework-root ../ndsrecomp
+
+      - name: Generate redistributable FreeBIOS banks
+        run: |
+          set -euo pipefail
+          python tools/ci/prepare_freebios_banks.py \
+            --framework-root ../ndsrecomp \
+            --build-dir ../ndsrecomp/build-freebios-recompiler
+          test ! -e ../ndsrecomp/generated/arm9_bios.c
+          test ! -e ../ndsrecomp/generated/arm7_bios.c
+
+      - name: Build ROM-free runner
+        run: |
+          set -euo pipefail
+          cmake -S ../ndsrecomp/runner -B ../ndsrecomp/runner/build-mph-nightly \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNDS_BOOTSTRAP_FIRMWARE=ON \
+            -DNDS_RETAIL_BIOS_BANKS=OFF \
+            -DNDS_ENABLE_COMPUTE_RENDERER=ON
+          cmake --build ../ndsrecomp/runner/build-mph-nightly
+          test -x ../ndsrecomp/runner/build-mph-nightly/nds_runner
+          if grep -a -E -q 'g_dispatch_mph_arm(9|7)|mph_arm9_fmv_runtime' \
+              ../ndsrecomp/runner/build-mph-nightly/nds_runner; then
+            echo 'ROM-derived MPH title bank leaked into ROM-free runner' >&2
+            exit 1
+          fi
+
+      - name: Install pinned AppImage packaging tools
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-tools
+          curl -fL --retry 3 \
+            https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage \
+            -o .ci-tools/appimagetool
+          echo 'ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0  .ci-tools/appimagetool' | sha256sum -c -
+          curl -fL --retry 3 \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+            -o .ci-tools/linuxdeploy
+          echo '421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e  .ci-tools/linuxdeploy' | sha256sum -c -
+          chmod +x .ci-tools/appimagetool .ci-tools/linuxdeploy
+
+      - name: Package Linux Nightly payload
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^project(MetroidPrimeHuntersRecomp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          test -n "$version"
+          tools/package-linux-appimage.sh \
+            --version "$version" \
+            --runner ../ndsrecomp/runner/build-mph-nightly/nds_runner \
+            --appimage-tool "$PWD/.ci-tools/appimagetool" \
+            --linuxdeploy "$PWD/.ci-tools/linuxdeploy"
+          image="release-stage/MetroidPrimeHuntersRecomp-linux-v${version}-x86_64.AppImage"
+          test -s "$image"
+          mkdir -p /tmp/mph-appimage-audit
+          (cd /tmp/mph-appimage-audit && "$GITHUB_WORKSPACE/$image" --appimage-extract >/dev/null)
+          if find /tmp/mph-appimage-audit/squashfs-root -type f \( \
+              -iname '*.nds' -o -iname '*.sav' -o -iname '*.dsv' -o \
+              -iname 'biosnds9.rom' -o -iname 'biosnds7.rom' -o -iname 'firmware.bin' \
+            \) -print -quit | grep -q .; then
+            echo 'Forbidden ROM/save/BIOS/firmware material found inside AppImage' >&2
+            exit 1
+          fi
+
+      - name: Upload Linux Nightly payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: mph-nightly-linux
+          path: release-stage/MetroidPrimeHuntersRecomp-linux-v*-x86_64.AppImage
+          if-no-files-found: error
+          retention-days: 14

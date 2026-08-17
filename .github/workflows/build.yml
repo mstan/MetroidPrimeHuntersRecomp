@@ -1,0 +1,21 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mph-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Build Windows
+    uses: ./.github/workflows/build-windows.yml
+
+  linux:
+    name: Build Linux
+    uses: ./.github/workflows/build-linux.yml

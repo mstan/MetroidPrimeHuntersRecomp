@@ -153,7 +153,7 @@ def verify_rom_identity(
         )
 
     expected_code = str(profile["game_code"]).encode("ascii")
-    if len(header) <= 0x1C:
+    if len(header) <= 0x1E:
         raise SystemExit(f"ROM header is truncated: {rom_path}")
     if header[0x0C:0x10] != expected_code:
         raise SystemExit(
@@ -161,9 +161,9 @@ def verify_rom_identity(
             f"expected {expected_code!r}"
         )
     revision = int(profile["revision"])
-    if header[0x1C] != revision:
+    if header[0x1E] != revision:
         raise SystemExit(
-            f"ROM revision mismatch for {version}: got {header[0x1C]}, "
+            f"ROM revision mismatch for {version}: got {header[0x1E]}, "
             f"expected {revision}"
         )
     return actual_sha1

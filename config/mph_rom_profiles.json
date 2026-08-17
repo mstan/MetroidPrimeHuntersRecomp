@@ -1,6 +1,72 @@
 {
-  "schema": 2,
-  "runtime_address_source": "https://github.com/ag-advania/melonPrimeDS/blob/main/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h",
+  "schema": 3,
+  "runtime_address_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h",
+  "runtime_detection_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp",
+  "runtime_profiles": {
+    "US1_0": {
+      "game_code": "AMHE",
+      "revision": 0,
+      "runtime": {
+        "morph_state": "0x020DA818",
+        "aim_x": "0x020DE526",
+        "aim_y": "0x020DE52E"
+      }
+    },
+    "US1_1": {
+      "game_code": "AMHE",
+      "revision": 1,
+      "runtime": {
+        "morph_state": "0x020DB098",
+        "aim_x": "0x020DEDA6",
+        "aim_y": "0x020DEDAE"
+      }
+    },
+    "EU1_0": {
+      "game_code": "AMHP",
+      "revision": 0,
+      "runtime": {
+        "morph_state": "0x020DB0B8",
+        "aim_x": "0x020DEDC6",
+        "aim_y": "0x020DEDCE"
+      }
+    },
+    "EU1_1": {
+      "game_code": "AMHP",
+      "revision": 1,
+      "runtime": {
+        "morph_state": "0x020DB138",
+        "aim_x": "0x020DEE46",
+        "aim_y": "0x020DEE4E"
+      }
+    },
+    "JP1_0": {
+      "game_code": "AMHJ",
+      "revision": 0,
+      "runtime": {
+        "morph_state": "0x020DC6D8",
+        "aim_x": "0x020E03E6",
+        "aim_y": "0x020E03EE"
+      }
+    },
+    "JP1_1": {
+      "game_code": "AMHJ",
+      "revision": 1,
+      "runtime": {
+        "morph_state": "0x020DC698",
+        "aim_x": "0x020E03A6",
+        "aim_y": "0x020E03AE"
+      }
+    },
+    "KR1_0": {
+      "game_code": "AMHK",
+      "revision": 0,
+      "runtime": {
+        "morph_state": "0x020D3EE4",
+        "aim_x": "0x020D7C0E",
+        "aim_y": "0x020D7C16"
+      }
+    }
+  },
   "profiles": {
     "US1_0": {
       "display_name": "Metroid Prime Hunters (USA rev 0)",
@@ -15,12 +81,7 @@
       "fmv_runtime": true,
       "fmv_runtime_bank": "mph_arm9_fmv_runtime",
       "launcher_default_rom": "Metroid Prime Hunters.nds",
-      "adaptive_widescreen": true,
-      "runtime": {
-        "morph_state": "0x020DA818",
-        "aim_x": "0x020DE526",
-        "aim_y": "0x020DE52E"
-      }
+      "adaptive_widescreen": true
     },
     "EU1_1": {
       "display_name": "Metroid Prime Hunters (Europe rev 1)",
@@ -35,12 +96,7 @@
       "fmv_runtime": false,
       "fmv_runtime_bank": "mph_amhp1_arm9_fmv_runtime",
       "launcher_default_rom": "Metroid Prime Hunters (Europe Rev 1).nds",
-      "adaptive_widescreen": false,
-      "runtime": {
-        "morph_state": "0x020DB138",
-        "aim_x": "0x020DEE46",
-        "aim_y": "0x020DEE4E"
-      }
+      "adaptive_widescreen": false
     }
   }
 }

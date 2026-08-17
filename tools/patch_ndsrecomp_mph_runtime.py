@@ -2,13 +2,22 @@
 """Apply the MPH multi-ROM runtime-profile shim to the pinned ndsrecomp runner.
 
 The upstream runner currently hard-codes Metroid Prime Hunters USA rev-0 RAM
-addresses for Prime Controls and direct mouse aim. This project supports more
-than one retail revision, so those host-side hooks must be selected by exact
-ROM SHA-1 instead of by title/address assumptions.
+addresses for Prime Controls and direct mouse aim. Runtime address selection
+must follow the base game/revision, not the whole-ROM hash, so modified ROMs
+that preserve a supported MPH cartridge identity can use the correct layout.
 
-The address values are generated from config/mph_rom_profiles.json. The
-registry records melonPrimeDS's MelonPrimeGameRomAddrTable.h as the source of
-truth for the MPH runtime addresses.
+The detector mirrors melonPrimeDS's fallback identity:
+NDS gameCode @0x0C + ROM revision @0x1E. Unlike melonPrimeDS, revisions outside
+the seven explicitly supported retail profiles fail closed instead of mapping
+all non-zero revisions to 1.1.
+
+Whole-ROM SHA-1 remains a clean-content/provenance identity. If a SHA-1 is one
+of the configured known-clean ROMs, its profile must agree with the header;
+an impossible clean-hash/header mismatch is rejected. An unknown SHA-1 does
+not by itself reject a recognized base profile.
+
+Runtime address values are generated from config/mph_rom_profiles.json and
+cross-checked in CI against melonPrimeDS's MelonPrimeGameRomAddrTable.h.
 
 The source patch is intentionally small, idempotent, and fail-closed. If the
 pinned ndsrecomp source changes enough that the expected preimages are absent,
@@ -44,26 +53,65 @@ def parse_address(value: object, *, profile: str, field: str) -> int:
 
 def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
     registry = json.loads(registry_path.read_text(encoding="utf-8"))
-    profiles = registry.get("profiles")
-    if not isinstance(profiles, dict) or not profiles:
-        raise SystemExit("ROM profile registry has no profiles")
+    runtime_profiles = registry.get("runtime_profiles")
+    if not isinstance(runtime_profiles, dict) or not runtime_profiles:
+        raise SystemExit("ROM profile registry has no runtime_profiles")
+
+    build_profiles = registry.get("profiles")
+    if not isinstance(build_profiles, dict):
+        raise SystemExit("ROM profile registry has no build profiles")
 
     result: list[dict[str, object]] = []
-    for key, profile in profiles.items():
+    seen_identity: set[tuple[str, int]] = set()
+    seen_clean_sha1: set[str] = set()
+
+    for key, profile in runtime_profiles.items():
         if not isinstance(profile, dict):
-            continue
+            raise SystemExit(f"{key}: runtime profile must be an object")
+        game_code = profile.get("game_code")
+        revision = profile.get("revision")
         runtime = profile.get("runtime")
-        if runtime is None:
-            continue
+        if (
+            not isinstance(game_code, str)
+            or len(game_code) != 4
+            or not game_code.isascii()
+        ):
+            raise SystemExit(f"{key}.game_code must be exactly four ASCII bytes")
+        if not isinstance(revision, int) or revision not in (0, 1):
+            raise SystemExit(f"{key}.revision must be an explicitly supported 0/1")
         if not isinstance(runtime, dict):
             raise SystemExit(f"{key}.runtime must be an object")
-        sha1 = profile.get("sha1")
-        if not isinstance(sha1, str) or not SHA1_RE.fullmatch(sha1):
-            raise SystemExit(f"{key}.sha1 must be 40 lowercase hex digits")
+
+        identity = (game_code, revision)
+        if identity in seen_identity:
+            raise SystemExit(
+                f"duplicate runtime cartridge identity: {game_code} rev {revision}"
+            )
+        seen_identity.add(identity)
+
+        known_clean_sha1 = ""
+        clean = build_profiles.get(key)
+        if clean is not None:
+            if not isinstance(clean, dict):
+                raise SystemExit(f"{key}: build profile must be an object")
+            if clean.get("game_code") != game_code or clean.get("revision") != revision:
+                raise SystemExit(
+                    f"{key}: clean build identity disagrees with runtime profile"
+                )
+            sha1 = clean.get("sha1")
+            if not isinstance(sha1, str) or not SHA1_RE.fullmatch(sha1):
+                raise SystemExit(f"{key}.sha1 must be 40 lowercase hex digits")
+            if sha1 in seen_clean_sha1:
+                raise SystemExit(f"duplicate known-clean SHA-1: {sha1}")
+            seen_clean_sha1.add(sha1)
+            known_clean_sha1 = sha1
+
         result.append(
             {
                 "key": key,
-                "sha1": sha1,
+                "game_code": game_code,
+                "revision": revision,
+                "known_clean_sha1": known_clean_sha1,
                 "morph_state": parse_address(
                     runtime.get("morph_state"), profile=key, field="morph_state"
                 ),
@@ -76,8 +124,17 @@ def load_runtime_profiles(registry_path: Path) -> list[dict[str, object]]:
             }
         )
 
-    if not result:
-        raise SystemExit("ROM profile registry contains no MPH runtime profiles")
+    expected = {
+        "US1_0", "US1_1", "EU1_0", "EU1_1", "JP1_0", "JP1_1", "KR1_0"
+    }
+    actual = {str(profile["key"]) for profile in result}
+    if actual != expected:
+        missing = ", ".join(sorted(expected - actual)) or "none"
+        extra = ", ".join(sorted(actual - expected)) or "none"
+        raise SystemExit(
+            f"runtime profile set must be exactly the seven supported retail "
+            f"profiles (missing: {missing}; extra: {extra})"
+        )
     return result
 
 
@@ -85,9 +142,13 @@ def generated_header(profiles: list[dict[str, object]]) -> str:
     rows = []
     for profile in profiles:
         rows.append(
-            "    {\"%s\", 0x%08Xu, 0x%08Xu, 0x%08Xu},  // %s"
+            '    {"%s", "%s", %du, "%s", 0x%08Xu, 0x%08Xu, 0x%08Xu},'
+            "  // %s"
             % (
-                profile["sha1"],
+                profile["key"],
+                profile["game_code"],
+                profile["revision"],
+                profile["known_clean_sha1"],
                 profile["morph_state"],
                 profile["aim_x"],
                 profile["aim_y"],
@@ -101,8 +162,15 @@ def generated_header(profiles: list[dict[str, object]]) -> str:
 
 // Generated by MetroidPrimeHuntersRecomp/tools/patch_ndsrecomp_mph_runtime.py.
 // Do not edit in the ndsrecomp checkout; edit config/mph_rom_profiles.json.
+//
+// game_code + revision selects the base runtime layout. known_clean_sha1 is
+// provenance/consistency metadata only; an unknown SHA-1 is a supported variant
+// when its exact header identity matches one of these seven profiles.
 struct NdsMphRuntimeProfile {
-    const char* sha1;
+    const char* key;
+    const char* game_code;
+    uint8_t revision;
+    const char* known_clean_sha1;
     uint32_t morph_state;
     uint32_t aim_x;
     uint32_t aim_y;
@@ -144,12 +212,13 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         title_h,
         "void nds_title_patches_set_mph_mouse_aim(bool enabled);\n"
         "bool nds_title_patches_apply_mph_mouse_delta(int32_t dx, int32_t dy);\n",
-        "// MPH_MULTIROM_RUNTIME_PROFILE: exact-ROM runtime profile selection.\n"
-        "bool nds_title_patches_select_mph_runtime_profile(const char* rom_sha1);\n"
+        "// MPH_MULTIROM_RUNTIME_PROFILE: base-profile detection from NDS header.\n"
+        "bool nds_title_patches_select_mph_runtime_profile(\n"
+        "    const uint8_t* rom_data, uint64_t rom_size, const char* rom_sha1);\n"
         "bool nds_title_patches_mph_in_ball();\n"
         "void nds_title_patches_set_mph_mouse_aim(bool enabled);\n"
         "bool nds_title_patches_apply_mph_mouse_delta(int32_t dx, int32_t dy);\n",
-        "MPH_MULTIROM_RUNTIME_PROFILE",
+        "base-profile detection from NDS header",
     )
 
     patch_once(
@@ -166,9 +235,9 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         "// path but removes the finite physical touchscreen edge.\n"
         "constexpr uint32_t kMphUs10AimX = 0x020DE526u;\n"
         "constexpr uint32_t kMphUs10AimY = 0x020DE52Eu;\n",
-        "// MPH_MULTIROM_RUNTIME_PROFILE: selected only by exact cartridge SHA-1.\n"
+        "// MPH_MULTIROM_RUNTIME_PROFILE: selected by exact gameCode + revision.\n"
         "const NdsMphRuntimeProfile* g_mph_runtime_profile = nullptr;\n",
-        "selected only by exact cartridge SHA-1",
+        "selected by exact gameCode + revision",
     )
     patch_once(
         title_cpp,
@@ -183,17 +252,35 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         "        bus_write_u32_slow(kMphUs10AimY, static_cast<uint32_t>(dy));\n"
         "    return true;\n"
         "}\n",
-        "bool nds_title_patches_select_mph_runtime_profile(const char* rom_sha1) {\n"
+        "bool nds_title_patches_select_mph_runtime_profile(\n"
+        "    const uint8_t* rom_data, uint64_t rom_size, const char* rom_sha1) {\n"
         "    g_mph_mouse_aim = false;\n"
         "    g_mph_runtime_profile = nullptr;\n"
-        "    if (!rom_sha1) return false;\n"
+        "    // NDS header: game code @0x0C..0x0F, ROM version @0x1E.\n"
+        "    if (!rom_data || rom_size <= 0x1Eu || !rom_sha1) return false;\n\n"
+        "    const NdsMphRuntimeProfile* header_profile = nullptr;\n"
         "    for (const NdsMphRuntimeProfile& profile : kNdsMphRuntimeProfiles) {\n"
-        "        if (std::strcmp(profile.sha1, rom_sha1) == 0) {\n"
-        "            g_mph_runtime_profile = &profile;\n"
-        "            return true;\n"
+        "        if (std::memcmp(profile.game_code, rom_data + 0x0Cu, 4) == 0 &&\n"
+        "            profile.revision == rom_data[0x1Eu]) {\n"
+        "            if (header_profile) return false;  // ambiguous registry: fail closed\n"
+        "            header_profile = &profile;\n"
         "        }\n"
         "    }\n"
-        "    return false;\n"
+        "    if (!header_profile) return false;\n\n"
+        "    // Whole-ROM SHA-1 is clean identity/provenance, not the selector.\n"
+        "    // If this content is a known clean dump, its header must agree with\n"
+        "    // the corresponding base profile. Unknown hashes are mod variants.\n"
+        "    const NdsMphRuntimeProfile* clean_profile = nullptr;\n"
+        "    for (const NdsMphRuntimeProfile& profile : kNdsMphRuntimeProfiles) {\n"
+        "        if (profile.known_clean_sha1[0] != '\\0' &&\n"
+        "            std::strcmp(profile.known_clean_sha1, rom_sha1) == 0) {\n"
+        "            clean_profile = &profile;\n"
+        "            break;\n"
+        "        }\n"
+        "    }\n"
+        "    if (clean_profile && clean_profile != header_profile) return false;\n\n"
+        "    g_mph_runtime_profile = header_profile;\n"
+        "    return true;\n"
         "}\n\n"
         "bool nds_title_patches_mph_in_ball() {\n"
         "    return g_mph_runtime_profile &&\n"
@@ -219,8 +306,8 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
     patch_once(
         frontend_cpp,
         "constexpr uint32_t kMphUs10MorphState = 0x020DA818u;\n",
-        "// MPH_MULTIROM_RUNTIME_PROFILE: morph address is selected by ROM SHA-1.\n",
-        "morph address is selected by ROM SHA-1",
+        "// MPH_MULTIROM_RUNTIME_PROFILE: morph address comes from the base ROM profile.\n",
+        "morph address comes from the base ROM profile",
     )
     patch_once(
         frontend_cpp,
@@ -235,17 +322,19 @@ def patch_runner(framework_root: Path, registry_path: Path) -> None:
         "    mph_mouse_aim_policy =\n"
         "        rom_sha1 == \"90164d1ac127ee5f9815ea4ae7de798c7b5fc629\" &&\n"
         "        frontend_options.relative_mouse_touch;\n",
-        "    // MPH_MULTIROM_RUNTIME_PROFILE: host hooks are enabled only when the\n"
-        "    // exact ROM SHA-1 has a validated revision-specific address profile.\n"
+        "    // MPH_MULTIROM_RUNTIME_PROFILE: select the base address layout from\n"
+        "    // gameCode + revision. SHA-1 only checks known-clean consistency;\n"
+        "    // modified ROMs with a supported exact header identity remain usable.\n"
         "    const bool mph_runtime_profile =\n"
-        "        nds_title_patches_select_mph_runtime_profile(rom_sha1.c_str());\n"
+        "        nds_title_patches_select_mph_runtime_profile(\n"
+        "            rom.data(), static_cast<uint64_t>(rom.size()), rom_sha1.c_str());\n"
         "    mph_mouse_aim_policy =\n"
         "        mph_runtime_profile && frontend_options.relative_mouse_touch;\n",
-        "host hooks are enabled only when the",
+        "SHA-1 only checks known-clean consistency",
     )
 
     print(
-        f"Patched ndsrecomp MPH runtime profiles: "
+        f"Patched ndsrecomp MPH runtime base profiles: "
         + ", ".join(str(profile["key"]) for profile in profiles)
     )
 

@@ -41,6 +41,27 @@ decoded textures. It is disabled by default; native rendering remains the
 reference path. This branch keeps that upstream feature alongside the
 multi-ROM-safe Adaptive Widescreen and Prime Controls work.
 
+## Nightly builds and local optimization cache
+
+The `develop` branch publishes a fixed `nightly-release` prerelease after the
+Windows and Linux build workflows and release-payload checks succeed. This
+public Nightly path is deliberately **ROM-free**: GitHub Actions does not fetch
+or receive a Metroid Prime Hunters ROM, private ROM URL/secret, proprietary BIOS
+or firmware dump, save data, or ROM-derived MPH title bank.
+
+When a content-specific native title bank is not linked, direct-booted MPH code
+uses ndsrecomp's Tier-3 correctness fallback. This makes a ROM-free Nightly
+possible, but it can be slower than an optimized tagged build, especially in
+known hot runtime-code paths such as opening movies.
+
+Nightly packages reserve the portable-first optimization-cache namespace
+`cache/banks/<content-sha1>/` beside the executable/AppImage. Whole-ROM SHA-1 is
+used there only as exact cache/content identity; runtime base-profile selection
+continues to use the executable-compatible MPH detector. The current Nightly
+does **not** generate a native title bank in this directory yet. The intended
+next step is a compiler-free local bank/JIT cache. See
+[`docs/LOCAL_BANK_CACHE.md`](docs/LOCAL_BANK_CACHE.md).
+
 ## Quick Start
 
 Windows:
@@ -104,6 +125,10 @@ content/capture coverage before it is considered fully brought up.
   movies, fades, or screen-routing behavior may be wrong.
 - HD texture upscaling remains opt-in and should not be treated as the native
   reference rendering path.
+- ROM-free Nightly builds can be slower while MPH title code is using Tier-3
+  instead of a validated native optimization bank.
+- The local `cache/banks/<content-sha1>/` path is currently a cache contract;
+  dynamic native/JIT bank generation is not implemented yet.
 - Online play is experimental. Wiimmfi can reach the lobby in validated flows,
   but in-game play is ultimately untested. There is no guarantee that a match
   will connect, stay connected, or avoid desync.

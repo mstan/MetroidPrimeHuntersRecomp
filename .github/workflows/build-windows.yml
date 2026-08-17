@@ -1,0 +1,204 @@
+name: Build Windows
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows ROM-free build
+    runs-on: windows-2025
+    env:
+      # Keep compiler output reusable across PR iterations. ccache validates the
+      # compiler command/source content itself; this directory is only a cache,
+      # never a source of build truth.
+      CCACHE_DIR: ${{ github.workspace }}\.ccache
+      CCACHE_MAXSIZE: 750M
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      # Hosted CMake is a native Windows binary. Point it at MinGW's package
+      # prefix so SDL2's CMake package remains discoverable without installing
+      # a second copy of CMake inside MSYS2.
+      CMAKE_PREFIX_PATH: C:\msys64\mingw64
+
+    steps:
+      - name: Check out title sources
+        uses: actions/checkout@v4
+
+      - name: Install MinGW build dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          # windows-2025 already includes C:\msys64 plus native Git, CMake,
+          # Ninja and Python. Inherit the hosted PATH and install only the
+          # MinGW-specific compiler/runtime dependencies we actually need.
+          path-type: inherit
+          release: false
+          update: false
+          cache: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-ccache
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.ccache
+          key: >-
+            mph-windows-mingw64-ccache-v1-${{ hashFiles(
+              'ndsrecomp.pin',
+              'recomp-ui.pin',
+              'launcher/recomp-ui/**',
+              'tools/patch_ndsrecomp_mph_runtime.py',
+              'tools/patch_ndsrecomp_rom_free_release.py',
+              'tools/patch_recomp_ui_mph_multirom.py'
+            ) }}
+          restore-keys: |
+            mph-windows-mingw64-ccache-v1-
+
+      - name: Verify hosted build tools
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          command -v git
+          command -v python
+          command -v cmake
+          command -v ninja
+          command -v gcc
+          command -v ccache
+          git --version
+          python --version
+          cmake --version | head -n1
+          ninja --version
+          gcc --version | head -n1
+
+      - name: Configure compiler cache
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --set-config=max_size="$CCACHE_MAXSIZE"
+          ccache --zero-stats
+
+      - name: Fetch pinned ndsrecomp and recomp-ui
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          nds_pin="$(tr -d '\r\n' < ndsrecomp.pin)"
+          ui_pin="$(tr -d '\r\n' < recomp-ui.pin)"
+          git clone --filter=blob:none https://github.com/mstan/ndsrecomp.git ../ndsrecomp
+          git -C ../ndsrecomp checkout --detach "$nds_pin"
+          git -C ../ndsrecomp submodule update --init --recursive
+          git clone --filter=blob:none https://github.com/mstan/recomp-ui.git ../recomp-ui
+          git -C ../recomp-ui checkout --detach "$ui_pin"
+          test "$(git -C ../ndsrecomp rev-parse HEAD)" = "$nds_pin"
+          test "$(git -C ../recomp-ui rev-parse HEAD)" = "$ui_pin"
+
+      - name: Apply MPH and ROM-free runner integration
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root ../ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          python tools/patch_ndsrecomp_rom_free_release.py \
+            --framework-root ../ndsrecomp
+          # Both patch stacks are required to be idempotent.
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root ../ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          python tools/patch_ndsrecomp_rom_free_release.py \
+            --framework-root ../ndsrecomp
+
+      - name: Generate redistributable FreeBIOS banks
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          python tools/ci/prepare_freebios_banks.py \
+            --framework-root ../ndsrecomp \
+            --build-dir ../ndsrecomp/build-freebios-recompiler
+          test ! -e ../ndsrecomp/generated/arm9_bios.c
+          test ! -e ../ndsrecomp/generated/arm7_bios.c
+
+      - name: Build ROM-free runner
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cmake -S ../ndsrecomp/runner -B ../ndsrecomp/runner/build-mph-nightly \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNDS_BOOTSTRAP_FIRMWARE=ON \
+            -DNDS_RETAIL_BIOS_BANKS=OFF \
+            -DNDS_ENABLE_COMPUTE_RENDERER=ON
+          cmake --build ../ndsrecomp/runner/build-mph-nightly
+          test -s ../ndsrecomp/runner/build-mph-nightly/nds_runner.exe
+          if grep -a -E -q 'g_dispatch_mph_arm(9|7)|mph_arm9_fmv_runtime' \
+              ../ndsrecomp/runner/build-mph-nightly/nds_runner.exe; then
+            echo 'ROM-derived MPH title bank leaked into ROM-free runner' >&2
+            exit 1
+          fi
+
+      - name: Build and test launcher
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cmake -S launcher/recomp-ui -B launcher/recomp-ui/build-nightly \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNDSRECOMP_ROOT="$PWD/../ndsrecomp" \
+            -DRECOMP_UI_ROOT="$PWD/../recomp-ui" \
+            '-DMPH_LAUNCHER_REGION=Auto (runtime detected)'
+          cmake --build launcher/recomp-ui/build-nightly
+          ctest --test-dir launcher/recomp-ui/build-nightly --output-on-failure
+          test -s launcher/recomp-ui/build-nightly/mph-recomp-ui.exe
+          grep -q 'game.region = "Auto (runtime detected)";' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'game.known_sha1_hex = nullptr;' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          # Fresh ROM-free extraction must start with no ROM selected. The
+          # conventional filename is auto-selected only when the file exists.
+          grep -q 'std::filesystem::is_regular_file(default_rom, initial_rom_error)' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'exe.string().c_str(), initial_rom.c_str(),' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'MPH_MULTIROM_DELEGATED_VERIFY' \
+            ../recomp-ui/src/common/backends/imgui/launcher_imgui.cpp
+          grep -q 'const bool readable = m->rom_present && std::strcmp(m->rom_size, "--") != 0;' \
+            ../recomp-ui/src/common/backends/imgui/launcher_imgui.cpp
+
+      - name: Package Windows Nightly payload
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^project(MetroidPrimeHuntersRecomp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          test -n "$version"
+          runtime_bin="$(cygpath -w /mingw64/bin)"
+          ps_exe="$(cygpath -u "${SYSTEMROOT}")/System32/WindowsPowerShell/v1.0/powershell.exe"
+          script_path="$(cygpath -w "$PWD/tools/package-windows-nightly.ps1")"
+          test -x "$ps_exe"
+          "$ps_exe" -NoProfile -ExecutionPolicy Bypass -File "$script_path" \
+            -Version "$version" \
+            -RunnerBuildDir '..\ndsrecomp\runner\build-mph-nightly' \
+            -LauncherBuildDir 'launcher\recomp-ui\build-nightly' \
+            -RuntimeBinDir "$runtime_bin"
+          test -s "release-stage/MetroidPrimeHuntersRecomp-windows-x64-v${version}.zip"
+
+      - name: Show compiler cache stats
+        if: always()
+        shell: msys2 {0}
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats || true
+          fi
+
+      - name: Upload Windows Nightly payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: mph-nightly-windows
+          path: release-stage/MetroidPrimeHuntersRecomp-windows-x64-v*.zip
+          if-no-files-found: error
+          retention-days: 14

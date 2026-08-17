@@ -33,13 +33,19 @@ def verify_report_identity(
     version: str,
     expected_sha1: str,
     label: str,
+    require_identity: bool,
 ) -> None:
     observed_profile = report.get("mph_profile")
+    observed_sha1 = report.get("rom_sha1")
+    if require_identity and (observed_profile is None or observed_sha1 is None):
+        raise SystemExit(
+            f"{label} for {version} is missing profile/ROM identity; "
+            "recapture with the profile-aware FMV benchmark tool"
+        )
     if observed_profile is not None and str(observed_profile) != version:
         raise SystemExit(
             f"{label} profile {observed_profile!r} does not match {version!r}"
         )
-    observed_sha1 = report.get("rom_sha1")
     if observed_sha1 is not None and str(observed_sha1) != expected_sha1:
         raise SystemExit(
             f"{label} ROM SHA-1 {observed_sha1!r} does not match "
@@ -75,6 +81,7 @@ def main() -> int:
     profile = load_profile(args.profiles.resolve(), args.version)
     expected_sha1 = str(profile["sha1"])
     bank = args.bank or str(profile["fmv_runtime_bank"])
+    require_identity = args.version != DEFAULT_VERSION
 
     image = args.image.read_bytes()
     if len(image) != IMAGE_SIZE:
@@ -89,7 +96,27 @@ def main() -> int:
         version=args.version,
         expected_sha1=expected_sha1,
         label="benchmark",
+        require_identity=require_identity,
     )
+    if require_identity:
+        runtime_capture = report.get("runtime_capture")
+        if not isinstance(runtime_capture, dict):
+            raise SystemExit(
+                f"benchmark for {args.version} has no runtime_capture metadata"
+            )
+        capture_sha1 = runtime_capture.get("sha1")
+        capture_bytes = runtime_capture.get("bytes")
+        if capture_sha1 != identity:
+            raise SystemExit(
+                f"runtime image SHA-1 {identity} does not match benchmark "
+                f"capture SHA-1 {capture_sha1!r}"
+            )
+        if int(capture_bytes) != IMAGE_SIZE:
+            raise SystemExit(
+                f"benchmark runtime capture size {capture_bytes!r} does not "
+                f"match 0x{IMAGE_SIZE:X}"
+            )
+
     coverage = report.get("tier3_coverage", {}).get("entries", [])
 
     if args.before_benchmark is not None:
@@ -101,6 +128,7 @@ def main() -> int:
             version=args.version,
             expected_sha1=expected_sha1,
             label="before-benchmark",
+            require_identity=require_identity,
         )
         before_entries = before_report.get(
             "tier3_coverage", {}

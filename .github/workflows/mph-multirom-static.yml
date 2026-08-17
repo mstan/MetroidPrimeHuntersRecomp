@@ -63,6 +63,51 @@ jobs:
           git -C /tmp/ndsrecomp checkout --detach FETCH_HEAD
           test "$(git -C /tmp/ndsrecomp rev-parse HEAD)" = "$pin"
 
+      - name: Render US1.0 and EU1.1 launcher profiles
+        run: |
+          mkdir -p /tmp/fake-prefix/lib/cmake/SDL2 /tmp/fake-recomp-ui
+          cat > /tmp/fake-prefix/lib/cmake/SDL2/SDL2Config.cmake <<'EOF'
+          if(NOT TARGET SDL2::SDL2)
+            add_library(SDL2::SDL2 INTERFACE IMPORTED)
+          endif()
+          EOF
+          cat > /tmp/fake-recomp-ui/recomp_ui.cmake <<'EOF'
+          function(recomp_target_launcher_ui)
+          endfunction()
+          EOF
+
+          cmake -S launcher/recomp-ui -B /tmp/mph-launcher-us10 \
+            -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
+            -DRECOMP_UI_ROOT=/tmp/fake-recomp-ui \
+            -DCMAKE_PREFIX_PATH=/tmp/fake-prefix
+
+          cmake -S launcher/recomp-ui -B /tmp/mph-launcher-eu11 \
+            -DNDSRECOMP_ROOT=/tmp/ndsrecomp \
+            -DRECOMP_UI_ROOT=/tmp/fake-recomp-ui \
+            -DCMAKE_PREFIX_PATH=/tmp/fake-prefix \
+            -DMPH_LAUNCHER_ROM_SHA1=bdcd1dea293e24c98d4c481430e90d21198985a5 \
+            -DMPH_LAUNCHER_REGION=Europe \
+            '-DMPH_LAUNCHER_DEFAULT_ROM=Metroid Prime Hunters (Europe Rev 1).nds' \
+            -DMPH_LAUNCHER_ADAPTIVE_WIDESCREEN=OFF
+
+          us=/tmp/mph-launcher-us10/launcher_main_profile.cpp
+          eu=/tmp/mph-launcher-eu11/launcher_main_profile.cpp
+          test -f "$us" -a -f "$eu"
+
+          grep -q '90164d1ac127ee5f9815ea4ae7de798c7b5fc629' "$us"
+          grep -q 'game.region = "USA";' "$us"
+          grep -q 'bool adaptive_widescreen = true;' "$us"
+          grep -A1 'int mod_feature_count' "$us" | grep -q 'return 2;'
+          grep -q 'adaptive = adaptive && true;' "$us"
+
+          grep -q 'bdcd1dea293e24c98d4c481430e90d21198985a5' "$eu"
+          grep -q 'game.region = "Europe";' "$eu"
+          grep -q 'exe / "Metroid Prime Hunters (Europe Rev 1).nds";' "$eu"
+          grep -q 'bool adaptive_widescreen = false;' "$eu"
+          grep -A1 'int mod_feature_count' "$eu" | grep -q 'return 1;'
+          grep -q 'if (!false) ++index;' "$eu"
+          grep -q 'adaptive = adaptive && false;' "$eu"
+
       - name: Verify ndsrecomp runtime patch is idempotent
         run: |
           python tools/patch_ndsrecomp_mph_runtime.py \

@@ -1,0 +1,59 @@
+{
+  "description": "Probe: SINGLE-CARD PLAY branch, to test whether it is the offline-with-bots path rather than MULTI-CARD.",
+  "actions": [
+    {
+      "kind": "touch",
+      "x": 160,
+      "y": 92
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    }
+  ]
+}

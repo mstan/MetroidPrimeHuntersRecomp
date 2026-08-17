@@ -1,0 +1,164 @@
+name: Nightly Release
+
+# ROM-free public Nightly. The same Windows/Linux workflow used by PR CI builds
+# the release payload, so CI and Nightly cannot silently drift apart. No ROM,
+# ROM URL, ROM secret, proprietary BIOS, firmware dump, save, or ROM-derived
+# title bank is fetched or uploaded by this workflow.
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: mph-nightly-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  NIGHTLY_TAG: nightly-release
+  NIGHTLY_NAME: Nightly Build
+
+jobs:
+  windows:
+    name: Build Windows
+    uses: ./.github/workflows/build-windows.yml
+
+  linux:
+    name: Build Linux
+    uses: ./.github/workflows/build-linux.yml
+
+  publish:
+    name: Publish Nightly release
+    needs: [windows, linux]
+    if: github.repository == 'Zection6V/MetroidPrimeHuntersRecomp'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+
+      - name: Download Windows payload
+        uses: actions/download-artifact@v4
+        with:
+          name: mph-nightly-windows
+          path: dist
+
+      - name: Download Linux payload
+        uses: actions/download-artifact@v4
+        with:
+          name: mph-nightly-linux
+          path: dist
+
+      - name: Resolve project version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^project(MetroidPrimeHuntersRecomp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Nightly project version: $version"
+
+      - name: Verify Nightly payload
+        run: |
+          set -euo pipefail
+          find dist -maxdepth 1 -type f -printf '%f (%s bytes)\n' | sort
+          python tools/ci/verify-nightly-assets.py \
+            --dist dist \
+            --version '${{ steps.version.outputs.version }}' \
+            --write-sums
+          test -s dist/SHA256SUMS.txt
+          cat dist/SHA256SUMS.txt
+
+      - name: Compose release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > nightly-notes.md <<EOF
+          Built automatically from the latest \`develop\` branch.
+
+          Commit: \`${GITHUB_SHA}\`
+          Project version: \`${{ steps.version.outputs.version }}\`
+          Build date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+          This Nightly is deliberately ROM-free: GitHub Actions never downloads or stores a Metroid Prime Hunters ROM or ROM-derived title bank. Users provide their own ROM at runtime. When no content-specific native optimization bank is available, title code falls back to ndsrecomp Tier-3. The package reserves \`cache/banks/<content-sha1>/\` beside the executable/AppImage for the future local optimization/JIT cache.
+
+          These builds are automatic development snapshots and may be slower or less stable than optimized tagged releases.
+          EOF
+          cat nightly-notes.md
+
+      - name: Move Nightly tag to this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${NIGHTLY_TAG}" >/dev/null 2>&1; then
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/git/refs/tags/${NIGHTLY_TAG}" \
+              -f sha="${GITHUB_SHA}" -F force=true >/dev/null
+          else
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref="refs/tags/${NIGHTLY_TAG}" -f sha="${GITHUB_SHA}" >/dev/null
+          fi
+
+      - name: Create or update Nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "${NIGHTLY_TAG}" >/dev/null 2>&1; then
+            gh release edit "${NIGHTLY_TAG}" \
+              --title "${NIGHTLY_NAME}" \
+              --notes-file nightly-notes.md \
+              --prerelease \
+              --draft=false
+          else
+            gh release create "${NIGHTLY_TAG}" \
+              --title "${NIGHTLY_NAME}" \
+              --notes-file nightly-notes.md \
+              --prerelease
+          fi
+
+      - name: Upload Nightly assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "${NIGHTLY_TAG}" dist/* --clobber
+
+      - name: Remove stale Nightly assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd dist && ls -1) > published.txt
+          gh release view "${NIGHTLY_TAG}" --json assets --jq '.assets[].name' > attached.txt
+          while IFS= read -r asset; do
+            [ -n "$asset" ] || continue
+            if ! grep -Fxq "$asset" published.txt; then
+              gh release delete-asset "${NIGHTLY_TAG}" "$asset" --yes
+            fi
+          done < attached.txt
+
+      - name: Summarize
+        shell: bash
+        run: |
+          {
+            echo '### Nightly Build published'
+            echo
+            echo "- Tag: \`${NIGHTLY_TAG}\` -> \`${GITHUB_SHA}\`"
+            echo '- ROM/ROM URL/ROM secret: **not used**'
+            echo '- Title-bank mode: ROM-free / Tier-3 fallback'
+            echo '- Assets:'
+            (cd dist && ls -1 | sed 's/^/  - /')
+          } >> "$GITHUB_STEP_SUMMARY"

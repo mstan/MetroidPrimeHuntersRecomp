@@ -1,0 +1,156 @@
+{
+  "schema": 5,
+  "runtime_address_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h",
+  "runtime_detection_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp",
+  "runtime_checksum_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/NDSCart/CartCommon.cpp",
+  "aspect_ratio_patch_source": "https://github.com/ag-advania/melonPrimeDS/blob/main/src/frontend/qt_sdl/MelonPrimePatchAspectRatio.cpp",
+  "widescreen_analysis_source": "https://github.com/Zection6V/mphCodex/blob/main/mnt/data/analysis/mphAnalysis/_Commons/Widescreen.md",
+  "runtime_profiles": {
+    "US1_0": {
+      "game_code": "AMHE",
+      "revision": 0,
+      "base_checksum": "0x218DA42C",
+      "runtime": {
+        "morph_state": "0x020DA818",
+        "aim_x": "0x020DE526",
+        "aim_y": "0x020DE52E",
+        "scale_patch_addr1": "0x02110FFC",
+        "scale_patch_addr2": "0x0211C638",
+        "scale_value_addr": "0x02110820"
+      }
+    },
+    "US1_1": {
+      "game_code": "AMHE",
+      "revision": 1,
+      "base_checksum": "0x91B46577",
+      "runtime": {
+        "morph_state": "0x020DB098",
+        "aim_x": "0x020DEDA6",
+        "aim_y": "0x020DEDAE",
+        "scale_patch_addr1": "0x02111ABC",
+        "scale_patch_addr2": "0x0211D168",
+        "scale_value_addr": "0x021112E0"
+      }
+    },
+    "EU1_0": {
+      "game_code": "AMHP",
+      "revision": 0,
+      "base_checksum": "0xA4A8FE5A",
+      "runtime": {
+        "morph_state": "0x020DB0B8",
+        "aim_x": "0x020DEDC6",
+        "aim_y": "0x020DEDCE",
+        "scale_patch_addr1": "0x02111ADC",
+        "scale_patch_addr2": "0x0211D114",
+        "scale_value_addr": "0x02111300"
+      }
+    },
+    "EU1_1": {
+      "game_code": "AMHP",
+      "revision": 1,
+      "base_checksum": "0x910018A5",
+      "runtime": {
+        "morph_state": "0x020DB138",
+        "aim_x": "0x020DEE46",
+        "aim_y": "0x020DEE4E",
+        "scale_patch_addr1": "0x02111B5C",
+        "scale_patch_addr2": "0x0211D208",
+        "scale_value_addr": "0x02111380"
+      }
+    },
+    "JP1_0": {
+      "game_code": "AMHJ",
+      "revision": 0,
+      "base_checksum": "0xD75F539D",
+      "runtime": {
+        "morph_state": "0x020DC6D8",
+        "aim_x": "0x020E03E6",
+        "aim_y": "0x020E03EE",
+        "scale_patch_addr1": "0x0211313C",
+        "scale_patch_addr2": "0x0211E7E8",
+        "scale_value_addr": "0x02112960"
+      }
+    },
+    "JP1_1": {
+      "game_code": "AMHJ",
+      "revision": 1,
+      "base_checksum": "0x42EBF348",
+      "runtime": {
+        "morph_state": "0x020DC698",
+        "aim_x": "0x020E03A6",
+        "aim_y": "0x020E03AE",
+        "scale_patch_addr1": "0x021130FC",
+        "scale_patch_addr2": "0x0211E7A8",
+        "scale_value_addr": "0x02112920"
+      }
+    },
+    "KR1_0": {
+      "game_code": "AMHK",
+      "revision": 0,
+      "base_checksum": "0xE54682F3",
+      "runtime": {
+        "morph_state": "0x020D3EE4",
+        "aim_x": "0x020D7C0E",
+        "aim_y": "0x020D7C16",
+        "scale_patch_addr1": "0x02109B64",
+        "scale_patch_addr2": "0x02114838",
+        "scale_value_addr": "0x021091A4"
+      }
+    }
+  },
+  "runtime_checksums": [
+    {"crc32": "0x91B46577", "profile": "US1_1", "name": "US1.1"},
+    {"crc32": "0x01476E8F", "profile": "US1_1", "name": "US1.1 ENCRYPTED"},
+    {"crc32": "0x218DA42C", "profile": "US1_0", "name": "US1.0"},
+    {"crc32": "0xE048CD92", "profile": "US1_0", "name": "US1.0 ENCRYPTED"},
+    {"crc32": "0x910018A5", "profile": "EU1_1", "name": "EU1.1"},
+    {"crc32": "0x31703770", "profile": "EU1_1", "name": "EU1.1 ENCRYPTED"},
+    {"crc32": "0x948B1E48", "profile": "EU1_1", "name": "EU1.1 BALANCED"},
+    {"crc32": "0x2970A14F", "profile": "EU1_1", "name": "EU1.1 BALANCED V1.2.11"},
+    {"crc32": "0x9E20F3A8", "profile": "EU1_1", "name": "EU1.1 RUSSIANED"},
+    {"crc32": "0xA4A8FE5A", "profile": "EU1_0", "name": "EU1.0"},
+    {"crc32": "0x979BB267", "profile": "EU1_0", "name": "EU1.0 ENCRYPTED"},
+    {"crc32": "0xD75F539D", "profile": "JP1_0", "name": "JP1.0"},
+    {"crc32": "0xE795A10C", "profile": "JP1_0", "name": "JP1.0 ENCRYPTED"},
+    {"crc32": "0x42EBF348", "profile": "JP1_1", "name": "JP1.1"},
+    {"crc32": "0x0A1203A5", "profile": "JP1_1", "name": "JP1.1 ENCRYPTED"},
+    {"crc32": "0xE54682F3", "profile": "KR1_0", "name": "KR1.0"},
+    {"crc32": "0xC26916F3", "profile": "KR1_0", "name": "KR1.0 ENCRYPTED"}
+  ],
+  "profiles": {
+    "US1_0": {
+      "base_profile": "US1_0",
+      "known_clean": true,
+      "display_name": "Metroid Prime Hunters (USA rev 0)",
+      "region": "USA",
+      "game_code": "AMHE",
+      "revision": 0,
+      "rom_size": 67108864,
+      "sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
+      "program_id": "mph_amhe0",
+      "coverage": "coverage/adventure-main-entry-points.json",
+      "game_config": "game.toml",
+      "fmv_runtime": true,
+      "fmv_runtime_bank": "mph_arm9_fmv_runtime",
+      "launcher_default_rom": "Metroid Prime Hunters.nds",
+      "adaptive_widescreen": true
+    },
+    "EU1_1": {
+      "base_profile": "EU1_1",
+      "known_clean": true,
+      "display_name": "Metroid Prime Hunters (Europe rev 1)",
+      "region": "Europe",
+      "game_code": "AMHP",
+      "revision": 1,
+      "rom_size": 67108864,
+      "sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+      "program_id": "mph_amhp1",
+      "coverage": "",
+      "game_config": "game.toml",
+      "fmv_runtime": false,
+      "fmv_runtime_bank": "mph_amhp1_arm9_fmv_runtime",
+      "launcher_default_rom": "Metroid Prime Hunters (Europe Rev 1).nds",
+      "adaptive_widescreen": true
+    }
+  }
+}

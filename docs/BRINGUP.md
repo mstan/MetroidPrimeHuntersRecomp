@@ -140,3 +140,26 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
   sites must be patched. The host adaptive viewport is enabled as an explicit
   bring-up baseline, but it is not considered visually complete until those
   title-side behaviors pass sustained gameplay review.
+
+## ROM-free Nightly and local optimization cache
+
+The public Windows/Linux Nightly path is deliberately ROM-free. GitHub Actions
+does not receive a Metroid Prime Hunters ROM, private ROM URL/secret,
+proprietary BIOS/firmware dump, save, or generated ROM-derived MPH title bank.
+The pinned runner is built with the redistributable BSD-2-Clause FreeBIOS native
+banks and with `NDS_RETAIL_BIOS_BANKS=OFF`.
+
+When no content-specific MPH native bank is linked, direct-booted ARM9/ARM7 code
+uses the existing Tier-3 interpreter path after guest writes establish RAM code
+provenance. This is a correctness-first Nightly mode and can be substantially
+slower than the historical optimized US1.0 release, especially in the FMV hot
+runtime-code path described above.
+
+Nightly packages reserve `cache/banks/<content-sha1>/` beside the executable or
+AppImage as the future portable optimization-cache namespace. Whole-ROM SHA-1
+is suitable here because cache payloads must be bound to exact content, but it
+must not become the runtime base-profile selector. The current static
+recompiler emits C and links it into the runner, so first-launch C/C++
+compilation is intentionally **not** the target UX. The intended progression is
+Tier-3 -> compiler-free local bank/IR support if useful -> hot-block JIT with a
+validated persistent cache. See `docs/LOCAL_BANK_CACHE.md`.

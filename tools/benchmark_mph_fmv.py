@@ -9,9 +9,17 @@ import json
 import os
 import subprocess
 import time
+import tomllib
 from pathlib import Path
 
 import capture_mph_checkpoints as capture_lib
+from mph_profile import (
+    DEFAULT_PROFILE_FILE,
+    DEFAULT_VERSION,
+    load_profile,
+    resolve_repo_path,
+    verify_rom_identity,
+)
 
 
 DEFAULT_TARGETS = [600, 1200, 1800, 2400, 3000, 3600, 4200]
@@ -79,13 +87,43 @@ def phase(previous: dict[str, object], current: dict[str, object]) -> dict[str, 
     }
 
 
+def verify_config(path: Path, profile: dict[str, object], version: str) -> None:
+    try:
+        with path.open("rb") as f:
+            document = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise SystemExit(f"unable to read game config {path}: {exc}") from exc
+    game = document.get("game")
+    if not isinstance(game, dict):
+        raise SystemExit(f"game config has no [game] table: {path}")
+    expected = {
+        "id": profile["game_code"],
+        "revision": profile["revision"],
+        "rom_size": profile["rom_size"],
+        "sha1": profile["sha1"],
+    }
+    for key, value in expected.items():
+        if game.get(key) != value:
+            raise SystemExit(
+                f"game config {path} game.{key}={game.get(key)!r}; "
+                f"expected {value!r} for {version}"
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runner", type=Path, required=True)
     parser.add_argument("--bios", type=Path, required=True)
     parser.add_argument("--rom", type=Path, required=True)
-    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--config", type=Path)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--version", default=DEFAULT_VERSION)
+    parser.add_argument(
+        "--profiles",
+        type=Path,
+        default=DEFAULT_PROFILE_FILE,
+        help=f"ROM profile registry (default: {DEFAULT_PROFILE_FILE})",
+    )
     parser.add_argument("--port", type=int, default=19873)
     parser.add_argument("--targets", type=int, nargs="+", default=DEFAULT_TARGETS)
     parser.add_argument(
@@ -104,7 +142,12 @@ def main() -> int:
     parser.add_argument("--rip-from", type=int)
     parser.add_argument("--rip-to", type=int)
     parser.add_argument("--rip-interval-us", type=int, default=1000)
-    parser.add_argument("--adaptive", choices=("none", "top"), default="top")
+    parser.add_argument(
+        "--adaptive",
+        choices=("auto", "none", "top"),
+        default="auto",
+        help="auto follows the selected ROM profile's validated policy",
+    )
     parser.add_argument("--supersampling", type=int, choices=(1, 2, 4), default=1)
     parser.add_argument("--antialiasing", type=int, choices=(0, 2, 4, 8), default=0)
     parser.add_argument(
@@ -112,6 +155,19 @@ def main() -> int:
         help="override the compute renderer's visible top-screen presenter",
     )
     args = parser.parse_args()
+
+    profile = load_profile(args.profiles.resolve(), args.version)
+    rom_path = args.rom.resolve()
+    rom_sha1 = verify_rom_identity(rom_path, profile, args.version)
+    config_path = (
+        args.config.resolve()
+        if args.config is not None
+        else resolve_repo_path(str(profile["game_config"])).resolve()
+    )
+    verify_config(config_path, profile, args.version)
+    adaptive = args.adaptive
+    if adaptive == "auto":
+        adaptive = "top" if bool(profile["adaptive_widescreen"]) else "none"
 
     targets = sorted(set(args.targets))
     if not targets or targets[0] <= 0:
@@ -132,16 +188,16 @@ def main() -> int:
         "--port",
         str(args.port),
         "--rom",
-        str(args.rom.resolve()),
+        str(rom_path),
         "--config",
-        str(args.config.resolve()),
+        str(config_path),
         "--no-save",
         "--startup-mode",
         "automatic",
         "--screen-layout",
         "separate",
         "--adaptive-widescreen",
-        args.adaptive,
+        adaptive,
         "--supersampling",
         str(args.supersampling),
         "--antialiasing",
@@ -160,6 +216,7 @@ def main() -> int:
     if args.instrument:
         environment["NDS_PROFILE_GPU"] = "1"
         environment["NDS_PROFILE_SCHED"] = "1"
+
     stdout = (output / "runner.stdout.log").open("wb")
     stderr = (output / "runner.stderr.log").open("wb")
     process = subprocess.Popen(
@@ -172,6 +229,11 @@ def main() -> int:
     )
 
     report: dict[str, object] = {
+        "mph_profile": args.version,
+        "rom_sha1": rom_sha1,
+        "display_name": profile["display_name"],
+        "config": str(config_path),
+        "adaptive": adaptive,
         "command": command,
         "targets": targets,
         "samples": [],
@@ -241,6 +303,7 @@ def main() -> int:
                 encoding="utf-8",
                 newline="\n",
             )
+
         if args.discover_static_misses:
             report["tier3_coverage"] = client.command(
                 "tier3_coverage", max=262_144

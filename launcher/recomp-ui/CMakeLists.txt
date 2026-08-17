@@ -13,8 +13,8 @@ set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
 set(MPH_LAUNCHER_ROM_SHA1
     "90164d1ac127ee5f9815ea4ae7de798c7b5fc629" CACHE STRING
     "Clean retail ROM SHA-1 metadata rendered for this profile-specific launcher")
-set(MPH_LAUNCHER_REGION "Auto (runtime detected)" CACHE STRING
-    "Region label shown by the launcher; generic Nightly detection happens at runtime")
+set(MPH_LAUNCHER_REGION "USA" CACHE STRING
+    "Region label shown by the profile-specific launcher")
 set(MPH_LAUNCHER_DEFAULT_ROM "Metroid Prime Hunters.nds" CACHE STRING
     "Default ROM filename offered by this profile-specific launcher")
 
@@ -69,7 +69,9 @@ set(RECOMP_UI_ROOT "F:/Projects/recomp-ui" CACHE PATH
 option(MPH_PATCH_RECOMP_UI_MULTIROM
     "Patch pinned recomp-ui so fingerprint-free MPH ROMs show runtime-delegated validation"
     ON)
-if(MPH_PATCH_RECOMP_UI_MULTIROM)
+set(_mph_recomp_ui_imgui
+    "${RECOMP_UI_ROOT}/src/common/backends/imgui/launcher_imgui.cpp")
+if(MPH_PATCH_RECOMP_UI_MULTIROM AND EXISTS "${_mph_recomp_ui_imgui}")
     execute_process(
         COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/../../tools/patch_recomp_ui_mph_multirom.py"
@@ -83,6 +85,12 @@ if(MPH_PATCH_RECOMP_UI_MULTIROM)
             "${_mph_recomp_ui_patch_stdout}${_mph_recomp_ui_patch_stderr}")
     endif()
     message(STATUS "${_mph_recomp_ui_patch_stdout}")
+elseif(MPH_PATCH_RECOMP_UI_MULTIROM)
+    # Static launcher-profile tests intentionally provide a minimal recomp-ui
+    # CMake stub and do not compile the UI backend. A real launcher build has
+    # the pinned source above and must take the fail-closed patch path.
+    message(STATUS
+        "MPH recomp-ui presentation patch skipped: UI backend source is not present")
 endif()
 
 enable_testing()

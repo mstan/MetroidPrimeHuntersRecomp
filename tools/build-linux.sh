@@ -1,40 +1,70 @@
 #!/usr/bin/env bash
-# Build a Metroid Prime Hunters Recomp Linux x86_64 AppImage.
+# Build Metroid Prime Hunters Recomp for a configured retail revision.
 #
-# The current recomp-ui launcher is Windows-only, so this packages the title
-# runner directly. Put a legally dumped Metroid Prime Hunters .nds and a bios/
-# folder beside the AppImage; AppRun auto-detects the ROM.
+# US1_0 keeps the existing AppImage behavior. EU1_1 uses its own generated
+# bank/config paths and deliberately omits the USA-only FMV-bank assertion.
 set -euo pipefail
 
 APP_NAME="MetroidPrimeHuntersRecomp"
 TITLE_TARGET="metroidprimehuntersrecomp"
-ROM_SHA1="90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 RUNNER_NAME="nds_runner"
 VERSION="0.1.0"
+MPH_VERSION="US1_0"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="$(cd "$REPO/../ndsrecomp" && pwd)"
 OUT="$REPO/release-linux"
+PROFILE_FILE="$REPO/config/mph_rom_profiles.json"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --version) VERSION="$2"; shift 2;;
+    --mph-version) MPH_VERSION="$2"; shift 2;;
     --jobs) JOBS="$2"; shift 2;;
     --out) OUT="$2"; shift 2;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
-      sed -n '2,14p' "$0"
+      sed -n '2,16p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
 
-GAME_BUILD="$REPO/build-linux-release"
-RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release"
-TITLE_BANK_DIR="$REPO/generated/recomp"
+profile_value() {
+  python3 - "$PROFILE_FILE" "$MPH_VERSION" "$1" <<'PY'
+import json
+import sys
+path, version, key = sys.argv[1:]
+with open(path, encoding="utf-8") as f:
+    registry = json.load(f)
+try:
+    value = registry["profiles"][version][key]
+except KeyError as exc:
+    raise SystemExit(f"unknown profile/field: {version}.{key}") from exc
+if isinstance(value, bool):
+    print("1" if value else "0")
+else:
+    print(value)
+PY
+}
+
+ROM_SHA1="$(profile_value sha1)"
+GAME_CONFIG_REL="$(profile_value game_config)"
+FMV_RUNTIME="$(profile_value fmv_runtime)"
+GAME_CONFIG="$REPO/$GAME_CONFIG_REL"
+
+if [ "$MPH_VERSION" = "US1_0" ]; then
+  GAME_BUILD="$REPO/build-linux-release"
+  RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release"
+  TITLE_BANK_DIR="$REPO/generated/recomp"
+else
+  GAME_BUILD="$REPO/build-linux-release-$MPH_VERSION"
+  RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release-$MPH_VERSION"
+  TITLE_BANK_DIR="$REPO/generated/$MPH_VERSION/recomp"
+fi
 
 cd "$REPO"
 test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
@@ -45,11 +75,16 @@ test -f "$REPO/Metroid Prime Hunters.nds" || {
   echo "ERROR: verified Metroid Prime Hunters ROM is missing from the repo root." >&2
   exit 1
 }
+test -f "$GAME_CONFIG" || {
+  echo "ERROR: game config for $MPH_VERSION is missing: $GAME_CONFIG" >&2
+  exit 1
+}
 
-echo "[1/4] configure title banks"
+echo "[1/4] configure title banks ($MPH_VERSION)"
 cmake -S "$REPO" -B "$GAME_BUILD" -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=Release \
-  -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT"
+  -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
+  -DMPH_VERSION="$MPH_VERSION"
 echo "[2/4] build title banks"
 cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
 
@@ -64,15 +99,18 @@ cmake --build "$RUNNER_BUILD" -j"$JOBS"
 
 if [ "$DO_PACKAGE" = "0" ]; then
   echo "done: $RUNNER_BUILD/$RUNNER_NAME"
+  echo "config: $GAME_CONFIG"
   exit 0
 fi
 
 BIN="$RUNNER_BUILD/$RUNNER_NAME"
 test -f "$BIN" || { echo "ERROR: runner not built: $BIN" >&2; exit 1; }
-strings "$BIN" | grep -q mph_arm9_fmv_runtime || {
-  echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
-  exit 1
-}
+if [ "$FMV_RUNTIME" = "1" ]; then
+  strings "$BIN" | grep -q mph_arm9_fmv_runtime || {
+    echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
+    exit 1
+  }
+fi
 
 LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
 LINUXDEPLOY_SHA=421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e
@@ -101,7 +139,7 @@ APPDIR="$WORK/AppDir"
 mkdir -p "$APPDIR/usr/bin/bios" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
 cp "$BIN" "$APPDIR/usr/bin/$RUNNER_NAME"
-cp "$REPO/game.toml" "$APPDIR/usr/bin/game.toml"
+cp "$GAME_CONFIG" "$APPDIR/usr/bin/game.toml"
 cp "$REPO/README.md" "$APPDIR/usr/bin/README.md"
 cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
 cp "$REPO/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
@@ -148,9 +186,9 @@ done
 cd "$RUNDIR" 2>/dev/null || true
 if [ "$#" -eq 0 ]; then
   if [ -n "$ROM" ]; then
-    exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
+    exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" --config "$HERE/usr/bin/game.toml"
   fi
-  exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
+  exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --config "$HERE/usr/bin/game.toml"
 fi
 exec "$HERE/usr/bin/nds_runner" "$@"
 EOF
@@ -161,7 +199,7 @@ echo "[4/4] package AppImage"
   --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null
 
-APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
+APP="$OUT/$APP_NAME-$MPH_VERSION-linux-v$VERSION-x86_64.AppImage"
 rm -f "$APP"
 ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run "$APPDIR" "$APP" >/dev/null
 chmod +x "$APP"

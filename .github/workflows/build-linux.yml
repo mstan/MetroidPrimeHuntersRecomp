@@ -98,7 +98,7 @@ jobs:
           set -euo pipefail
           version="$(sed -n 's/^project(MetroidPrimeHuntersRecomp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
           test -n "$version"
-          tools/package-linux-appimage.sh \
+          bash tools/package-linux-appimage.sh \
             --version "$version" \
             --runner ../ndsrecomp/runner/build-mph-nightly/nds_runner \
             --appimage-tool "$PWD/.ci-tools/appimagetool" \

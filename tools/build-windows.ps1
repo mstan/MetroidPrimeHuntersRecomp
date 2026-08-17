@@ -1,10 +1,10 @@
 <#
 Build Metroid Prime Hunters Recomp for one configured retail revision.
 
-US1_0 keeps the existing release paths. EU1_1 uses isolated generated banks,
-a revision-specific game config, a profile-specific launcher identity/policy,
-and the shared exact-ROM runtime-address shim for Prime Controls/direct mouse
-aim.
+US1_0 keeps the existing release paths. Non-US profiles use isolated generated
+banks, a revision-specific game config, a profile-specific launcher
+identity/policy, and the shared exact-ROM runtime-address shim for Prime
+Controls/direct mouse aim.
 
 Usage:
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
@@ -13,7 +13,6 @@ Usage:
 #>
 param(
   [string]$Version = '0.1.0',
-  [ValidateSet('US1_0', 'EU1_1')]
   [string]$MphVersion = 'US1_0',
   [string]$RomPath = '',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
@@ -37,7 +36,8 @@ $profileFile = Join-Path $root 'config\mph_rom_profiles.json'
 $registry = Get-Content -LiteralPath $profileFile -Raw | ConvertFrom-Json
 $profileProperty = $registry.profiles.PSObject.Properties[$MphVersion]
 if ($null -eq $profileProperty) {
-  throw "Unknown MPH profile: $MphVersion"
+  $choices = @($registry.profiles.PSObject.Properties.Name) -join ', '
+  throw "Unknown MPH profile '$MphVersion'. Configured profiles: $choices"
 }
 $profile = $profileProperty.Value
 $romSha1 = [string]$profile.sha1

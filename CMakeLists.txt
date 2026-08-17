@@ -44,6 +44,8 @@ string(JSON MPH_PROFILE_GAME_CONFIG GET
     "${MPH_PROFILES_JSON}" profiles "${MPH_VERSION}" game_config)
 string(JSON MPH_PROFILE_FMV_RUNTIME GET
     "${MPH_PROFILES_JSON}" profiles "${MPH_VERSION}" fmv_runtime)
+string(JSON MPH_PROFILE_FMV_RUNTIME_BANK GET
+    "${MPH_PROFILES_JSON}" profiles "${MPH_VERSION}" fmv_runtime_bank)
 
 set(MPH_ROM "${CMAKE_CURRENT_SOURCE_DIR}/Metroid Prime Hunters.nds"
     CACHE FILEPATH "Path to the verified ${MPH_PROFILE_NAME} ROM")
@@ -159,10 +161,10 @@ set(MPH_FMV_RUNTIME_SOURCES)
 set(MPH_FMV_RUNTIME_STAMP)
 if(MPH_PROFILE_FMV_RUNTIME)
     set(MPH_FMV_RUNTIME_CONFIG
-        "${CMAKE_CURRENT_SOURCE_DIR}/config/mph_arm9_fmv_runtime.toml")
+        "${CMAKE_CURRENT_SOURCE_DIR}/config/${MPH_PROFILE_FMV_RUNTIME_BANK}.toml")
     set(MPH_FMV_RUNTIME_IMAGE
-        "${MPH_GENERATED_ROOT}/capture/mph_arm9_fmv_runtime.bin"
-        CACHE FILEPATH "Deterministic MPH FMV ITCM+main-RAM capture")
+        "${MPH_GENERATED_DIR}/capture/${MPH_PROFILE_FMV_RUNTIME_BANK}.bin"
+        CACHE FILEPATH "Deterministic ${MPH_VERSION} FMV ITCM+main-RAM capture")
     if(EXISTS "${MPH_FMV_RUNTIME_CONFIG}" AND EXISTS "${MPH_FMV_RUNTIME_IMAGE}")
         foreach(shard RANGE 0 31)
             if(shard LESS 10)
@@ -171,21 +173,21 @@ if(MPH_PROFILE_FMV_RUNTIME)
                 set(shard_name "${shard}")
             endif()
             list(APPEND MPH_FMV_RUNTIME_SOURCES
-                "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime_${shard_name}.c")
+                "${MPH_RECOMP_DIR}/${MPH_PROFILE_FMV_RUNTIME_BANK}_${shard_name}.c")
         endforeach()
         list(APPEND MPH_FMV_RUNTIME_SOURCES
-            "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime_dispatch.c")
+            "${MPH_RECOMP_DIR}/${MPH_PROFILE_FMV_RUNTIME_BANK}_dispatch.c")
         set(MPH_FMV_RUNTIME_STAMP
-            "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime.stamp")
+            "${MPH_RECOMP_DIR}/${MPH_PROFILE_FMV_RUNTIME_BANK}.stamp")
         add_custom_command(
             OUTPUT "${MPH_FMV_RUNTIME_STAMP}"
             BYPRODUCTS ${MPH_FMV_RUNTIME_SOURCES}
-                "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime.h"
+                "${MPH_RECOMP_DIR}/${MPH_PROFILE_FMV_RUNTIME_BANK}.h"
             COMMAND $<TARGET_FILE:nds_recompile>
                     --config "${MPH_FMV_RUNTIME_CONFIG}"
                     --bin "${MPH_FMV_RUNTIME_IMAGE}"
                     --out "${MPH_RECOMP_DIR}"
-                    --bank mph_arm9_fmv_runtime
+                    --bank "${MPH_PROFILE_FMV_RUNTIME_BANK}"
                     --shards 32
                     --stable-address-shards
                     --max-function-bytes 512
@@ -196,7 +198,8 @@ if(MPH_PROFILE_FMV_RUNTIME)
             COMMENT "Recompiling content-validated ${MPH_VERSION} ARM9 FMV runtime code")
     else()
         message(STATUS
-            "MPH FMV runtime bank disabled: capture image is not present")
+            "MPH FMV runtime bank disabled for ${MPH_VERSION}: expected "
+            "${MPH_FMV_RUNTIME_CONFIG} and ${MPH_FMV_RUNTIME_IMAGE}")
     endif()
 else()
     message(STATUS

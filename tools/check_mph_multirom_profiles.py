@@ -2,9 +2,9 @@
 """Validate the current multi-ROM schema, then run the legacy deep checks.
 
 The legacy checker predates the all-version Adaptive Widescreen address table
-and intentionally asserted EU1_1=false plus three runtime fields. Preserve its
-broad coverage on a compatibility view while validating the new scale fields
-against melonPrimeDS on the real registry.
+and the shared runtime-generic frontend config. Preserve its broad coverage on
+a temporary compatibility view while validating the current scale fields and
+generic config contract against the real registry.
 """
 
 from __future__ import annotations
@@ -66,15 +66,27 @@ def validate_scale_registry(repo: Path, table: Path | None) -> None:
     profiles = registry.get("profiles")
     if not isinstance(profiles, dict):
         die("content profiles missing")
+
+    # Runtime frontend policy is shared by every exact-content profile. Exact
+    # ROM SHA/header identity belongs in this registry and generated bank/cache
+    # provenance, not in one region-specific game TOML.
+    shared_config = repo / "game.toml"
+    if not shared_config.is_file():
+        die("shared runtime frontend config is missing: game.toml")
+    shared_text = shared_config.read_text(encoding="utf-8")
+    if 'adaptive_widescreen = "top"' not in shared_text or 'adaptive_capability = "top"' not in shared_text:
+        die("shared game.toml does not expose top-screen Adaptive Widescreen")
+    for forbidden in ("\nid =", "\nregion =", "\nrevision =", "\nrom =", "\nrom_size =", "\nsha1 ="):
+        if forbidden in shared_text:
+            die(f"shared game.toml still contains exact-content identity field: {forbidden.strip()}")
+
     for key, profile in profiles.items():
         if not isinstance(profile, dict):
             die(f"{key}: invalid content profile")
         if profile.get("adaptive_widescreen") is not True:
             die(f"{key}: Adaptive Widescreen must remain exposed for known content profiles")
-        config_path = repo / str(profile.get("game_config", ""))
-        text = config_path.read_text(encoding="utf-8")
-        if 'adaptive_widescreen = "top"' not in text or 'adaptive_capability = "top"' not in text:
-            die(f"{key}: game config does not expose top-screen Adaptive Widescreen")
+        if profile.get("game_config") != "game.toml":
+            die(f"{key}: content profiles must share the generic game.toml frontend config")
 
     if table:
         text = table.read_text(encoding="utf-8")
@@ -97,6 +109,7 @@ def validate_scale_registry(repo: Path, table: Path | None) -> None:
 
 
 def legacy_compat_view(repo: Path, destination: Path) -> Path:
+    """Synthesize the old per-profile config shape only for the legacy checker."""
     target = destination / "repo"
     shutil.copytree(
         repo, target,
@@ -108,13 +121,32 @@ def legacy_compat_view(repo: Path, destination: Path) -> Path:
         runtime = item["runtime"]
         for field in SCALE_FIELDS:
             runtime.pop(field, None)
-    registry["profiles"]["EU1_1"]["adaptive_widescreen"] = False
-    registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
 
-    eu_config = target / "config" / "game-eu11.toml"
-    lines = eu_config.read_text(encoding="utf-8").splitlines()
-    lines = [line for line in lines if not line.startswith("adaptive_widescreen =")]
-    eu_config.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # The old checker expects exact identity duplicated into each game config
+    # and also expects the historical EU1.1 widescreen-disable state. Generate
+    # those files only inside the temporary compatibility copy so production
+    # source keeps one generic game.toml.
+    for key, profile in registry["profiles"].items():
+        legacy_rel = f"config/.legacy-{key}.toml"
+        profile["game_config"] = legacy_rel
+        adaptive = profile.get("adaptive_widescreen") is True
+        if key == "EU1_1":
+            adaptive = False
+            profile["adaptive_widescreen"] = False
+        lines = [
+            "[game]",
+            f'id = "{profile["game_code"]}"',
+            f'revision = {profile["revision"]}',
+            f'rom_size = {profile["rom_size"]}',
+            f'sha1 = "{profile["sha1"]}"',
+            "",
+            "[display]",
+        ]
+        if adaptive:
+            lines.append('adaptive_widescreen = "top"')
+        (target / legacy_rel).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
     return target
 
 
@@ -131,7 +163,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="mph-multirom-check-") as temp:
         compat = legacy_compat_view(repo, Path(temp))
         legacy.validate_registry(compat, table)
-    print("OK: Adaptive Widescreen address/capability checks passed for all seven MPH revisions")
+    print("OK: seven-version runtime tables and shared generic game.toml are consistent")
 
 
 if __name__ == "__main__":

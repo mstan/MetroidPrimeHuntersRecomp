@@ -129,6 +129,16 @@ jobs:
           cmake --build /tmp/nds-runner-profile-check --target \
             src/main.o -j2
 
+      - name: Test exact-ROM runtime address dispatch
+        run: |
+          c++ -std=c++20 -Wall -Wextra -Wno-unused-parameter \
+            -I/tmp/ndsrecomp/runner/src \
+            -I/tmp/ndsrecomp/recompiler/armv4t \
+            tools/tests/mph_runtime_profile_test.cpp \
+            /tmp/ndsrecomp/runner/src/title_patches.cpp \
+            -o /tmp/mph-runtime-profile-test
+          /tmp/mph-runtime-profile-test
+
       - name: Compile US1.0 and EU1.1 ROM checkers
         run: |
           for profile in US1_0 EU1_1; do

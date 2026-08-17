@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Add an independent MPH game-side aspect-ratio feature to the launcher TU.
+"""Add the MPH game-side aspect-ratio feature to the launcher TU.
 
 The repository launcher source intentionally tracks upstream closely. The MPH
 profile CMake already generates a launcher_main_profile.cpp and layers project-
@@ -9,9 +9,12 @@ specific multi-ROM transforms onto it. This script adds one more project layer:
   and HUD anchoring feature.
 * Game Aspect Ratio Patch controls the melonPrimeDS/mphCodex guest-side 21:9
   projection/culling writes via --mph-aspect-ratio-patch.
+* The two widescreen mechanisms are mutually exclusive. Enabling either one
+  immediately disables the other, so the launcher can never intentionally
+  start the runner with both transforms active at the same time.
 
 The guest patch defaults OFF so existing users receive only the original host
-Adaptive Widescreen path unless they explicitly opt into the comparison mod.
+Adaptive Widescreen path unless they explicitly select the game-side patch.
 """
 
 from __future__ import annotations
@@ -42,13 +45,16 @@ def patch(source: Path) -> None:
         "struct ModState {\n    bool adaptive_widescreen = true;\n",
         "struct ModState {\n"
         "    bool adaptive_widescreen = true;\n"
-        "    // MPH_GAME_ASPECT_RATIO_MOD: independent game-side 21:9 patch.\n"
-        "    // OFF by default so the original ndsrecomp host Adaptive\n"
-        "    // Widescreen path remains the baseline and is not double-applied.\n"
+        "    // MPH_GAME_ASPECT_RATIO_MOD: game-side 21:9 patch.\n"
+        "    // Mutually exclusive with Adaptive Widescreen; OFF by default so\n"
+        "    // the original ndsrecomp host path remains the baseline.\n"
         "    bool aspect_ratio_patch = false;\n",
         "ModState aspect flag",
     )
 
+    # Legacy builds temporarily allowed both widescreen paths to be persisted.
+    # Resolve such files deterministically while parsing: whichever key appears
+    # later and is true wins. Newly saved files can never contain both true.
     text = replace_once(
         text,
         "        } else if (key == \"adaptive_widescreen\") {\n"
@@ -56,8 +62,12 @@ def patch(source: Path) -> None:
         "        } else if (key == \"hd_rendering\") {\n",
         "        } else if (key == \"adaptive_widescreen\") {\n"
         "            state.adaptive_widescreen = value != \"false\";\n"
+        "            if (state.adaptive_widescreen)\n"
+        "                state.aspect_ratio_patch = false;\n"
         "        } else if (key == \"aspect_ratio_patch\") {\n"
         "            state.aspect_ratio_patch = value == \"true\";\n"
+        "            if (state.aspect_ratio_patch)\n"
+        "                state.adaptive_widescreen = false;\n"
         "        } else if (key == \"hd_rendering\") {\n",
         "settings load",
     )
@@ -87,8 +97,8 @@ def patch(source: Path) -> None:
         "    return 3;\n"
         "}\n",
         "// The online identity is NOT a mod: it lives on the dashboard's ONLINE\n"
-        "// card. Display features deliberately expose host Adaptive Widescreen\n"
-        "// and the game-side aspect-ratio patch independently for A/B testing.\n"
+        "// card. The two widescreen implementations are exposed separately,\n"
+        "// but their enable state is mutually exclusive.\n"
         "int mod_feature_count(void*) {\n"
         "    return 4;\n"
         "}\n",
@@ -102,6 +112,18 @@ def patch(source: Path) -> None:
         "feature index range",
     )
 
+    # Tell users about the radio-button-like behavior directly in the host
+    # feature description too, not just on the new game-side feature.
+    text = replace_once(
+        text,
+        "            \"Expands the upper gameplay screen to 21:9 and anchors its HUD \"\n"
+        "            \"while keeping the lower touchscreen native and clickable.\");\n",
+        "            \"Expands the upper gameplay screen to 21:9 and anchors its HUD \"\n"
+        "            \"while keeping the lower touchscreen native and clickable. \"\n"
+        "            \"Enabling it automatically disables Game Aspect Ratio Patch.\");\n",
+        "adaptive feature description",
+    )
+
     aspect_feature = '''    } else if (index == 3) {
         copy_text(output->id, "game-aspect-ratio-patch");
         copy_text(output->package_id, "mph-game-aspect-ratio-patch");
@@ -112,8 +134,8 @@ def patch(source: Path) -> None:
         copy_text(
             output->description,
             "Applies the MPH game-side 21:9 projection and culling patch. "
-            "This is independent from Recomp's host Adaptive Widescreen, "
-            "so either path can be tested alone or both can be enabled.");
+            "It is mutually exclusive with Recomp's host Adaptive Widescreen; "
+            "enabling this automatically disables Adaptive Widescreen.");
         copy_text(output->source_name, "ag-advania/melonPrimeDS");
         copy_text(output->source_url,
                   "https://github.com/ag-advania/melonPrimeDS");
@@ -143,17 +165,24 @@ def patch(source: Path) -> None:
         "    if (std::strcmp(package_id, \"mph-adaptive-widescreen\") == 0 &&\n"
         "        std::strcmp(feature_id, \"adaptive-widescreen\") == 0) {\n"
         "        state->adaptive_widescreen = enabled != 0;\n"
+        "        // MPH_WIDESCREEN_MUTUAL_EXCLUSION: enabling one widescreen\n"
+        "        // implementation switches the other one off immediately.\n"
+        "        if (state->adaptive_widescreen) state->aspect_ratio_patch = false;\n"
         "        return 1;\n"
         "    }\n"
         "    if (std::strcmp(package_id, \"mph-game-aspect-ratio-patch\") == 0 &&\n"
         "        std::strcmp(feature_id, \"game-aspect-ratio-patch\") == 0) {\n"
         "        state->aspect_ratio_patch = enabled != 0;\n"
+        "        if (state->aspect_ratio_patch) state->adaptive_widescreen = false;\n"
         "        return 1;\n"
         "    }\n"
         "    if (std::strcmp(package_id, \"mph-prime-controls\") == 0 &&\n",
         "aspect feature enable",
     )
 
+    # Keep a final defense at process launch. Even if a hand-edited settings
+    # file or a future frontend bug somehow presents both states as true, the
+    # runner receives only the guest path in that impossible state, never both.
     text = replace_once(
         text,
         "        (adaptive || mods.prime_controls || display_layout == 1\n"
@@ -166,7 +195,7 @@ def patch(source: Path) -> None:
         "            ? L\"separate\"\n"
         "            : L\"stacked\") +\n"
         "        L\" --adaptive-widescreen \" +\n"
-        "        (adaptive ? L\"top\" : L\"none\") +\n"
+        "        ((adaptive && !mods.aspect_ratio_patch) ? L\"top\" : L\"none\") +\n"
         "        L\" --mph-aspect-ratio-patch \" +\n"
         "        (mods.aspect_ratio_patch ? L\"on\" : L\"off\") +\n",
         "runner launch arguments",
@@ -175,7 +204,7 @@ def patch(source: Path) -> None:
     source.write_text(text, encoding="utf-8")
     print(
         "Patched launcher Mods: Adaptive Widescreen (host) and Game Aspect "
-        "Ratio Patch (guest) are independent; guest default=off"
+        "Ratio Patch (guest) are mutually exclusive; guest default=off"
     )
 
 

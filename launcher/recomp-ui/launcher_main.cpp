@@ -321,6 +321,27 @@ std::string read_identity_mac(const std::filesystem::path& bios_dir) {
     return text;
 }
 
+std::filesystem::path firmware_state_path(
+    const std::filesystem::path& settings_path, bool generated) {
+    return settings_path.parent_path() /
+        (generated ? "firmware-generated.bin" : "firmware-retail.bin");
+}
+
+std::string read_firmware_state_mac(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return {};
+    file.seekg(0x36, std::ios::beg);
+    unsigned char mac[6]{};
+    file.read(reinterpret_cast<char*>(mac), sizeof(mac));
+    if (file.gcount() != static_cast<std::streamsize>(sizeof(mac)) ||
+        (mac[0] & 0x01u))
+        return {};
+    char text[32];
+    std::snprintf(text, sizeof(text), "%02X:%02X:%02X:%02X:%02X:%02X",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    return text;
+}
+
 template <size_t N>
 void copy_text(char (&target)[N], const char* source) {
     std::snprintf(target, N, "%s", source ? source : "");
@@ -1059,6 +1080,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
             std::filesystem::create_directories(bios, error);
         }
     }
+    const std::filesystem::path firmware_state = firmware_state_path(
+        mods.settings_path, no_dumps_mode);
 
     std::wstring command =
         quote(runner.wstring()) + L" " + quote(bios.wstring()) +
@@ -1096,6 +1119,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         // a player launching through the UI expects Nintendo WFC to work,
         // so the launcher turns it on and points it at Wiimmfi.
         L" --network on --wfc on --wfc-provider wiimmfi";
+    append_arg(command, L"--firmware-state-path", firmware_state.wstring());
     // beads-yjp.16: the firmware console nickname. Passed only when the
     // player both configured a name and left the identity feature on;
     // otherwise the runner leaves the firmware's own name alone (a retail
@@ -1162,15 +1186,31 @@ int main(int argc, char** argv) {
     copy_text(settings.bios_path, mod_state.bios_path.c_str());
     copy_text(settings.player_name, mod_state.player_name.c_str());
 
-    // Read-only identity detail for the dashboard ONLINE card. Captured once
-    // at startup: the MAC only changes on the first-ever no-dump launch.
-    const std::string identity_mac = read_identity_mac(
+    // Read-only identity detail for the dashboard ONLINE card. Prefer the
+    // mutable profile once it has been seeded; generated mode falls back to
+    // the installation identity before that first launch.
+    const std::filesystem::path selected_bios =
         mod_state.bios_path.empty()
             ? mod_state.default_bios_dir
-            : bios_dir_from_setting(mod_state.bios_path.c_str()));
+            : bios_dir_from_setting(mod_state.bios_path.c_str());
+    bool generated_identity = false;
+    if (mod_state.bios_path.empty()) {
+        bool conventional_dumps = true;
+        for (const NdsDump& dump : kNdsDumps) {
+            if (!std::filesystem::is_regular_file(selected_bios / dump.file))
+                conventional_dumps = false;
+        }
+        generated_identity = !conventional_dumps;
+    }
+    std::string identity_mac = read_firmware_state_mac(firmware_state_path(
+        mod_state.settings_path, generated_identity));
+    if (identity_mac.empty() && generated_identity)
+        identity_mac = read_identity_mac(selected_bios);
     const std::string identity_detail =
         !identity_mac.empty()
-            ? "Console MAC: " + identity_mac + " (generated identity)"
+            ? "Console MAC: " + identity_mac +
+                  (generated_identity
+                       ? " (generated identity)" : " (firmware profile)")
             : std::string("Console MAC: from the firmware dump, or created "
                           "on the first no-dump launch.");
 

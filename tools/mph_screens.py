@@ -34,6 +34,8 @@ BOXES = {
     # red cross on the right, both ringed in orange.
     "dialog_yes": (98, 302, 120, 324),
     "dialog_no": (138, 302, 160, 324),
+    # Single green check used by pairing/update notices and acknowledgements.
+    "dialog_ok": (116, 300, 140, 326),
     # Friends/Rivals lobby, top screen: the ARENA thumbnail. Flat dark green
     # while no game row is selected, a lit photo of the arena once a row is
     # selected and the host's settings have been pulled down (measured: 0

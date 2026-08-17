@@ -78,15 +78,15 @@ def validate_scale_registry(repo: Path, table: Path | None) -> None:
 
     if table:
         text = table.read_text(encoding="utf-8")
-        row_names = {
-            "scale_patch_addr1": "ScalePatchAddr1",
-            "scale_patch_addr2": "ScalePatchAddr2",
-            "scale_value_addr": "ScaleValueAddr",
+        rows = {
+            "scale_patch_addr1": ("scalePatchAddr1", "ScalePatchAddr1"),
+            "scale_patch_addr2": ("scalePatchAddr2", "ScalePatchAddr2"),
+            "scale_value_addr": ("scaleValueAddr", "ScaleValueAddr"),
         }
         order = ("JP1_0", "JP1_1", "US1_0", "US1_1", "EU1_0", "EU1_1", "KR1_0")
-        for field, list_name in row_names.items():
+        for field, (member_name, list_name) in rows.items():
             match = re.search(
-                rf"X\(ADDR,\s*{field},\s*{list_name},\s*([^\n]+)\)", text
+                rf"X\(ADDR,\s*{member_name},\s*{list_name},\s*([^\n]+)\)", text
             )
             if not match:
                 die(f"melonPrimeDS table missing {list_name}")

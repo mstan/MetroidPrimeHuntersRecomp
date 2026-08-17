@@ -24,20 +24,21 @@ jobs:
       - name: Check out title sources
         uses: actions/checkout@v4
 
-      - name: Install MinGW toolchain
+      - name: Install MinGW build dependencies
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          # windows-2025 already ships C:\msys64. Reuse that image installation
-          # instead of downloading/extracting a fresh MSYS2 release every run.
+          # windows-2025 already ships C:\msys64. Reuse the runner image rather
+          # than downloading a second MSYS2 installation. Do not run a full
+          # rolling-release upgrade on every PR: the image is internally
+          # consistent and setup-msys2 can install the small set below directly.
           release: false
-          # setup-msys2 has a native package cache; keep it explicit so future
-          # workflow edits do not accidentally disable the fast rerun path.
+          update: false
+          # setup-msys2 also caches pacman payloads between runs.
           cache: true
-          update: true
           install: >-
             git
-            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-gcc
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-python

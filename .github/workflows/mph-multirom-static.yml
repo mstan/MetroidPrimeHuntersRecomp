@@ -108,6 +108,15 @@ jobs:
           grep -q 'if (!false) ++index;' "$eu"
           grep -q 'adaptive = adaptive && false;' "$eu"
 
+      - name: Verify Linux profile-owned launch policy
+        run: |
+          grep -q 'launcher_default_rom' tools/build-linux.sh
+          grep -q 'cp "$GAME_CONFIG" "$APPDIR/usr/share/mph-recomp/game.toml"' \
+            tools/build-linux.sh
+          grep -q -- '--config "$HERE/usr/share/mph-recomp/game.toml"' \
+            tools/build-linux.sh
+          ! grep -q -- '--adaptive-widescreen' tools/build-linux.sh
+
       - name: Verify ndsrecomp runtime patch is idempotent
         run: |
           python tools/patch_ndsrecomp_mph_runtime.py \

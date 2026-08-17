@@ -9,7 +9,7 @@
 multi-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revision 1)
 を安全にbring-upする。
 
-現在はROM実体なしで実装・検証できる範囲をさらに進め、次まで完了している。
+現在はROM実体なしで実装・検証できる範囲を進め、次まで完了している。
 
 1. ROM identityを版別profileとして管理する。
 2. EU1.1 ROMからARM9 / ARM7 / ARM9 overlayを直接抽出するprofile-driven prepare経路を持つ。
@@ -17,12 +17,14 @@ multi-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revi
 4. US1.0のcoverage seedやFMV runtime captureをEU1.1へ流用しない。
 5. exact ROM SHA-1でrunner側のbankとhost-side runtime address profileをgateする。
 6. Prime ControlsのMorph判定とDirect Mouse AimをEU1.1固有RAMアドレスへ対応させる。
-7. EU1.1専用ROM identityを持つlauncherを同一launcher sourceから生成する。
-8. Windows/Linux build入口をprofile-awareにする。
-9. ROM不要のstatic CIでprofile整合性とpinned ndsrecomp patchを検証する。
+7. EU1.1専用ROM identity / default ROM filename / feature policyを持つlauncherを同一launcher sourceから生成する。
+8. EU1.1では未検証のAdaptive Widescreenをlauncher UIから隠し、persisted stateとlaunch commandの両方でも強制OFFにする。
+9. Windows/Linux build入口をprofile-awareにする。
+10. ROM不要CIでmelonPrimeDS address tableとの照合、pinned ndsrecomp patch、runner C++ compile、exact-ROM runtime dispatchを検証する。
+11. ROM不要CIでUS1.0/EU1.1のlauncher generated sourceを生成し、identityとfeature policyを直接検証する。
 
 未完了なのは、EU1.1実ROMと実行環境を必要とするruntime validation、
-EU1.1固有coverageの拡張、EU1.1固有FMV runtime captureである。
+EU1.1固有coverageの拡張、必要に応じたEU1.1固有FMV runtime captureである。
 
 ## 2. EU1.1 identity
 
@@ -35,9 +37,11 @@ EU1.1固有coverageの拡張、EU1.1固有FMV runtime captureである。
 | SHA-1 | `bdcd1dea293e24c98d4c481430e90d21198985a5` |
 | Program ID prefix | `mph_amhp1` |
 | Game config | `config/game-eu11.toml` |
+| Launcher default ROM | `Metroid Prime Hunters (Europe Rev 1).nds` |
+| Adaptive Widescreen | disabled until EU1.1 validation |
 | FMV runtime bank | disabled until EU1.1 capture exists |
 
-identityは `config/mph_rom_profiles.json` に集約する。
+identityと版別policyは `config/mph_rom_profiles.json` に集約する。
 
 ## 3. ROM profile registry
 
@@ -53,6 +57,8 @@ Profileには次を持たせる。
 - `coverage`
 - `game_config`
 - `fmv_runtime`
+- `launcher_default_rom`
+- `adaptive_widescreen`
 - `runtime.morph_state`
 - `runtime.aim_x`
 - `runtime.aim_y`
@@ -63,7 +69,9 @@ host-side runtime addressのsource of truthは以下に固定する。
 https://github.com/ag-advania/melonPrimeDS/blob/main/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h
 ```
 
-AimアドレスはmphCodexから推測せず、このmelonPrimeDS address tableを正として扱う。
+Aim/Morphアドレスはglobal relocation deltaから推測せず、このmelonPrimeDS address tableを正として扱う。
+
+`tools/check_mph_multirom_profiles.py` はprofileと各versionの`game.toml`、coverage seed、launcher policyを静的照合する。特に `adaptive_widescreen=false` のprofileでgame config側がadaptiveを有効化していた場合はfailする。
 
 ## 4. melonPrimeDSから確定したEU1.1 runtime addresses
 
@@ -82,6 +90,8 @@ Recomp runnerで現在必要なフィールドは以下である。
 | Direct Aim Y | `baseAimY` | `0x020DE52E` | `0x020DEE4E` |
 
 これらは `config/mph_rom_profiles.json` の `runtime` に登録済みである。
+
+CIはmelonPrimeDS `main` の実ファイルを取得し、`RomGroup`と上記3フィールドをparserで読み取り、profileと自動照合する。値が変化した場合はCIで検出する。
 
 ## 5. pinned ndsrecompのUS1.0固定を除去する方法
 
@@ -107,8 +117,7 @@ main.cpp:
 
 というUS1.0固定が存在する。
 
-プロジェクト側で `tools/patch_ndsrecomp_mph_runtime.py` を追加し、build前に
-pinned `ndsrecomp` checkoutへ小さなprofile-selection shimを適用する。
+プロジェクト側の `tools/patch_ndsrecomp_mph_runtime.py` がbuild前にpinned `ndsrecomp` checkoutへ小さなprofile-selection shimを適用する。
 
 パッチ後は概念的に次の経路になる。
 
@@ -135,8 +144,17 @@ runner/src/mph_runtime_profiles.generated.h
 - exact pinned source preimageを要求する。
 - upstream sourceが想定外に変わった場合はguessせず失敗する。
 - 同じcheckoutへ複数回適用しても結果が変わらない。
+- profile切替時にDirect Aim enable stateをclearする。
 - 未知ROMはfail-closedになる。
 - runtime addressはDS main RAM範囲内か検証する。
+
+さらに `tools/tests/mph_runtime_profile_test.cpp` は実際のpatched `title_patches.cpp` をリンクして、ROMなしで次を実行検証する。
+
+- unknown SHA-1ではAim writeもMorph readも行わない。
+- US1.0は従来の3アドレスを維持する。
+- EU1.1は `0x020DB138 / 0x020DEE46 / 0x020DEE4E` のみを使う。
+- US1.0からEU1.1へprofile切替した際にold enable stateを引き継がない。
+- valid profileの後にunknown SHA-1を選択した場合もstale addressを保持しない。
 
 ## 6. EU1.1 coverage bootstrap
 
@@ -146,12 +164,9 @@ runner/src/mph_runtime_profiles.generated.h
 
 これは意図的である。
 
-`prepare_mph.py` はROM headerのARM9/ARM7 entry PCを必ずseedするため、EU1.1は
-まずそのrootからstatic discoveryを行い、未コンパイル領域はruntime Interpreterへ
-fallbackする。
+`prepare_mph.py` はROM headerのARM9/ARM7 entry PCを必ずseedするため、EU1.1はまずそのrootからstatic discoveryを行い、未コンパイル領域はruntime Interpreterへfallbackする。
 
-US1.0の `coverage/adventure-main-entry-points.json` に入っているabsolute PCを
-EU1.1へコピーしてはいけない。
+US1.0の `coverage/adventure-main-entry-points.json` に入っているabsolute PCをEU1.1へコピーしてはいけない。
 
 EU1.1自身を実行したtraceからのみEU1.1 coverageを拡張する。
 
@@ -179,35 +194,51 @@ generated/
 
 これにより異なるROM由来のbankやbinaryが同じパスへ混ざらない。
 
-## 8. Launcher identity separation
+## 8. Launcher identity / feature policy separation
 
 launcherの大きなsourceをROM revisionごとに複製しない。
 
-`launcher/recomp-ui/CMakeLists.txt` はconfigure時にbaseline `launcher_main.cpp` を読み、
-選択profileの
+`launcher/recomp-ui/CMakeLists.txt` はconfigure時にbaseline `launcher_main.cpp` を読み、選択profileの次の項目を反映したgenerated translation unitをbuild directoryへ作る。
 
-- ROM SHA-1
+- exact ROM SHA-1
 - Region
-
-だけを反映したgenerated translation unitをbuild directoryへ作る。
+- default ROM filename
+- Adaptive Widescreen availability/default
 
 ```text
 launcher_main.cpp
-  -> configure-time identity transform
+  -> configure-time guarded transform
   -> launcher_main_profile.cpp
   -> mph-recomp-ui
 ```
 
-US1.0は従来SHA-1を保持し、EU1.1 buildでは
+各replaceはbaseline preimageを要求する。launcher sourceが将来変わって想定文字列が消えた場合は、stale transformを続行せずCMake configureを失敗させる。
+
+US1.0は従来挙動を維持する。
 
 ```text
-bdcd1dea293e24c98d4c481430e90d21198985a5
-Europe
+SHA-1: 90164d1ac127ee5f9815ea4ae7de798c7b5fc629
+Region: USA
+Default ROM: Metroid Prime Hunters.nds
+Adaptive Widescreen: enabled / UI exposed
 ```
 
-を持つlauncherになる。
+EU1.1 buildは次になる。
 
-これによりEU1.1 ROMをUS1.0 launcherへ誤認させず、同一UI実装を共有できる。
+```text
+SHA-1: bdcd1dea293e24c98d4c481430e90d21198985a5
+Region: Europe
+Default ROM: Metroid Prime Hunters (Europe Rev 1).nds
+Adaptive Widescreen: disabled / UI hidden
+```
+
+EU1.1のAdaptive Widescreenは三重にfail-closedにする。
+
+1. launcher mod listからAdaptive Widescreen項目を隠す。
+2. 旧/shared `mods.ini` に `adaptive_widescreen=true` が残っていてもload後にfalseへ戻す。
+3. `launch_runner()` の最終段でもprofile capabilityとANDし、EU1.1では `--adaptive-widescreen top` を生成できないようにする。
+
+Prime ControlsはEU1.1でも表示する。これはMorph/Aimの必要アドレスをmelonPrimeDS tableからexact profile化し、ROMなしunit testでaddress dispatchまで固定できたためである。ただし実ゲーム内でのsemantic correctnessは実ROM Gate Dで別途確認する。
 
 ## 9. FMV runtime bank
 
@@ -228,9 +259,7 @@ fmv_runtime = false
 
 とし、このbankを絶対に登録しない。
 
-EU1.1でopening FMV等がInterpreter fallbackでは遅い場合でも、US1.0 captureを
-流用してはいけない。EU1.1自身からITCM + main RAM captureを取得し、live-byte
-validation付きのEU1.1専用runtime bankを作る。
+EU1.1でopening FMV等がInterpreter fallbackでは遅い場合でも、US1.0 captureを流用してはいけない。EU1.1自身からITCM + main RAM captureを取得し、live-byte validation付きのEU1.1専用runtime bankを作る。
 
 ## 10. Build
 
@@ -244,6 +273,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
   -RomPath 'D:\ROMs\Metroid Prime Hunters (Europe) (Rev 1).nds'
 ```
 
+`-RomPath` を省略した場合は選択profileの `launcher_default_rom` を使う。EU1.1なら `Metroid Prime Hunters (Europe Rev 1).nds` になる。
+
 現在のWindows buildはEU1.1についても以下まで一貫して行う。
 
 1. EU1.1 ROM identity verify
@@ -251,8 +282,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
 3. EU1.1 static bank generation
 4. pinned ndsrecomp runtime-profile patch
 5. exact EU1.1 SHA-1 runner build
-6. EU1.1 identity launcher build
-7. `config/game-eu11.toml` をrelease内 `game.toml` としてpackage
+6. EU1.1 identity + feature policy launcher build
+7. EU1.1 launcherでAdaptive Widescreenを非公開/強制OFF
+8. `config/game-eu11.toml` をrelease内 `game.toml` としてpackage
 
 EU1.1にはFMV runtime captureがまだないため、そのbankの存在はrelease gateにしない。
 
@@ -277,6 +309,8 @@ tools/build-linux.sh \
 
 EU1.1 package名には `EU1_1` suffixを付け、US1.0のhistorical filenameとは分離する。
 
+Linux AppRunはprofile別 `game.toml` をrunnerへ渡し、launcherのようなUS1.0固定Adaptive Widescreen CLI overrideを行わない。EU1.1では `config/game-eu11.toml` のnative presentation policyがそのまま有効になることを維持する。
+
 ## 11. ROM不要static CI
 
 `.github/workflows/mph-multirom-static.yml`
@@ -286,24 +320,32 @@ PRごとに以下を検証する。
 1. `prepare_mph.py` / profile checker / framework patcherのPython syntax
 2. Linux build scriptのshell syntax
 3. Windows build/release scriptのPowerShell syntax
-4. melonPrimeDS `main` の `MelonPrimeGameRomAddrTable.h` を取得
-5. `baseIsAltForm` / `baseAimX` / `baseAimY` をprofileと自動照合
-6. exact `ndsrecomp.pin` revisionを取得
-7. runtime-profile patchを適用
-8. 同じpatchを2回適用し、対象ファイルhashが完全一致することを確認
-9. US1.0固定Aim/Morph symbolが除去されていることを確認
-10. US1.0/EU1.1それぞれの`mph_romcheck`をcompile
-11. EU1.1 checkerにEU1.1 SHA-1/profile keyが埋め込まれていることを確認
-12. `git diff --check`
+4. `config/mph_rom_profiles.json` とcoverage/game config/launcher policyの整合性
+5. melonPrimeDS `main` の `MelonPrimeGameRomAddrTable.h` を取得
+6. `baseIsAltForm` / `baseAimX` / `baseAimY` をprofileと自動照合
+7. exact `ndsrecomp.pin` revisionを取得
+8. fake SDL2 / recomp-ui CMake interfaceでUS1.0 launcher sourceを生成
+9. fake SDL2 / recomp-ui CMake interfaceでEU1.1 launcher sourceを生成
+10. generated EU1.1 launcherがEU SHA-1 / Europe / EU default ROM filenameを持つことを確認
+11. generated EU1.1 launcherがAdaptive Widescreen default OFF / UI hidden / final launch gate OFFであることを確認
+12. runtime-profile patchを適用
+13. 同じpatchを2回適用し、対象ファイルhashが完全一致することを確認
+14. US1.0固定Aim/Morph symbolがpatched runnerから除去されていることを確認
+15. patched `title_patches.cpp` / `frontend.cpp` / `main.cpp` をpinned runnerの実CMake compile flagsでcompile
+16. `tools/tests/mph_runtime_profile_test.cpp` をpatched `title_patches.cpp` とリンクして実行
+17. US1.0/EU1.1それぞれの`mph_romcheck`をcompile
+18. EU1.1 checkerにEU1.1 SHA-1/profile keyが埋め込まれていることを確認
+19. `git diff --check`
 
-このCIはROMを一切取得・保存しない。
+このCIはROM、BIOS、firmware dumpを一切取得・保存しない。
+
+2026-08-17時点の最新CIでは上記項目がすべてPASSしている。
 
 ## 12. mphCodexの役割
 
-Aim X/YについてはmelonPrimeDS address tableをsource of truthとする。
+Aim X/Y/MorphについてはmelonPrimeDS address tableをsource of truthとする。
 
-mphCodexは引き続き、今後Recomp固有のhost enhancementがsemantic stateを読む必要が
-出た場合のcross-version調査に利用できる。
+mphCodexは引き続き、今後Recomp固有のhost enhancementがsemantic stateを読む必要が出た場合のcross-version調査に利用する。
 
 例:
 
@@ -359,26 +401,47 @@ static missはInterpreterへfallbackさせ、最初はcorrectnessを優先する
 - save/reload
 - multiplayer menu
 
-### Gate D - Prime Controls
+### Gate D - Prime Controls / Direct Mouse Aim semantic validation
 
-EU1.1 selected profileで以下を実機能確認する。
+ROM不要unit testによってaddress routing自体は既に固定済みである。
 
 ```text
 Morph state = 0x020DB138
-Aim X      = 0x020DEE46
-Aim Y      = 0x020DEE4E
+Aim X       = 0x020DEE46
+Aim Y       = 0x020DEE4E
 ```
 
-確認項目:
+実ROM Gate Dでは「そのアドレスを使うか」ではなく、ゲーム内semanticが期待通りかを確認する。
 
 - normal formでcenter touch保持
 - Morph Ball時にcenter touchを解除
-- mouse X/Y deltaがEU1.1 fieldsへ書かれる
-- US1.0 fieldsへ書かれない
+- mouse X/Y deltaでcamera aimが正しく変化
 - menu/touch操作へ戻れる
 - keyboard/gamepad Prime Controls
+- profile切替・再起動後にstale stateが残らない
 
-### Gate E - EU1.1 deterministic coverage
+### Gate E - Adaptive Widescreen
+
+EU1.1では現在意図的に無効である。EU1.1を基本対応とするための必須条件ではない。
+
+将来EU1.1でも有効化する場合は、少なくとも次をEU1.1実ROMで確認する。
+
+- 3D projection
+- frustum/culling
+- upper-screen HUD anchoring
+- lower touchscreen native layout
+- Adventure camera / Scan Visor等の特殊scene
+- US1.0との差分があるsemantic addressを固定値で流用していないこと
+
+検証後にのみ、
+
+```json
+"adaptive_widescreen": true
+```
+
+とEU1.1 `game.toml` の対応display設定を同時に有効化する。
+
+### Gate F - EU1.1 deterministic coverage
 
 EU1.1 execution traceから
 
@@ -390,7 +453,7 @@ EU1.1 execution traceから
 
 US1.0 absolute PCのaddress translationは行わない。
 
-### Gate F - EU1.1 FMV runtime optimization
+### Gate G - EU1.1 FMV runtime optimization
 
 必要な場合だけEU1.1自身からcaptureを作る。
 
@@ -417,8 +480,11 @@ EU1.1をruntime検証済みsupportedと宣言する条件:
 - host-side title patchがUS1.0 addressをEU1.1へ使用しない
 - Prime Controls動作確認
 - Direct Mouse Aim動作確認
+- EU1.1未検証enhancementがfail-closedであること
 - native/reference checkpoint比較
 - US1.0 regressionなし
+
+Adaptive WidescreenやEU1.1 FMV runtime bankは、基本的なEU1.1 correctnessを満たすための必須機能ではない。未検証のまま誤って有効化しないことを優先する。
 
 ## 15. 現在の判定
 
@@ -426,13 +492,23 @@ EU1.1をruntime検証済みsupportedと宣言する条件:
 
 **READY FOR EU1.1 ROM VALIDATION**
 
-ROMなしで可能なidentity/profile、extraction routing、bank isolation、runtime address
-selection、launcher identity、Windows/Linux packaging、static CIまで実装済み。
+ROMなしで可能なidentity/profile、extraction routing、bank isolation、runtime address selection、launcher identity、launcher feature gating、Windows/Linux packaging、static CIまで実装済み。
+
+特に以下はROMなしで実行検証済みである。
+
+- melonPrimeDS tableとEU1.1 Aim/Morph profileの一致
+- runtime patchのidempotency
+- patched runner C++ translation unitsのcompile
+- unknown ROM fail-closed
+- US1.0 runtime address regressionなし
+- EU1.1 exact Aim/Morph dispatch
+- US1.0/EU1.1 launcher generated sourceのprofile分離
+- EU1.1 Adaptive WidescreenのUI/persisted state/launch command三重gate
+- US1.0/EU1.1 ROM checker compile
 
 ### Runtime correctness
 
 **NOT YET CLAIMED**
 
 EU1.1実ROMによるboot/gameplay/reference validationは別途必要である。
-このvalidationを通すまでは、コードがEU1.1を受理できることと、ゲーム動作が完全に
-検証済みであることを混同しない。
+このvalidationを通すまでは、コードがEU1.1を受理できることと、ゲーム動作が完全に検証済みであることを混同しない。

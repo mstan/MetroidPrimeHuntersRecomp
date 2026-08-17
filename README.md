@@ -23,17 +23,23 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest upstream release:
-**[v0.3.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.3.0-alpha)**.
+**[v0.4.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.0-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.3.0.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.0.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-x86_64-v0.3.0.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-x86_64-v0.4.0.AppImage`
 
 This is an early ndsrecomp title and should still be treated as an alpha test
 build rather than a polished game release.
+
+New in upstream v0.4.0 is an opt-in **HD Rendering** mod on the launcher Mods
+page. It can raise the internal 3D resolution up to 4x and optionally upscale
+decoded textures. It is disabled by default; native rendering remains the
+reference path. This branch keeps that upstream feature alongside the
+multi-ROM-safe Adaptive Widescreen and Prime Controls work.
 
 ## Quick Start
 
@@ -80,9 +86,13 @@ content/capture coverage before it is considered fully brought up.
   projection/culling addresses from melonPrimeDS/mphCodex.
 - Includes Prime-style keyboard and mouse controls.
 - Includes full remappable gamepad bindings in the launcher.
+- Includes upstream HD Rendering controls for internal resolution and texture
+  upscaling.
 - Supports mouse-driven touchscreen input.
 - Can authenticate through Wiimmfi and reach a Friends and Rivals lobby in
   validated flows.
+- Persists mutable firmware/WFC state between launches through the upstream
+  firmware-state path.
 
 ## Known Limits
 
@@ -92,6 +102,8 @@ content/capture coverage before it is considered fully brought up.
   validated from start to finish.
 - Widescreen is still being audited. Some scenes, effects, HUD placement,
   movies, fades, or screen-routing behavior may be wrong.
+- HD texture upscaling remains opt-in and should not be treated as the native
+  reference rendering path.
 - Online play is experimental. Wiimmfi can reach the lobby in validated flows,
   but in-game play is ultimately untested. There is no guarantee that a match
   will connect, stay connected, or avoid desync.

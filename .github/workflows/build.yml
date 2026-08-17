@@ -26,6 +26,8 @@ jobs:
           python -m py_compile \
             tools/patch_ndsrecomp_mph_runtime.py \
             tools/patch_ndsrecomp_mph_adaptive_capability.py \
+            tools/patch_ndsrecomp_mph_aspect_ratio_mod.py \
+            tools/patch_mph_launcher_aspect_mod.py \
             tools/patch_ndsrecomp_rom_free_release.py \
             tools/patch_recomp_ui_mph_multirom.py \
             tools/ci/check_rom_free_release_sources.py \

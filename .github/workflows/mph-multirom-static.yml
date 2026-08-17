@@ -34,7 +34,11 @@ jobs:
             tools/patch_ndsrecomp_mph_runtime.py \
             tools/patch_ndsrecomp_mph_runtime_core.py \
             tools/patch_ndsrecomp_mph_widescreen.py \
+            tools/patch_ndsrecomp_mph_adaptive_capability.py \
             tools/patch_ndsrecomp_mph_widescreen_reset.py \
+            tools/patch_ndsrecomp_mph_aspect_ratio_mod.py \
+            tools/patch_ndsrecomp_nearest_presentation.py \
+            tools/patch_mph_launcher_aspect_mod.py \
             tools/promote_mph_static_coverage.py \
             tools/promote_mph_runtime_coverage.py \
             tools/probe_mph_wfc.py \
@@ -199,8 +203,11 @@ jobs:
           for file in /tmp/mph-launcher-us10/launcher_main_profile.cpp /tmp/mph-launcher-eu11/launcher_main_profile.cpp; do
             grep -q 'game.known_sha1_hex = nullptr;' "$file"
             grep -q 'game.num_known_sha1 = 0;' "$file"
-            grep -A1 'int mod_feature_count' "$file" | grep -q 'return 3;'
+            grep -A1 'int mod_feature_count' "$file" | grep -q 'return 4;'
             grep -q 'copy_text(output->id, "hd-rendering")' "$file"
+            grep -q 'copy_text(output->id, "game-aspect-ratio-patch")' "$file"
+            grep -q 'bool aspect_ratio_patch = false;' "$file"
+            grep -q -- '--mph-aspect-ratio-patch' "$file"
             grep -q -- '--firmware-state-path' "$file"
             grep -q 'bool adaptive_widescreen = true;' "$file"
             grep -q 'std::filesystem::is_regular_file(default_rom, initial_rom_error)' "$file"
@@ -234,8 +241,19 @@ jobs:
           diff -u /tmp/first.sha256 /tmp/second.sha256
           grep -q 'nds_title_patches_select_mph_runtime_profile' /tmp/ndsrecomp/runner/src/main.cpp
           grep -q 'nds_title_patches_set_mph_adaptive' /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q -- '--mph-aspect-ratio-patch' /tmp/ndsrecomp/runner/src/main.cpp
           grep -q 'slirp_virtual_network_instance' /tmp/ndsrecomp/runner/src/main.cpp
           grep -q '0x02111B5Cu, 0x0211D208u, 0x02111380u' /tmp/ndsrecomp/runner/src/mph_widescreen_profiles.generated.h
+          grep -q 'SDL_SetHintWithPriority(SDL_HINT_RENDER_SCALE_QUALITY, "0"' /tmp/ndsrecomp/runner/src/frontend.cpp
+          test "$(grep -c 'SDL_SetTextureScaleMode' /tmp/ndsrecomp/runner/src/frontend.cpp)" -ge 2
+          if grep -A3 'SDL_HINT_RENDER_SCALE_QUALITY' /tmp/ndsrecomp/runner/src/frontend.cpp | grep -q '"1"'; then
+            echo 'linear SDL framebuffer scaling unexpectedly remains enabled' >&2
+            exit 1
+          fi
+          grep -q 'GL_TEXTURE_MIN_FILTER, GL_NEAREST' /tmp/ndsrecomp/runner/src/melonds_compute/ComputeHost.cpp
+          grep -q 'GL_TEXTURE_MAG_FILTER, GL_NEAREST' /tmp/ndsrecomp/runner/src/melonds_compute/ComputeHost.cpp
+          grep -q 'GL_TEXTURE_MIN_FILTER, GL_NEAREST' /tmp/ndsrecomp/runner/vendor/melonds/GPU3D_Compute.cpp
+          grep -q 'GL_TEXTURE_MAG_FILTER, GL_NEAREST' /tmp/ndsrecomp/runner/vendor/melonds/GPU3D_Compute.cpp
           ! grep -q 'kMphUs10MorphState' /tmp/ndsrecomp/runner/src/frontend.cpp
           ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
 

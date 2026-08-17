@@ -114,6 +114,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--actions", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--save-path", type=Path,
+                        help="optional cartridge save to load/update")
     parser.add_argument("--overlays", type=Path,
                         default=Path("generated/inputs/overlays.json"))
     parser.add_argument("--port", type=int, default=19890)
@@ -130,10 +132,18 @@ def main() -> int:
     if isinstance(actions, dict):
         actions = actions.get("actions", [])
 
+    runner_cmd = [
+        str(args.runner), str(args.bios), "--serve", "--port", str(args.port),
+        "--rom", str(args.rom.resolve()), "--config", str(args.config.resolve()),
+        "--startup-mode", "automatic",
+    ]
+    if args.save_path:
+        runner_cmd += ["--save-path", str(args.save_path.resolve())]
+    else:
+        runner_cmd += ["--no-save"]
+
     proc = subprocess.Popen(
-        [str(args.runner), str(args.bios), "--serve", "--port", str(args.port),
-         "--rom", str(args.rom.resolve()), "--config", str(args.config.resolve()),
-         "--no-save", "--startup-mode", "automatic"],
+        runner_cmd,
         cwd=str(args.runner.parent),
         stdout=(args.out / "runner.stdout.log").open("wb"),
         stderr=(args.out / "runner.stderr.log").open("wb"))

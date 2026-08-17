@@ -14,6 +14,8 @@
 /saves/
 /captures/
 /scratch/
+/coverage/prime-route-*/
+/coverage/seed-probes/
 *.sav
 *.log
 /rom.cfg

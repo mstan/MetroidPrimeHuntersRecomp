@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Build Metroid Prime Hunters Recomp for a configured retail revision.
 #
-# US1_0 keeps the existing AppImage behavior. EU1_1 uses its own generated
-# bank/config paths and deliberately omits the USA-only FMV-bank assertion.
+# US1_0 keeps the existing AppImage naming. EU1_1 uses isolated generated
+# banks, its own game config, and the exact-ROM runtime-address shim used by
+# Prime Controls/direct mouse aim.
 set -euo pipefail
 
 APP_NAME="MetroidPrimeHuntersRecomp"
@@ -10,6 +11,7 @@ TITLE_TARGET="metroidprimehuntersrecomp"
 RUNNER_NAME="nds_runner"
 VERSION="0.1.0"
 MPH_VERSION="US1_0"
+ROM_PATH=""
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 
@@ -22,11 +24,12 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --version) VERSION="$2"; shift 2;;
     --mph-version) MPH_VERSION="$2"; shift 2;;
+    --rom) ROM_PATH="$2"; shift 2;;
     --jobs) JOBS="$2"; shift 2;;
     --out) OUT="$2"; shift 2;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
-      sed -n '2,16p' "$0"
+      sed -n '2,18p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 2;;
@@ -55,6 +58,10 @@ ROM_SHA1="$(profile_value sha1)"
 GAME_CONFIG_REL="$(profile_value game_config)"
 FMV_RUNTIME="$(profile_value fmv_runtime)"
 GAME_CONFIG="$REPO/$GAME_CONFIG_REL"
+if [ -z "$ROM_PATH" ]; then
+  ROM_PATH="$REPO/Metroid Prime Hunters.nds"
+fi
+ROM_PATH="$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$ROM_PATH")"
 
 if [ "$MPH_VERSION" = "US1_0" ]; then
   GAME_BUILD="$REPO/build-linux-release"
@@ -71,8 +78,8 @@ test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
   echo "ERROR: sibling ndsrecomp checkout is missing." >&2
   exit 1
 }
-test -f "$REPO/Metroid Prime Hunters.nds" || {
-  echo "ERROR: verified Metroid Prime Hunters ROM is missing from the repo root." >&2
+test -f "$ROM_PATH" || {
+  echo "ERROR: Metroid Prime Hunters ROM is missing: $ROM_PATH" >&2
   exit 1
 }
 test -f "$GAME_CONFIG" || {
@@ -80,15 +87,21 @@ test -f "$GAME_CONFIG" || {
   exit 1
 }
 
-echo "[1/4] configure title banks ($MPH_VERSION)"
+echo "[1/5] configure title banks ($MPH_VERSION)"
 cmake -S "$REPO" -B "$GAME_BUILD" -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=Release \
   -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
-  -DMPH_VERSION="$MPH_VERSION"
-echo "[2/4] build title banks"
+  -DMPH_VERSION="$MPH_VERSION" \
+  -DMPH_ROM="$ROM_PATH"
+echo "[2/5] build title banks"
 cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
 
-echo "[3/4] configure runner"
+echo "[3/5] install exact-ROM MPH runtime profile into pinned ndsrecomp runner"
+python3 "$REPO/tools/patch_ndsrecomp_mph_runtime.py" \
+  --framework-root "$FRAMEWORK_ROOT" \
+  --profiles "$PROFILE_FILE"
+
+echo "[4/5] configure runner"
 cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=Release \
   -DNDS_BOOTSTRAP_FIRMWARE=ON \
@@ -194,7 +207,7 @@ exec "$HERE/usr/bin/nds_runner" "$@"
 EOF
 chmod +x "$APPDIR/AppRun" "$APPDIR/usr/bin/$RUNNER_NAME"
 
-echo "[4/4] package AppImage"
+echo "[5/5] package AppImage"
 "$LINUXDEPLOY_BIN" --appimage-extract-and-run --appdir "$APPDIR" --executable "$APPDIR/usr/bin/$RUNNER_NAME" \
   --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null

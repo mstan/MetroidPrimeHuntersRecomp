@@ -74,8 +74,25 @@ def validate_scale_registry(repo: Path, table: Path | None) -> None:
     if not shared_config.is_file():
         die("shared runtime frontend config is missing: game.toml")
     shared_text = shared_config.read_text(encoding="utf-8")
-    if 'adaptive_widescreen = "top"' not in shared_text or 'adaptive_capability = "top"' not in shared_text:
-        die("shared game.toml does not expose top-screen Adaptive Widescreen")
+    if 'adaptive_widescreen = "top"' not in shared_text:
+        die("shared game.toml does not request top-screen Adaptive Widescreen")
+    # ndsrecomp deliberately requires an exact [game].sha1 when a TOML grants
+    # display.adaptive_capability. The generic seven-version config has no exact
+    # SHA, so capability must be granted later by the executable-compatible
+    # runtime detector instead of being declared here.
+    if 'adaptive_capability = "top"' in shared_text:
+        die("shared game.toml must not declare SHA-gated adaptive_capability")
+    capability_patch = repo / "tools" / "patch_ndsrecomp_mph_adaptive_capability.py"
+    if not capability_patch.is_file():
+        die("runtime adaptive capability patch is missing")
+    capability_text = capability_patch.read_text(encoding="utf-8")
+    for required in (
+        "nds_title_patches_mph_host_writes_compatible()",
+        "frontend_options.adaptive_supported |= NDS_ADAPTIVE_TOP",
+        "MPH_MULTIROM_RUNTIME_ADAPTIVE_CAPABILITY",
+    ):
+        if required not in capability_text:
+            die(f"runtime adaptive capability patch lost required guard: {required}")
     for forbidden in ("\nid =", "\nregion =", "\nrevision =", "\nrom =", "\nrom_size =", "\nsha1 ="):
         if forbidden in shared_text:
             die(f"shared game.toml still contains exact-content identity field: {forbidden.strip()}")

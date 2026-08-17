@@ -25,6 +25,7 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             tools/patch_ndsrecomp_rom_free_release.py \
+            tools/patch_recomp_ui_mph_multirom.py \
             tools/ci/check_rom_free_release_sources.py \
             tools/ci/prepare_freebios_banks.py \
             tools/ci/verify-nightly-assets.py

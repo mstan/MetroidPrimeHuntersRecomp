@@ -1,0 +1,123 @@
+name: Build Windows
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows ROM-free build
+    runs-on: windows-2025
+
+    steps:
+      - name: Check out title sources
+        uses: actions/checkout@v4
+
+      - name: Install MinGW toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-SDL2
+
+      - name: Fetch pinned ndsrecomp and recomp-ui
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          nds_pin="$(tr -d '\r\n' < ndsrecomp.pin)"
+          ui_pin="$(tr -d '\r\n' < recomp-ui.pin)"
+          git clone --filter=blob:none https://github.com/mstan/ndsrecomp.git ../ndsrecomp
+          git -C ../ndsrecomp checkout --detach "$nds_pin"
+          git -C ../ndsrecomp submodule update --init --recursive
+          git clone --filter=blob:none https://github.com/mstan/recomp-ui.git ../recomp-ui
+          git -C ../recomp-ui checkout --detach "$ui_pin"
+          test "$(git -C ../ndsrecomp rev-parse HEAD)" = "$nds_pin"
+          test "$(git -C ../recomp-ui rev-parse HEAD)" = "$ui_pin"
+
+      - name: Apply MPH and ROM-free runner integration
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root ../ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          python tools/patch_ndsrecomp_rom_free_release.py \
+            --framework-root ../ndsrecomp
+          # Both patch stacks are required to be idempotent.
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root ../ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          python tools/patch_ndsrecomp_rom_free_release.py \
+            --framework-root ../ndsrecomp
+
+      - name: Generate redistributable FreeBIOS banks
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          python tools/ci/prepare_freebios_banks.py \
+            --framework-root ../ndsrecomp \
+            --build-dir ../ndsrecomp/build-freebios-recompiler
+          test ! -e ../ndsrecomp/generated/arm9_bios.c
+          test ! -e ../ndsrecomp/generated/arm7_bios.c
+
+      - name: Build ROM-free runner
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cmake -S ../ndsrecomp/runner -B ../ndsrecomp/runner/build-mph-nightly \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNDS_BOOTSTRAP_FIRMWARE=ON \
+            -DNDS_RETAIL_BIOS_BANKS=OFF \
+            -DNDS_ENABLE_COMPUTE_RENDERER=ON
+          cmake --build ../ndsrecomp/runner/build-mph-nightly
+          test -s ../ndsrecomp/runner/build-mph-nightly/nds_runner.exe
+          if grep -a -E -q 'g_dispatch_mph_arm(9|7)|mph_arm9_fmv_runtime' \
+              ../ndsrecomp/runner/build-mph-nightly/nds_runner.exe; then
+            echo 'ROM-derived MPH title bank leaked into ROM-free runner' >&2
+            exit 1
+          fi
+
+      - name: Build and test launcher
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cmake -S launcher/recomp-ui -B launcher/recomp-ui/build-nightly \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DNDSRECOMP_ROOT="$PWD/../ndsrecomp" \
+            -DRECOMP_UI_ROOT="$PWD/../recomp-ui"
+          cmake --build launcher/recomp-ui/build-nightly
+          ctest --test-dir launcher/recomp-ui/build-nightly --output-on-failure
+          test -s launcher/recomp-ui/build-nightly/mph-recomp-ui.exe
+
+      - name: Package Windows Nightly payload
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^project(MetroidPrimeHuntersRecomp VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          test -n "$version"
+          runtime_bin="$(cygpath -w /mingw64/bin)"
+          pwsh -NoProfile -File tools/package-windows-nightly.ps1 \
+            -Version "$version" \
+            -RunnerBuildDir '..\ndsrecomp\runner\build-mph-nightly' \
+            -LauncherBuildDir 'launcher\recomp-ui\build-nightly' \
+            -RuntimeBinDir "$runtime_bin"
+          test -s "release-stage/MetroidPrimeHuntersRecomp-windows-x64-v${version}.zip"
+
+      - name: Upload Windows Nightly payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: mph-nightly-windows
+          path: release-stage/MetroidPrimeHuntersRecomp-windows-x64-v*.zip
+          if-no-files-found: error
+          retention-days: 14

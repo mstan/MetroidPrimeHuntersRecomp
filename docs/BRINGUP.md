@@ -2,141 +2,107 @@
 
 ## Target and references
 
-- Cartridge: USA revision 0 (`AMHE`, `MP HUNTERS`)
-- ROM SHA-1: `90164d1ac127ee5f9815ea4ae7de798c7b5fc629`
-- Framework main integration: `778e74385aa223179a5d9534c2201ed1096a3df7`
-- MphRead reference: `26cd8a6fe93dc5e525d1a1bb304fe96001111e55`
-- Public matching disassembly: none found
+The project began with the USA revision-0 (`AMHE`) bring-up and now carries a
+seven-base-profile runtime layout/detector for US1.0, US1.1, EU1.0, EU1.1,
+JP1.0, JP1.1, and KR1.0. Exact clean-content profiles, generated banks,
+coverage, and capture artifacts remain content-specific and must not be inferred
+from a base layout alone.
 
-The ARM9 ROM image is 517,828 bytes and expands to 907,736 bytes. The ARM7
-image is 164,964 bytes. Prime Hunters has 18 compressed ARM9 overlays whose
-overlay table contains 576 bytes (18 records), not 576 separate overlays.
+The original US1.0 content identity is SHA-1
+`90164d1ac127ee5f9815ea4ae7de798c7b5fc629`. Whole-ROM SHA-1 is provenance and
+cache/build identity, not the runtime base-profile selector.
 
-## Evidence so far
+## Runtime identity rules
 
-1. The pre-existing SM64DS-native runner failed around the Prime Hunters game
-   handoff with ARM7 PC `0xE590100C` and a corrupt stack.
-2. The failure was caused by unconditional SM64DS bank registration, not by a
-   Prime Hunters instruction or device requirement. Both titles load ARM7 at
-   `0x02380000`, so address-only dispatch selected SM64DS code.
-3. A clean BIOS-bank-only runner reaches 700,000,000 ARM9 cycles with both
-   CPUs alive and no terminal dispatch miss.
-4. Visual checkpoints:
-   - VBlank 300: ActImagine splash
-   - VBlank 900-1200: opening logo animation
-   - VBlank 2400: opening cinematic
-   - VBlank 3000: hunter cinematic
-   - VBlank 3600: Weavel introduction
-5. The initial generated main banks contained 4,335 ARM9 functions and 16
-   ARM7 functions. Exact-ROM-gated registration produced the same 700,000,000
-   cycle machine state as the clean interpreter runner.
-6. AMHE uses melonDS SaveMemType 5: 256 KiB flash. Save type/capacity are now
-   game-owned configuration instead of an SM64DS runner constant.
-7. Native and ndsref event/cycle counts agree through the no-input return to
-   the hunter reel and onward to VBlank 12000.
-8. The title split exposed a cold-boot screen-routing defect hidden by the
-   mirrored intro video: ndsrecomp reset POWCNT1 to `0x0001` instead of the
-   retail/melonDS `0x820F`. The reset and 3D power defaults are corrected.
-9. A second routing defect appeared only when Prime Hunters changed the LCD
-   assignment during VBlank. The native renderer stored engine-relative
-   frames and applied the current POWCNT1 only when the completed frame was
-   read, which could retroactively swap it. Routing is now applied while each
-   scanline is produced, matching melonDS framebuffer assignment.
-10. The no-input title/loop checkpoints are:
-    - VBlank 7800: title logo and `TOUCH TO START`
-    - VBlank 8400: title animation
-    - VBlank 9000: return to the hunter reel
-    Native top/bottom captures are byte-identical to ndsref at all three.
-11. The checkpoint helper now names screens explicitly and continues after a
-    server safety-round exhaustion. It refuses to label or save a frame unless
-    the requested absolute VBlank was actually reached.
-12. A seeded, trace-preserving input search discovered the first campaign
-    path. Its minimized replay is:
-    - tap the title and Adventure Mode
-    - create and confirm mission file A
-    - select file A again to start the campaign
-    - skip the mission briefing
-    - wait for the Celestial Archives gunship screen and confirm landing
-    The native and reference runs reach the live first-person HUD at VBlank
-    10859.
-13. `tools/fuzz_mph_gameplay.py` records every action, absolute VBlank,
-    screenshot, perceptual signature, RGB hash, and event-count snapshot.
-    `scenarios/adventure_start.json` is the replayable minimized result.
-14. All 15 matching native/oracle checkpoints in the minimized route are
-    byte-identical across both physical screens: zero differing pixels and
-    zero maximum channel delta, including the first gameplay frame.
-15. Tier-3 coverage captured from that route yielded 567 unique ARM9
-    call/indirect targets inside the immutable main image. Slice-resume roots,
-    runtime RAM, and all reused overlay ranges were excluded. Adding those
-    seeds expands the ARM9 bank to 7,115 functions; the identical replay cuts
-    ARM9 Tier-3 entries from 64,619,845 to 57,525,780 (10.98%) and interpreted
-    instructions from 3,866,962,843 to 3,638,379,652 (5.91%). All 13 action
-    checkpoints retain identical event counts and RGB hashes. This does not
-    yet establish a wall-clock speedup while generated code remains `-O0`.
-16. The opening FMV slowdown was isolated with
-    `tools/benchmark_mph_fmv.py`. Static-only FMV windows ran at 26-28 FPS:
-    presentation stayed below 1 ms/frame while emulation rose to 34-37
-    ms/frame and ARM9 executed roughly 620,000 Tier-3 instructions per frame.
-    The hot code is the runtime ITCM mirror plus the active overlay near
-    `0x02102D74`.
-17. A deterministic VBlank-3000 ITCM+main-RAM capture is pinned by SHA-1
-    `2f4a2ba36886fb9152781f5829dedfd4b836a73b`. The separate
-    `mph_arm9_fmv_runtime` bank uses only call/indirect roots observed in the
-    VBlank 2400-3000 delta and validates live guest bytes before dispatch.
-    Seeding scheduler-resume PCs was rejected because it split hot loops into
-    one-instruction functions and generated about 589,000 fallthrough
-    dispatches/frame; the retained bank records about 5,400/frame.
-18. The retained interactive run sustains 59.73-59.84 FPS from VBlank
-    2400-4800 at 8.37-9.31 ms emulation/frame with zero audio underruns.
-    Static-only and optimized runners have identical event, instruction, and
-    cycle counts and zero differing pixels at VBlanks 2400, 3000, 3600, 4200,
-    and 4800.
+1. Use the melonPrime-compatible executable CRC32 detector as the authoritative
+   runtime base-profile signal.
+2. An exact supported game-code/revision tuple may identify only a candidate
+   base profile when the executable checksum is unknown.
+3. Dangerous host RAM/code writes fail closed unless executable compatibility
+   is authoritative.
+4. Generated title banks, runtime captures, and coverage remain scoped by exact
+   content identity.
+5. Unknown modified content must never silently fall back to US1.0.
 
-## Bring-up gates
+## ROM-free Nightly architecture
 
-- [x] Isolated framework worktree from latest `origin/main`
-- [x] Exact AMHE0 ROM identity and header inventory
-- [x] Independent game repository/scaffold
-- [x] Public reverse-engineering resource audit and pinned MphRead checkout
-- [x] Safe interpreter boot through the opening cinematic
-- [x] Remove the cross-title SM64DS bank-registration assumption
-- [x] Reach and capture the title screen
-- [x] Observe one complete no-input attract loop
-- [x] Compare the same attract checkpoints against the ndsref oracle
-- [x] Compile and register AMHE0 main ARM9/ARM7 banks by ROM capability
-- [ ] Capture remaining runtime ARM7 code and ARM9 overlay generations (the
-      opening-FMV ARM9 generation is complete)
-- [x] Generalize cartridge save type/size beyond SM64DS's 8 KiB EEPROM
-- [x] Add deterministic Prime Hunters navigation and gameplay-entry scenario
-- [ ] Add sustained traversal, combat, pause, death, and reload scenarios
-- [x] Enable an exact-ROM upper-screen adaptive-wide bring-up baseline
-- [x] Latch adaptive/direct presentation state to the published frame so
-      boot logos and capture transitions do not flicker at high host scaling
-- [ ] Audit Prime Hunters projection/culling/HUD across sustained gameplay
-- [x] Add an MPH recomp-ui development launcher and enhancement toggle
-- [x] Add top-window relative mouse aim, Mouse 1 fire, and persisted controls
-- [x] Add portable Windows release launcher/mod packaging with a baked,
-      content-validated FMV runtime bank
+Public Windows/Linux Nightly builds are intentionally produced without a
+Metroid Prime Hunters ROM, ROM URL/secret, proprietary BIOS or firmware dump,
+save file, or generated ROM-derived MPH title bank.
 
-## Design constraints
+The pinned ndsrecomp runner is patched for an opt-in public-build mode:
 
-- A title bank must never be selected by address alone. Registration is gated
-  by exact cartridge identity, and mutable/overlay banks also validate live
-  bytes.
-- The runner also validates `[game].sha1` before applying title-owned config,
-  so a Prime Hunters save-device declaration cannot silently affect another
-  cartridge.
-- Each overlay generation remains a separate content-validated bank. Prime
-  Hunters reuses virtual ranges, so combining entry points from different
-  overlay images would be unsound.
-- The interpreter is the correctness oracle for uncompiled code within the
-  native runtime; ndsref remains the independent machine oracle.
-- Widescreen is a title-owned capability. Separate windows are safe as a host
-  layout, but field-of-view, culling, HUD anchors, movies, and touch routing
-  require Prime Hunters-specific proof.
-- MphRead's recreation uses a 78-degree camera FOV and derives projection and
-  frustum planes from the live output aspect ratio. That is a useful semantic
-  reference, but it does not prove which AMHE0 guest structures and GX command
-  sites must be patched. The host adaptive viewport is enabled as an explicit
-  bring-up baseline, but it is not considered visually complete until those
-  title-side behaviors pass sustained gameplay review.
+- redistributable BSD-2-Clause FreeBIOS images are recompiled into the native
+  FreeBIOS ARM9/ARM7 banks using ndsrecomp's documented FreeBIOS pipeline;
+- `NDS_RETAIL_BIOS_BANKS=OFF` removes the build-time requirement for generated
+  proprietary retail-BIOS banks;
+- if a user later supplies retail BIOS dumps, immutable BIOS execution may use
+  the existing reference interpreter rather than requiring those generated C
+  banks in the distributed binary;
+- no MPH title-bank directory is configured, so direct-booted MPH ARM9/ARM7
+  code falls through to Tier-3 using guest-written RAM provenance.
+
+This is a correctness-first release path. It is expected to be slower than the
+historical optimized US1.0 release, particularly in opening-FMV/runtime-code hot
+paths.
+
+## Local optimization cache direction
+
+The preferred future optimization cache is portable-first:
+
+```text
+cache/banks/<content-sha1>/
+```
+
+beside the executable/AppImage. Linux falls back to XDG cache when that location
+is not writable; Windows should fall back to LOCALAPPDATA under the same
+condition. Save data and firmware/WFC identity remain persistent app data, not
+regenerable optimization cache.
+
+The current static ndsrecomp bank pipeline emits C and links it into the runner,
+so the project will not make users run a host C/C++ compiler on first launch.
+The intended progression is Tier-3 -> compiler-free local IR/bank support if
+useful -> hot-block JIT with a validated persistent cache. See
+`docs/LOCAL_BANK_CACHE.md`.
+
+## Adaptive Widescreen
+
+Adaptive Widescreen combines the original ndsrecomp host-side widened
+renderer/compositor/HUD anchoring with MPH game-side projection and culling
+patches audited against melonPrimeDS/mphCodex. The guest patch addresses are
+profile-aware across all seven base layouts and are applied only under the
+existing authoritative executable-compatibility gate.
+
+## Upstream launcher/runtime integration
+
+The launcher tracks the upstream MPH recomp-ui feature set including Adaptive
+Widescreen, Prime Controls, HD Rendering, and persistent firmware/WFC state.
+The launcher does not use whole-ROM SHA-1 as an early acceptance gate; the
+runner owns executable compatibility and exact-content decisions.
+
+## Validation gates
+
+- [x] Seven runtime base profiles represented.
+- [x] Executable CRC32 runtime detector and strict header fallback.
+- [x] Dangerous host writes fail closed for unknown executable content.
+- [x] All-seven Adaptive Widescreen address table integrated.
+- [x] Upstream launcher HD/Wi-Fi persistence integration retained.
+- [x] ROM-free release design avoids ROM/ROM-secret input in GitHub Actions.
+- [x] FreeBIOS native-bank generation has a redistributable build path.
+- [ ] Windows ROM-free Nightly workflow passes full compile/package CI.
+- [ ] Linux ROM-free Nightly workflow passes full compile/AppImage CI.
+- [ ] Real-ROM runtime smoke validation of the ROM-free Tier-3 Nightly path.
+- [ ] Implement compiler-free dynamic/local optimization-bank ABI or JIT.
+- [ ] Complete exact clean-content profiles and sustained gameplay validation
+      for US1.1, EU1.0, JP1.0, JP1.1, and KR1.0.
+- [ ] Add modified-ROM content profiles only after their actual executable and
+      content identities are validated; do not add placeholder identities.
+
+## Release safety
+
+Nightly packaging explicitly rejects ROMs, saves, retail BIOS/firmware dumps,
+and generated/capture directories. Windows ZIP and Linux AppImage artifacts are
+built first and published to the fixed `nightly-release` prerelease only after
+both platform jobs and payload verification succeed. A source-policy check also
+rejects reintroduction of repository/environment secret references into the
+public build/Nightly workflows.

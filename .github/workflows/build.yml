@@ -12,10 +12,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  policy:
+    name: ROM-free release policy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+      - name: Verify no ROM-secret release path
+        run: python tools/ci/check_rom_free_release_sources.py
+
   windows:
     name: Build Windows
+    needs: policy
     uses: ./.github/workflows/build-windows.yml
 
   linux:
     name: Build Linux
+    needs: policy
     uses: ./.github/workflows/build-linux.yml

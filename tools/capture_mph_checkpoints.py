@@ -12,6 +12,15 @@ from pathlib import Path
 
 from PIL import Image
 
+from mph_profile import (
+    DEFAULT_PROFILE_FILE,
+    DEFAULT_VERSION,
+    load_profile,
+    resolve_repo_path,
+    verify_game_config_identity,
+    verify_rom_identity,
+)
+
 
 def firmware_crc16(data: bytes, start: int = 0xFFFF) -> int:
     polynomial = (
@@ -121,9 +130,6 @@ def capture(
             raise RuntimeError(
                 f"no progress toward VBlank {count}: {json.dumps(hit)}"
             )
-        # A long authentic-firmware run can exceed one server command's
-        # safety-round budget. Continue from the live machine rather than
-        # saving a misleading image under the requested checkpoint name.
         previous_vblank = current_vblank
     screens = [framebuffer(client, engine) for engine in ("A", "B")]
     image = Image.new(
@@ -176,6 +182,13 @@ def main() -> int:
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--config", type=Path)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--version", default=DEFAULT_VERSION)
+    parser.add_argument(
+        "--profiles",
+        type=Path,
+        default=DEFAULT_PROFILE_FILE,
+        help=f"ROM profile registry (default: {DEFAULT_PROFILE_FILE})",
+    )
     parser.add_argument("--port", type=int, default=19852)
     parser.add_argument(
         "--targets", type=int, nargs="+", default=[300, 600, 900, 1200]
@@ -204,11 +217,36 @@ def main() -> int:
         parser.error("--generated-firmware requires --boot direct")
     if args.freebios and args.boot != "direct":
         parser.error("--freebios requires --boot direct")
-    if args.runner is not None and args.config is None:
-        parser.error("--config is required with --runner")
+
+    profile = load_profile(args.profiles.resolve(), args.version)
+    args.rom = args.rom.resolve()
+    rom_sha1 = verify_rom_identity(args.rom, profile, args.version)
+    if args.runner is not None:
+        args.config = (
+            args.config.resolve()
+            if args.config is not None
+            else resolve_repo_path(str(profile["game_config"])).resolve()
+        )
+        verify_game_config_identity(args.config, profile, args.version)
 
     output = args.out.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    targets = sorted(set(args.targets))
+    metadata = {
+        "mph_profile": args.version,
+        "rom_sha1": rom_sha1,
+        "display_name": profile["display_name"],
+        "backend": "native" if args.runner is not None else "oracle",
+        "boot": args.boot,
+        "targets": targets,
+        "game_config": str(args.config) if args.runner is not None else None,
+    }
+    (output / "metadata.json").write_text(
+        json.dumps(metadata, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
     with (output / "runner.stdout.log").open("wb") as stdout, (
         output / "runner.stderr.log"
     ).open("wb") as stderr:
@@ -222,15 +260,12 @@ def main() -> int:
                 "--port",
                 str(args.port),
                 "--rom",
-                str(args.rom.resolve()),
+                str(args.rom),
                 "--config",
-                str(args.config.resolve()),
+                str(args.config),
                 "--no-save",
             ]
             if not args.generated_firmware:
-                # Meaningful only when the real firmware runs (or seeds the
-                # user-settings mirror); a generated image must stay
-                # byte-identical to the oracle's, which never sets autoboot.
                 command += ["--startup-mode", "automatic"]
             if args.boot == "direct":
                 command += ["--boot", "direct"]
@@ -260,11 +295,7 @@ def main() -> int:
                 command += ["--firmware", str(firmware)]
             command += [
                 "--rom",
-                str(args.rom.resolve()),
-                # The runner's --startup-mode automatic patches its private
-                # in-memory firmware; the oracle reads the same patched copy
-                # from disk so a direct boot's user-settings mirror carries
-                # identical bytes on both sides.
+                str(args.rom),
                 "--boot",
                 args.boot,
                 "--port",
@@ -289,7 +320,7 @@ def main() -> int:
                         count,
                         include_native_stats=args.runner is not None,
                     )
-                    for count in sorted(set(args.targets))
+                    for count in targets
                 ]
                 (output / "report.json").write_text(
                     json.dumps(report, indent=2) + "\n",

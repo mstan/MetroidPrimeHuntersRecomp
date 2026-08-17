@@ -79,6 +79,12 @@ struct ModState {
     std::string pad_weapon6 = "None";
     std::string pad_virtual_stylus = "None";
     std::string pad_menu = "Pad Start";
+    // Persisted ROM choice (beads-lqa.3). The shared launcher writes its own
+    // rom.cfg sidecars but never reads them back (beads-0fu.1), so the ROM the
+    // user picked was lost on every relaunch and the hardcoded bundled default
+    // was re-offered -- "ROM not found" for anyone whose dump lives elsewhere.
+    // Owning the path here keeps the fix independent of the recomp-ui build.
+    std::string rom_path;
     // Persisted BIOS choice, psxrecomp-style: any one of the three retail
     // dump files (its folder is used at launch). Empty = the built-in
     // FreeBIOS + generated firmware.
@@ -399,6 +405,11 @@ void load_mod_state(ModState& state) {
             state.mouse_invert_y = value == "true";
         } else if (key == "prime_controls") {
             state.prime_controls = value != "false";
+        } else if (key == "rom_path") {
+            // Kept verbatim. Existence is checked at use, not here: a dump on
+            // removable media that is absent this launch should not erase the
+            // remembered pick.
+            state.rom_path = value;
         } else if (key == "bios_path") {
             state.bios_path = value;
         } else if (key == "player_name_override") {
@@ -466,7 +477,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=2\n"
+        file << "settings_version=3\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "hd_rendering="
@@ -483,6 +494,7 @@ bool save_mod_state(ModState& state) {
              << "virtual_stylus_sensitivity="
              << state.virtual_stylus_sensitivity << '\n'
              << "pad_aim_sensitivity=" << state.pad_aim_sensitivity << '\n'
+             << "rom_path=" << state.rom_path << '\n'
              << "bios_path=" << state.bios_path << '\n'
              << "player_name=" << state.player_name << '\n';
         for (const BindingOption& option : kBindingOptions)
@@ -994,9 +1006,14 @@ int nds_bios_verify(const char* bios_path, RecompLauncherCBiosVerify* out) {
 
 int nds_persist_setup(void* context, const char* rom_path,
                       const char* bios_path) {
-    (void)rom_path;
     if (!context) return 1;
     auto* state = static_cast<ModState*>(context);
+    // beads-lqa.3: the ROM path used to be discarded here, which is why the
+    // pick never survived a relaunch. An empty callback value means "no ROM
+    // selected right now", not "forget the remembered one" -- the launcher
+    // fires this on BIOS browse too, and clearing on those would resurrect the
+    // original bug.
+    if (rom_path && rom_path[0]) state->rom_path = rom_path;
     state->bios_path = bios_path ? bios_path : "";
     return save_mod_state(*state) ? 0 : 1;
 }
@@ -1234,8 +1251,17 @@ int main(int argc, char** argv) {
     game.persist_setup = nds_persist_setup;
     game.persist_setup_ctx = &mod_state;
 
-    const std::filesystem::path default_rom =
-        exe / "Metroid Prime Hunters.nds";
+    // beads-lqa.3: prefer the remembered pick, fall back to the bundled dump
+    // next to the exe. A remembered path whose file is gone falls back too,
+    // so a moved or deleted ROM presents the bundled default rather than a
+    // stale selection the user cannot launch.
+    std::filesystem::path default_rom = exe / "Metroid Prime Hunters.nds";
+    if (!mod_state.rom_path.empty()) {
+        std::error_code rom_error;
+        const std::filesystem::path remembered(mod_state.rom_path);
+        if (std::filesystem::is_regular_file(remembered, rom_error))
+            default_rom = remembered;
+    }
     char selected_rom[1024]{};
     const int result = recomp_launcher_run_window(
         "Metroid Prime Hunters - Launcher", &settings, &game,
@@ -1249,6 +1275,10 @@ int main(int argc, char** argv) {
     // The UI's final BIOS selection is authoritative for this launch even if
     // a persist callback was missed (persistence is best-effort UX).
     mod_state.bios_path = settings.bios_path;
+    // Same for the ROM (beads-lqa.3). PLAY can be pressed without the persist
+    // callback ever firing for the ROM, so treat what we are about to launch
+    // as the thing to remember.
+    if (selected_rom[0]) mod_state.rom_path = selected_rom;
     // Same for the ONLINE card's player name. An invalid entry is surfaced
     // and dropped rather than silently reshaped or allowed to block launch.
     {

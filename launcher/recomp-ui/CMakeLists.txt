@@ -53,6 +53,21 @@ mph_launcher_replace_required(
     "exe / \"${MPH_LAUNCHER_DEFAULT_ROM}\";"
     "the default MPH ROM filename")
 
+# recomp-ui treats any non-empty initial ROM string as selected before it tries
+# to open the file.  A release package intentionally contains no ROM, so do not
+# feed the conventional filename to the model unless that file really exists.
+# This preserves the useful portable behavior where a player may deliberately
+# place a ROM with the conventional name beside the executable, while a fresh
+# extraction correctly starts at "No ROM loaded".
+mph_launcher_replace_required(
+    "    char selected_rom[1024]{};\n    const int result = recomp_launcher_run_window("
+    "    std::error_code initial_rom_error;\n    const std::string initial_rom =\n        std::filesystem::is_regular_file(default_rom, initial_rom_error)\n            ? default_rom.string()\n            : std::string();\n    char selected_rom[1024]{};\n    const int result = recomp_launcher_run_window("
+    "the initial ROM selection block")
+mph_launcher_replace_required(
+    "exe.string().c_str(), default_rom.string().c_str(),"
+    "exe.string().c_str(), initial_rom.c_str(),"
+    "the launcher initial ROM argument")
+
 set(MPH_PROFILE_LAUNCHER_SOURCE
     "${CMAKE_CURRENT_BINARY_DIR}/launcher_main_profile.cpp")
 file(WRITE "${MPH_PROFILE_LAUNCHER_SOURCE}" "${MPH_LAUNCHER_SOURCE}")

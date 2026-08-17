@@ -11,6 +11,11 @@ jobs:
   linux:
     name: Linux ROM-free build
     runs-on: ubuntu-24.04
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 750M
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
 
     steps:
       - name: Check out title sources
@@ -21,9 +26,30 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build git curl ca-certificates \
+            build-essential cmake ninja-build git curl ca-certificates ccache \
             libsdl2-dev libgl1-mesa-dev libx11-dev libxext-dev libxrandr-dev \
             libxcursor-dev libxi-dev libxinerama-dev libwayland-dev
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: >-
+            mph-linux-x86_64-ccache-v1-${{ hashFiles(
+              'ndsrecomp.pin',
+              'config/mph_rom_profiles.json',
+              'tools/patch_ndsrecomp_mph_runtime.py',
+              'tools/patch_ndsrecomp_rom_free_release.py'
+            ) }}
+          restore-keys: |
+            mph-linux-x86_64-ccache-v1-
+
+      - name: Configure compiler cache
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --set-config=max_size="$CCACHE_MAXSIZE"
+          ccache --zero-stats
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -113,6 +139,13 @@ jobs:
             \) -print -quit | grep -q .; then
             echo 'Forbidden ROM/save/BIOS/firmware material found inside AppImage' >&2
             exit 1
+          fi
+
+      - name: Show compiler cache stats
+        if: always()
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats || true
           fi
 
       - name: Upload Linux Nightly payload

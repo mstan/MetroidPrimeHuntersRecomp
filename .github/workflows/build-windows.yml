@@ -104,7 +104,13 @@ jobs:
             launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
           grep -q 'game.known_sha1_hex = nullptr;' \
             launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'std::filesystem::is_regular_file(default_rom, initial_rom_error)' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
+          grep -q 'exe.string().c_str(), initial_rom.c_str(),' \
+            launcher/recomp-ui/build-nightly/launcher_main_profile.cpp
           grep -q 'MPH_MULTIROM_DELEGATED_VERIFY' \
+            ../recomp-ui/src/common/backends/imgui/launcher_imgui.cpp
+          grep -q 'const bool readable = m->rom_present && std::strcmp(m->rom_size, "--") != 0;' \
             ../recomp-ui/src/common/backends/imgui/launcher_imgui.cpp
 
       - name: Package Windows Nightly payload

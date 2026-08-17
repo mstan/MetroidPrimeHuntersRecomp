@@ -72,6 +72,23 @@ set(MPH_PROFILE_LAUNCHER_SOURCE
     "${CMAKE_CURRENT_BINARY_DIR}/launcher_main_profile.cpp")
 file(WRITE "${MPH_PROFILE_LAUNCHER_SOURCE}" "${MPH_LAUNCHER_SOURCE}")
 
+# Configure-time regression guard for the fresh-release UX.  The generated
+# launcher must never pass a missing conventional ROM path into recomp-ui as if
+# the user had selected it.  This deliberately tests the generated TU rather
+# than the untransformed upstream-tracking source.
+string(FIND "${MPH_LAUNCHER_SOURCE}"
+    "std::filesystem::is_regular_file(default_rom, initial_rom_error)"
+    _mph_initial_rom_exists_guard)
+if(_mph_initial_rom_exists_guard EQUAL -1)
+    message(FATAL_ERROR "generated launcher lost the default-ROM existence guard")
+endif()
+string(FIND "${MPH_LAUNCHER_SOURCE}"
+    "exe.string().c_str(), initial_rom.c_str(),"
+    _mph_initial_rom_argument_guard)
+if(_mph_initial_rom_argument_guard EQUAL -1)
+    message(FATAL_ERROR "generated launcher still passes the unconditional default ROM path")
+endif()
+
 add_executable(mph-recomp-ui "${MPH_PROFILE_LAUNCHER_SOURCE}"
     "${NDSRECOMP_ROOT}/recompiler/support/sha1.cpp")
 target_include_directories(mph-recomp-ui PRIVATE

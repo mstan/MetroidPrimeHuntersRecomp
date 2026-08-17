@@ -6,9 +6,10 @@ without weakening its whole-ROM/content identity rules. The later stages add
 the melonPrimeDS/mphCodex profile-aware 21:9 projection/culling patch, grant
 adaptive TOP capability only after authoritative MPH executable detection, make
 that patch re-eligible after an in-process guest reset, add end-user startup
-diagnostics plus the ROM-free multi-ROM content-gate policy, and finally expose
-the game-side aspect-ratio patch as an option independent from ndsrecomp's host
-Adaptive Widescreen renderer.
+diagnostics plus the ROM-free multi-ROM content-gate policy, expose the
+game-side aspect-ratio patch independently from ndsrecomp's host Adaptive
+Widescreen renderer, and finally force native framebuffer presentation to use
+nearest-neighbor sampling so supersampling/AA cannot blur DS pixels.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ def main() -> None:
         here / "patch_ndsrecomp_mph_widescreen_reset.py",
         here / "patch_ndsrecomp_mph_diagnostics.py",
         here / "patch_ndsrecomp_mph_aspect_ratio_mod.py",
+        here / "patch_ndsrecomp_nearest_presentation.py",
     ):
         subprocess.run([sys.executable, str(script), *args], check=True)
 

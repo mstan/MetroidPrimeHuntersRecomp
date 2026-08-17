@@ -1,0 +1,29 @@
+{
+  "description": "Discovery trace: Multiplayer -> MULTI-CARD -> CREATE GAME -> BATTLE -> confirm arena -> select hunter -> start, to establish whether a local match can begin with no peer DS present. Verified coordinates: main-menu MULTIPLAYER touch (160,92); nickname dialog takes two A presses; mode row touch y~80 (SINGLE-CARD x~50, MULTI-CARD x~128, WI-FI x~205); CREATE/JOIN row touch y~80 (CREATE x~50, JOIN x~128); game-mode grid top row touch y~58 (BATTLE x~50); arena screen shows ARENA n/9 with arrows at touch y~48 (left x~125, right x~232) and a confirm check at touch (222,173).",
+  "actions": [
+    { "kind": "touch", "x": 160, "y": 92 },
+    { "kind": "wait", "frames": 240 },
+    { "kind": "wait", "frames": 240 },
+    { "kind": "key", "key": "a" },
+    { "kind": "wait", "frames": 240 },
+    { "kind": "key", "key": "a" },
+    { "kind": "wait", "frames": 240 },
+    { "kind": "touch", "x": 128, "y": 80 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "touch", "x": 50, "y": 80 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "touch", "x": 50, "y": 62 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "touch", "x": 222, "y": 173 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "touch", "x": 27, "y": 132 },
+    { "kind": "wait", "frames": 300 },
+    { "kind": "key", "key": "a" },
+    { "kind": "wait", "frames": 600 },
+    { "kind": "wait", "frames": 600 }
+  ]
+}

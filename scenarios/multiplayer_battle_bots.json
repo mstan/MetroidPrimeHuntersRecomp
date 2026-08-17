@@ -1,0 +1,151 @@
+{
+  "description": "Offline multiplayer: BATTLE on arena 1/9 (Combat Hall) against 3 bots, no peer DS required. Reaches real gameplay far faster than the Adventure route and is the deterministic content lever for overlay coverage -- change only the arena arrow taps to select a different arena. Verified coordinates: main-menu MULTIPLAYER touch (160,92); the nickname dialog takes two A presses; mode row touch y~80 (SINGLE-CARD x~50, MULTI-CARD x~128, WI-FI x~205); CREATE/JOIN row touch y~80 (CREATE x~50, JOIN x~128); game-mode grid top row touch y~58 (BATTLE x~50); arena screen shows ARENA n/9 with arrows at touch y~48 (left x~125, right x~232) and confirm at touch (222,173); hunter Samus at touch (27,132) then A; the waiting room offers ADD BOT at touch (222,173).",
+  "actions": [
+    {
+      "kind": "touch",
+      "x": 160,
+      "y": 92
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 128,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 80
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 50,
+      "y": 62
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 27,
+      "y": 132
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "key",
+      "key": "a"
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 240
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 173
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 105,
+      "y": 133
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    },
+    {
+      "kind": "wait",
+      "frames": 600
+    }
+  ]
+}

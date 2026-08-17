@@ -1,39 +1,34 @@
-# ROM / console dumps
+# User-owned Nintendo DS images and ROM-derived outputs.
 *.nds
-*.NDS
+/generated/
+/extracted/
+
+# Optional reverse-engineering references.
+/third_party/
+
+# Build trees, runtime state, and captures.
+/build/
+/build-*/
+/release-stage/
+/launcher/recomp-ui/build*/
+/saves/
+/captures/
+/scratch/
+/cache/
 *.sav
-*.dsv
-bios/*.rom
-bios/*.bin
-firmware.bin
+*.log
+/rom.cfg
+/settings.toml
+/keybinds.ini
 
-# Generated recompilation inputs/outputs and captures
-generated/
-release-stage/
-
-# Local optimization cache (portable-first runtime/JIT cache)
-cache/
-
-# Build trees
-build/
-build-*/
-launcher/recomp-ui/build/
-launcher/recomp-ui/build-*/
-
-# Python
-.venv/
+# Local Python environment and tool output.
+/.venv/
 __pycache__/
 *.pyc
 
-# Tool/editor state
+# Editor and OS output.
+.vs/
 .vscode/
 .idea/
-*.suo
-*.user
-*.gpr
-*.rep
-*.lock
-
-# OS junk
-.DS_Store
 Thumbs.db
+.DS_Store

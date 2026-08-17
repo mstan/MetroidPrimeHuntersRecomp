@@ -79,6 +79,7 @@ jobs:
           {
             "mph_profile": "EU1_1",
             "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+            "scenario": "scenarios/adventure_start.json",
             "static_coverage": {"tier3_entries9": 3},
             "tier3_coverage": {"entries": [
               {"cpu": 9, "pc": 33570816, "thumb": 0, "kind": 2, "hits": 99},
@@ -99,6 +100,7 @@ jobs:
           p = json.load(open('/tmp/eu-coverage.json', encoding='utf-8'))
           assert p['profile'] == 'EU1_1'
           assert p['game_sha1'] == 'bdcd1dea293e24c98d4c481430e90d21198985a5'
+          assert p['scenario'] == 'scenarios/adventure_start.json'
           assert p['main_image']['arm9']['end'] == '0x02005000'
           assert [e['addr'] for e in p['entry_points']['arm9']] == ['0x02004020']
           assert [e['addr'] for e in p['entry_points']['arm7']] == ['0x02380020']
@@ -118,6 +120,10 @@ jobs:
           {
             "mph_profile": "EU1_1",
             "rom_sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
+            "runtime_capture": {
+              "sha1": "2dacada9962037d4e1fa3099d9de8cdf616c318c",
+              "bytes": 4227072
+            },
             "tier3_coverage": {"entries": [
               {"cpu": 9, "pc": 33525760, "thumb": 0, "kind": 2, "caller": 1, "hits": 2},
               {"cpu": 9, "pc": 33525792, "thumb": 0, "kind": 3, "caller": 2, "hits": 3}

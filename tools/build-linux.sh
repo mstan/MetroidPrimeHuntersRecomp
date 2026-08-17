@@ -92,7 +92,10 @@ profile = registry.get("profiles", {}).get(key)
 if not isinstance(profile, dict):
     choices = ", ".join(sorted(registry.get("profiles", {})))
     raise SystemExit(f"unknown MPH profile {key!r}; configured: {choices}")
-for field in ("sha1", "game_config", "game_code", "revision", "launcher_default_rom"):
+for field in (
+    "sha1", "game_config", "game_code", "revision",
+    "launcher_default_rom", "fmv_runtime_bank",
+):
     if field not in profile:
         raise SystemExit(f"{key}: missing profile field {field}")
 print(profile["sha1"])
@@ -101,6 +104,7 @@ print(profile["game_code"])
 print(profile["revision"])
 print("1" if profile.get("fmv_runtime") else "0")
 print(profile["launcher_default_rom"])
+print(profile["fmv_runtime_bank"])
 PY
 )
 
@@ -110,6 +114,7 @@ GAME_CODE="${PROFILE_VALUES[2]}"
 REVISION="${PROFILE_VALUES[3]}"
 FMV_RUNTIME="${PROFILE_VALUES[4]}"
 DEFAULT_ROM_NAME="${PROFILE_VALUES[5]}"
+FMV_RUNTIME_BANK="${PROFILE_VALUES[6]}"
 GAME_CONFIG="$ROOT/$GAME_CONFIG_REL"
 
 if [[ "$ROM_PATH" == "$ROOT/Metroid Prime Hunters.nds" && "$MPH_VERSION" != "US1_0" ]]; then
@@ -180,8 +185,9 @@ if [[ ! -x "$RUNNER" ]]; then
 fi
 
 if [[ "$FMV_RUNTIME" == "1" ]]; then
-  if ! grep -a -q 'mph_arm9_fmv_runtime' "$RUNNER"; then
-    printf 'Runner does not contain the required MPH FMV runtime bank.\n' >&2
+  if ! grep -a -q "$FMV_RUNTIME_BANK" "$RUNNER"; then
+    printf 'Runner does not contain required FMV runtime bank %s.\n' \
+      "$FMV_RUNTIME_BANK" >&2
     exit 1
   fi
 fi

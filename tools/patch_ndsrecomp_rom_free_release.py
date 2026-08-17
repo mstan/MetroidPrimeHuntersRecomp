@@ -20,7 +20,7 @@ from pathlib import Path
 
 def replace_once(path: Path, old: str, new: str, marker: str) -> None:
     text = path.read_text(encoding="utf-8")
-    if marker in text:
+    if marker in text and old not in text:
         return
     count = text.count(old)
     if count != 1:
@@ -63,7 +63,7 @@ def main() -> None:
         cmake,
         '''set_source_files_properties(\n    ${GEN}/arm9_bios.c ${GEN}/arm9_bios_dispatch.c\n    ${GEN}/arm7_bios.c ${GEN}/arm7_bios_dispatch.c\n    ${GEN}/freebios_arm9.c ${GEN}/freebios_arm9_dispatch.c\n    ${GEN}/freebios_arm7.c ${GEN}/freebios_arm7_dispatch.c\n''',
         '''set_source_files_properties(\n    ${IMMUTABLE_BIOS_BANK_SOURCES}\n''',
-        "${IMMUTABLE_BIOS_BANK_SOURCES}",
+        "set_source_files_properties(\n    ${IMMUTABLE_BIOS_BANK_SOURCES}",
     )
 
     replace_once(

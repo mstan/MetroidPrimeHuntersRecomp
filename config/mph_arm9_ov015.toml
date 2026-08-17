@@ -5,420 +5,546 @@
 # and not from one of the overlays sharing its address range.
 
 [program]
-name = "Metroid Prime Hunters (USA rev 0) ARM9 overlay 1"
-id = "mph_amhe0_arm9_ov001"
-load_address = 0x02102220
-size = 0x00003100
-entry_pc = 0x02103010
+name = "Metroid Prime Hunters (USA rev 0) ARM9 overlay 15"
+id = "mph_amhe0_arm9_ov015"
+load_address = 0x02168B20
+size = 0x00008FE0
+entry_pc = 0x0216933C
 authoritative_entry_points = false
 
 [identity]
-sha1 = "2f00682eea725221318d8f5ddff6541f10e5cba4"
+sha1 = "1c4f5ba3145dcba0a3fe2e02ff91e19f519d161e"
 
 [[entry_point]]
-addr = 0x02103010
-mode = "arm"
-kind = "runtime_observed"
-# hits = 28
-
-[[entry_point]]
-addr = 0x02103088
-mode = "arm"
-kind = "runtime_observed"
-# hits = 28
-
-[[entry_point]]
-addr = 0x02103144
+addr = 0x0216933C
 mode = "arm"
 kind = "runtime_observed"
 # hits = 2
 
 [[entry_point]]
-addr = 0x02103154
+addr = 0x021695C0
 mode = "arm"
 kind = "runtime_observed"
-# hits = 68
+# hits = 3444
 
 [[entry_point]]
-addr = 0x02103158
-mode = "arm"
-kind = "runtime_observed"
-# hits = 5885
-
-[[entry_point]]
-addr = 0x02103184
-mode = "arm"
-kind = "runtime_observed"
-# hits = 16999
-
-[[entry_point]]
-addr = 0x02103208
-mode = "arm"
-kind = "runtime_observed"
-# hits = 2
-
-[[entry_point]]
-addr = 0x0210324C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 33267
-
-[[entry_point]]
-addr = 0x021033DC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 33267
-
-[[entry_point]]
-addr = 0x0210346C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 104
-
-[[entry_point]]
-addr = 0x02103494
-mode = "arm"
-kind = "runtime_observed"
-# hits = 8
-
-[[entry_point]]
-addr = 0x021034CC
+addr = 0x021695E4
 mode = "arm"
 kind = "runtime_observed"
 # hits = 1
 
 [[entry_point]]
-addr = 0x021034D0
+addr = 0x021696B8
 mode = "arm"
 kind = "runtime_observed"
-# hits = 7
+# hits = 3412
 
 [[entry_point]]
-addr = 0x021034E8
-mode = "arm"
-kind = "runtime_observed"
-# hits = 21
-
-[[entry_point]]
-addr = 0x021034F4
-mode = "arm"
-kind = "runtime_observed"
-# hits = 9
-
-[[entry_point]]
-addr = 0x02103510
-mode = "arm"
-kind = "runtime_observed"
-# hits = 10
-
-[[entry_point]]
-addr = 0x02103550
+addr = 0x02169ED0
 mode = "arm"
 kind = "runtime_observed"
 # hits = 1
 
 [[entry_point]]
-addr = 0x021035CC
+addr = 0x0216A0B4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 6
+# hits = 1
 
 [[entry_point]]
-addr = 0x021035F8
+addr = 0x0216A210
 mode = "arm"
 kind = "runtime_observed"
-# hits = 5
+# hits = 1
 
 [[entry_point]]
-addr = 0x02103604
-mode = "arm"
-kind = "runtime_observed"
-# hits = 2
-
-[[entry_point]]
-addr = 0x02103640
-mode = "arm"
-kind = "runtime_observed"
-# hits = 3
-
-[[entry_point]]
-addr = 0x021036E8
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4
-
-[[entry_point]]
-addr = 0x0210372C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 5
-
-[[entry_point]]
-addr = 0x02103740
+addr = 0x0216A6D0
 mode = "arm"
 kind = "runtime_observed"
 # hits = 13
 
 [[entry_point]]
-addr = 0x021037AC
+addr = 0x0216A9E4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 14
+# hits = 65787
 
 [[entry_point]]
-addr = 0x02103834
-mode = "arm"
-kind = "runtime_observed"
-# hits = 48
-
-[[entry_point]]
-addr = 0x02103838
-mode = "arm"
-kind = "runtime_observed"
-# hits = 6
-
-[[entry_point]]
-addr = 0x0210384C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 48
-
-[[entry_point]]
-addr = 0x02103868
-mode = "arm"
-kind = "runtime_observed"
-# hits = 14
-
-[[entry_point]]
-addr = 0x02103870
-mode = "arm"
-kind = "runtime_observed"
-# hits = 5
-
-[[entry_point]]
-addr = 0x02103890
-mode = "arm"
-kind = "runtime_observed"
-# hits = 15
-
-[[entry_point]]
-addr = 0x021038D4
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4
-
-[[entry_point]]
-addr = 0x02103954
-mode = "arm"
-kind = "runtime_observed"
-# hits = 7
-
-[[entry_point]]
-addr = 0x02103974
+addr = 0x0216AAEC
 mode = "arm"
 kind = "runtime_observed"
 # hits = 3
 
 [[entry_point]]
-addr = 0x02103994
+addr = 0x0216ACE4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 4
+# hits = 65659
 
 [[entry_point]]
-addr = 0x021039E8
-mode = "arm"
-kind = "runtime_observed"
-# hits = 17
-
-[[entry_point]]
-addr = 0x02103AA0
-mode = "arm"
-kind = "runtime_observed"
-# hits = 17
-
-[[entry_point]]
-addr = 0x02103B58
-mode = "arm"
-kind = "runtime_observed"
-# hits = 15233
-
-[[entry_point]]
-addr = 0x02103C04
-mode = "arm"
-kind = "runtime_observed"
-# hits = 15258
-
-[[entry_point]]
-addr = 0x02103D2C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 615
-
-[[entry_point]]
-addr = 0x02103DD0
-mode = "arm"
-kind = "runtime_observed"
-# hits = 7
-
-[[entry_point]]
-addr = 0x02103DF4
-mode = "arm"
-kind = "runtime_observed"
-# hits = 2
-
-[[entry_point]]
-addr = 0x02103FFC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4
-
-[[entry_point]]
-addr = 0x02104094
-mode = "arm"
-kind = "runtime_observed"
-# hits = 615
-
-[[entry_point]]
-addr = 0x021040DC
+addr = 0x0216AFC4
 mode = "arm"
 kind = "runtime_observed"
 # hits = 1
 
 [[entry_point]]
-addr = 0x021040E0
+addr = 0x0216B524
 mode = "arm"
 kind = "runtime_observed"
-# hits = 33
+# hits = 4
 
 [[entry_point]]
-addr = 0x021040F0
+addr = 0x0216B528
 mode = "arm"
 kind = "runtime_observed"
-# hits = 60
+# hits = 4
 
 [[entry_point]]
-addr = 0x021040F8
+addr = 0x0216BA8C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 64
+# hits = 1
 
 [[entry_point]]
-addr = 0x02104100
+addr = 0x0216BB30
 mode = "arm"
 kind = "runtime_observed"
-# hits = 446
+# hits = 4
 
 [[entry_point]]
-addr = 0x02104354
+addr = 0x0216BBC4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 2
+# hits = 3
 
 [[entry_point]]
-addr = 0x021043EC
+addr = 0x0216BCBC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216BD28
 mode = "arm"
 kind = "runtime_observed"
 # hits = 12
 
 [[entry_point]]
-addr = 0x0210463C
+addr = 0x0216BD74
 mode = "arm"
 kind = "runtime_observed"
-# hits = 3
+# hits = 12
 
 [[entry_point]]
-addr = 0x02104738
-mode = "arm"
-kind = "runtime_observed"
-# hits = 3
-
-[[entry_point]]
-addr = 0x02104764
+addr = 0x0216BDD4
 mode = "arm"
 kind = "runtime_observed"
 # hits = 1
 
 [[entry_point]]
-addr = 0x021047CC
+addr = 0x0216BDF0
 mode = "arm"
 kind = "runtime_observed"
-# hits = 3
+# hits = 22
 
 [[entry_point]]
-addr = 0x021048A4
-mode = "arm"
-kind = "runtime_observed"
-# hits = 1
-
-[[entry_point]]
-addr = 0x0210491C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 1
-
-[[entry_point]]
-addr = 0x02104928
-mode = "arm"
-kind = "runtime_observed"
-# hits = 14749
-
-[[entry_point]]
-addr = 0x021049CC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4
-
-[[entry_point]]
-addr = 0x021049FC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 447
-
-[[entry_point]]
-addr = 0x02104AB4
-mode = "arm"
-kind = "runtime_observed"
-# hits = 3
-
-[[entry_point]]
-addr = 0x02104B3C
-mode = "arm"
-kind = "runtime_observed"
-# hits = 44
-
-[[entry_point]]
-addr = 0x02104BB0
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4
-
-[[entry_point]]
-addr = 0x02104BF8
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4
-
-[[entry_point]]
-addr = 0x02104CAC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 1
-
-[[entry_point]]
-addr = 0x02104CFC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 648
-
-[[entry_point]]
-addr = 0x02104FDC
-mode = "arm"
-kind = "runtime_observed"
-# hits = 15
-
-[[entry_point]]
-addr = 0x02104FE0
+addr = 0x0216BE58
 mode = "arm"
 kind = "runtime_observed"
 # hits = 2
+
+[[entry_point]]
+addr = 0x0216BE88
+mode = "arm"
+kind = "runtime_observed"
+# hits = 37
+
+[[entry_point]]
+addr = 0x0216BF6C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216C000
+mode = "arm"
+kind = "runtime_observed"
+# hits = 22
+
+[[entry_point]]
+addr = 0x0216C004
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C008
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C00C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C010
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C018
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216C044
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x0216C0AC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2976
+
+[[entry_point]]
+addr = 0x0216C218
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216C250
+mode = "arm"
+kind = "runtime_observed"
+# hits = 22
+
+[[entry_point]]
+addr = 0x0216C254
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C258
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C25C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C260
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12
+
+[[entry_point]]
+addr = 0x0216C268
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216C34C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 10332
+
+[[entry_point]]
+addr = 0x0216C3E8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216C4B8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216C4C0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216C4D0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216C4E8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 10236
+
+[[entry_point]]
+addr = 0x0216C524
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x0216C528
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5
+
+[[entry_point]]
+addr = 0x0216C5FC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5
+
+[[entry_point]]
+addr = 0x0216C618
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216C630
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5
+
+[[entry_point]]
+addr = 0x0216C75C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 9
+
+[[entry_point]]
+addr = 0x0216C804
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216C810
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216C8A4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216C8D8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 4
+
+[[entry_point]]
+addr = 0x0216C924
+mode = "arm"
+kind = "runtime_observed"
+# hits = 6
+
+[[entry_point]]
+addr = 0x0216CA24
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5
+
+[[entry_point]]
+addr = 0x0216CA58
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216CB50
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216CB7C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x0216CC44
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216CCFC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216CD38
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216CD4C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5
+
+[[entry_point]]
+addr = 0x0216CD50
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216CD9C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x0216CEB4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 6
+
+[[entry_point]]
+addr = 0x0216D028
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216D20C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216D234
+mode = "arm"
+kind = "runtime_observed"
+# hits = 10236
+
+[[entry_point]]
+addr = 0x0216D398
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216D3F8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216D414
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216D878
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216DA88
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216E52C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216EDA8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2690
+
+[[entry_point]]
+addr = 0x0216F100
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2
+
+[[entry_point]]
+addr = 0x0216F208
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216F41C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5
+
+[[entry_point]]
+addr = 0x0216F59C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3
+
+[[entry_point]]
+addr = 0x0216F5F8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 14230
+
+[[entry_point]]
+addr = 0x0216F6F4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 4
+
+[[entry_point]]
+addr = 0x0216F914
+mode = "arm"
+kind = "runtime_observed"
+# hits = 10236
+
+[[entry_point]]
+addr = 0x0216F994
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x0216FA1C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 10236
+
+[[entry_point]]
+addr = 0x0216FAE4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x0216FC40
+mode = "arm"
+kind = "runtime_observed"
+# hits = 10236

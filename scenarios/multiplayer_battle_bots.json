@@ -1,5 +1,5 @@
 {
-  "description": "Offline multiplayer: BATTLE on arena 1/9 (Combat Hall) against 3 bots, no peer DS required. Reaches real gameplay far faster than the Adventure route and is the deterministic content lever for overlay coverage -- change only the arena arrow taps to select a different arena. Verified coordinates: main-menu MULTIPLAYER touch (160,92); the nickname dialog takes two A presses; mode row touch y~80 (SINGLE-CARD x~50, MULTI-CARD x~128, WI-FI x~205); CREATE/JOIN row touch y~80 (CREATE x~50, JOIN x~128); game-mode grid top row touch y~58 (BATTLE x~50); arena screen shows ARENA n/9 with arrows at touch y~48 (left x~125, right x~232) and confirm at touch (222,173); hunter Samus at touch (27,132) then A; the waiting room offers ADD BOT at touch (222,173).",
+  "description": "Offline multiplayer BATTLE against bots -- no peer console required. This is the standard in-game measurement route: no navigation skill needed, and the arena is a menu-selected variable (Battle offers ARENA n/9), so swapping content is one pair of arrow taps. USE MULTI-CARD, NOT SINGLE-CARD: single-card play does not allow bots at all -- its slots read AVAILABLE and only accept peer consoles -- which is the most misleading thing about this flow. Coordinates, measured from captured frames: main-menu MULTIPLAYER (160,92) [ADVENTURE is (84,92)]; nickname dialog = two A presses; mode row y~80 (SINGLE-CARD x~50, MULTI-CARD x~128, WI-FI x~205); CREATE/JOIN row y~80 (CREATE x~50, JOIN x~128); game-mode grid top row y~58 (BATTLE x~50); arena arrows y~48 (left x~125, right x~232), confirm (222,173); hunter Samus (27,132) then A; waiting room ADD + at (222,173). START SEQUENCE -- what earlier attempts got wrong: after adding bots with ADD +, TAP THE GREEN CHECKBOX BESIDE EACH BOT to confirm it. Those checkboxes are per-slot CONFIRM controls, not a ready toggle and not a difficulty widget; confirming is what reveals a bot's star rating, which is why tapping one looked like a difficulty selector. Once every bot is confirmed a START BATTLE control becomes available -- TAP IT. The match starts by tapping an on-screen control, NOT via the START or A key; pressing those does nothing, which stalled every earlier automated attempt. The actions below stop after confirming the bots; the final START BATTLE tap coordinate still needs measuring from a captured frame.",
   "actions": [
     {
       "kind": "touch",
@@ -132,8 +132,26 @@
     },
     {
       "kind": "touch",
-      "x": 105,
+      "x": 222,
       "y": 133
+    },
+    {
+      "kind": "wait",
+      "frames": 180
+    },
+    {
+      "kind": "touch",
+      "x": 148,
+      "y": 60
+    },
+    {
+      "kind": "wait",
+      "frames": 180
+    },
+    {
+      "kind": "touch",
+      "x": 222,
+      "y": 60
     },
     {
       "kind": "wait",
@@ -141,11 +159,7 @@
     },
     {
       "kind": "wait",
-      "frames": 600
-    },
-    {
-      "kind": "wait",
-      "frames": 600
+      "frames": 300
     }
   ]
 }

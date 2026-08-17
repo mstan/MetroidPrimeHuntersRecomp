@@ -1,5 +1,6 @@
 {
-  "schema": 1,
+  "schema": 2,
+  "runtime_address_source": "https://github.com/ag-advania/melonPrimeDS/blob/main/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h",
   "profiles": {
     "US1_0": {
       "display_name": "Metroid Prime Hunters (USA rev 0)",
@@ -11,7 +12,12 @@
       "program_id": "mph_amhe0",
       "coverage": "coverage/adventure-main-entry-points.json",
       "game_config": "game.toml",
-      "fmv_runtime": true
+      "fmv_runtime": true,
+      "runtime": {
+        "morph_state": "0x020DA818",
+        "aim_x": "0x020DE526",
+        "aim_y": "0x020DE52E"
+      }
     },
     "EU1_1": {
       "display_name": "Metroid Prime Hunters (Europe rev 1)",
@@ -23,7 +29,12 @@
       "program_id": "mph_amhp1",
       "coverage": "coverage/eu11-bootstrap-entry-points.json",
       "game_config": "config/game-eu11.toml",
-      "fmv_runtime": false
+      "fmv_runtime": false,
+      "runtime": {
+        "morph_state": "0x020DB138",
+        "aim_x": "0x020DEE46",
+        "aim_y": "0x020DEE4E"
+      }
     }
   }
 }

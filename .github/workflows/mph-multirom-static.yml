@@ -25,6 +25,7 @@ jobs:
             tools/mph_profile.py \
             tools/prepare_mph.py \
             tools/check_mph_multirom_profiles.py \
+            tools/check_melonprime_detector.py \
             tools/patch_ndsrecomp_mph_runtime.py \
             tools/promote_mph_static_coverage.py \
             tools/promote_mph_runtime_coverage.py \
@@ -51,13 +52,19 @@ jobs:
           }
           if ($failed) { exit 1 }
 
-      - name: Cross-check runtime addresses against melonPrimeDS
+      - name: Cross-check runtime detector against melonPrimeDS develop_hud
         run: |
           curl -fsSL --retry 3 \
-            https://raw.githubusercontent.com/ag-advania/melonPrimeDS/main/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h \
+            https://raw.githubusercontent.com/ag-advania/melonPrimeDS/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h \
             -o /tmp/MelonPrimeGameRomAddrTable.h
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/ag-advania/melonPrimeDS/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp \
+            -o /tmp/MelonPrimeGameRomDetect.cpp
           python tools/check_mph_multirom_profiles.py \
             --melonprime-table /tmp/MelonPrimeGameRomAddrTable.h
+          python tools/check_melonprime_detector.py \
+            --profiles config/mph_rom_profiles.json \
+            --detector /tmp/MelonPrimeGameRomDetect.cpp
 
       - name: Test profile-aware coverage promotion
         run: |
@@ -154,6 +161,8 @@ jobs:
           grep -q 'FMV_RUNTIME_BANK' tools/build-linux.sh
           grep -q 'FmvRuntimeBank' tools/build-windows.ps1
           grep -q 'FmvRuntimeBank' tools/make_release.ps1
+          grep -q 'rom_bytes\[0x1E\]' tools/prepare_mph.py
+          ! grep -q 'rom_bytes\[0x1C\]' tools/prepare_mph.py
 
       - name: Fetch exact pinned ndsrecomp revision
         run: |
@@ -198,12 +207,16 @@ jobs:
 
           grep -q '90164d1ac127ee5f9815ea4ae7de798c7b5fc629' "$us"
           grep -q 'game.region = "USA";' "$us"
+          grep -q 'game.known_sha1_hex = nullptr;' "$us"
+          grep -q 'game.num_known_sha1 = 0;' "$us"
           grep -q 'bool adaptive_widescreen = true;' "$us"
           grep -A1 'int mod_feature_count' "$us" | grep -q 'return 2;'
           grep -q 'adaptive = adaptive && true;' "$us"
 
           grep -q 'bdcd1dea293e24c98d4c481430e90d21198985a5' "$eu"
           grep -q 'game.region = "Europe";' "$eu"
+          grep -q 'game.known_sha1_hex = nullptr;' "$eu"
+          grep -q 'game.num_known_sha1 = 0;' "$eu"
           grep -q 'exe / "Metroid Prime Hunters (Europe Rev 1).nds";' "$eu"
           grep -q 'bool adaptive_widescreen = false;' "$eu"
           grep -A1 'int mod_feature_count' "$eu" | grep -q 'return 1;'
@@ -281,7 +294,7 @@ jobs:
           cmake --build /tmp/nds-runner-profile-check --target \
             src/main.o -j2
 
-      - name: Test exact-ROM runtime address dispatch
+      - name: Test runtime base-profile and compatibility dispatch
         run: |
           c++ -std=c++20 -Wall -Wextra -Wno-unused-parameter \
             -I/tmp/ndsrecomp/runner/src \

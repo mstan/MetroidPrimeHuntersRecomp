@@ -1,224 +1,233 @@
 #!/usr/bin/env bash
-# Build Metroid Prime Hunters Recomp for a configured retail revision.
-#
-# US1_0 keeps the existing AppImage naming. EU1_1 uses isolated generated
-# banks, its own game config, and the exact-ROM runtime-address shim used by
-# Prime Controls/direct mouse aim.
 set -euo pipefail
 
-APP_NAME="MetroidPrimeHuntersRecomp"
-TITLE_TARGET="metroidprimehuntersrecomp"
-RUNNER_NAME="nds_runner"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FRAMEWORK_ROOT="$(cd "$ROOT/../ndsrecomp" && pwd)"
 VERSION="0.1.0"
 MPH_VERSION="US1_0"
-ROM_PATH=""
-JOBS="$(nproc 2>/dev/null || echo 4)"
-DO_PACKAGE=1
+ROM_PATH="$ROOT/Metroid Prime Hunters.nds"
+BUILD_DIR=""
+RUNNER_BUILD_DIR=""
+APPDIR=""
+PACKAGE=1
+JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '4')"
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
-FRAMEWORK_ROOT="$(cd "$REPO/../ndsrecomp" && pwd)"
-OUT="$REPO/release-linux"
-PROFILE_FILE="$REPO/config/mph_rom_profiles.json"
+usage() {
+  cat <<'EOF'
+Build Metroid Prime Hunters Recomp for Linux.
 
-while [ $# -gt 0 ]; do
+Usage:
+  tools/build-linux.sh [options]
+
+Options:
+  --version VERSION       Package version (default: 0.1.0)
+  --mph-version PROFILE   MPH ROM profile (US1_0 or EU1_1; default: US1_0)
+  --rom PATH              Path to the selected retail ROM
+  --build-dir PATH        Game build directory
+  --runner-build PATH     ndsrecomp runner build directory
+  --appdir PATH           AppImage staging directory
+  --jobs N                Parallel build jobs
+  --no-package            Build runner only; do not create AppImage
+  -h, --help              Show this help
+EOF
+}
+
+while (($#)); do
   case "$1" in
-    --version) VERSION="$2"; shift 2;;
-    --mph-version) MPH_VERSION="$2"; shift 2;;
-    --rom) ROM_PATH="$2"; shift 2;;
-    --jobs) JOBS="$2"; shift 2;;
-    --out) OUT="$2"; shift 2;;
-    --no-package) DO_PACKAGE=0; shift;;
+    --version)
+      VERSION="$2"
+      shift 2
+      ;;
+    --mph-version)
+      MPH_VERSION="$2"
+      shift 2
+      ;;
+    --rom)
+      ROM_PATH="$2"
+      shift 2
+      ;;
+    --build-dir)
+      BUILD_DIR="$2"
+      shift 2
+      ;;
+    --runner-build)
+      RUNNER_BUILD_DIR="$2"
+      shift 2
+      ;;
+    --appdir)
+      APPDIR="$2"
+      shift 2
+      ;;
+    --jobs)
+      JOBS="$2"
+      shift 2
+      ;;
+    --no-package)
+      PACKAGE=0
+      shift
+      ;;
     -h|--help)
-      sed -n '2,18p' "$0"
+      usage
       exit 0
       ;;
-    *) echo "unknown arg: $1" >&2; exit 2;;
+    *)
+      printf 'Unknown option: %s\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
   esac
 done
 
-profile_value() {
-  python3 - "$PROFILE_FILE" "$MPH_VERSION" "$1" <<'PY'
+PROFILE_FILE="$ROOT/config/mph_rom_profiles.json"
+readarray -t PROFILE_VALUES < <(
+  python3 - "$PROFILE_FILE" "$MPH_VERSION" <<'PY'
 import json
+import pathlib
 import sys
-path, version, key = sys.argv[1:]
-with open(path, encoding="utf-8") as f:
-    registry = json.load(f)
-try:
-    value = registry["profiles"][version][key]
-except KeyError as exc:
-    raise SystemExit(f"unknown profile/field: {version}.{key}") from exc
-if isinstance(value, bool):
-    print("1" if value else "0")
-else:
-    print(value)
+
+path = pathlib.Path(sys.argv[1])
+key = sys.argv[2]
+registry = json.loads(path.read_text(encoding="utf-8"))
+profile = registry.get("profiles", {}).get(key)
+if not isinstance(profile, dict):
+    choices = ", ".join(sorted(registry.get("profiles", {})))
+    raise SystemExit(f"unknown MPH profile {key!r}; configured: {choices}")
+for field in ("sha1", "game_config", "game_code", "revision", "launcher_default_rom"):
+    if field not in profile:
+        raise SystemExit(f"{key}: missing profile field {field}")
+print(profile["sha1"])
+print(profile["game_config"])
+print(profile["game_code"])
+print(profile["revision"])
+print("1" if profile.get("fmv_runtime") else "0")
+print(profile["launcher_default_rom"])
 PY
-}
+)
 
-ROM_SHA1="$(profile_value sha1)"
-GAME_CONFIG_REL="$(profile_value game_config)"
-FMV_RUNTIME="$(profile_value fmv_runtime)"
-GAME_CONFIG="$REPO/$GAME_CONFIG_REL"
-if [ -z "$ROM_PATH" ]; then
-  ROM_PATH="$REPO/Metroid Prime Hunters.nds"
+ROM_SHA1="${PROFILE_VALUES[0]}"
+GAME_CONFIG_REL="${PROFILE_VALUES[1]}"
+GAME_CODE="${PROFILE_VALUES[2]}"
+REVISION="${PROFILE_VALUES[3]}"
+FMV_RUNTIME="${PROFILE_VALUES[4]}"
+DEFAULT_ROM_NAME="${PROFILE_VALUES[5]}"
+GAME_CONFIG="$ROOT/$GAME_CONFIG_REL"
+
+if [[ "$ROM_PATH" == "$ROOT/Metroid Prime Hunters.nds" && "$MPH_VERSION" != "US1_0" ]]; then
+  ROM_PATH="$ROOT/$DEFAULT_ROM_NAME"
 fi
-ROM_PATH="$(python3 -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "$ROM_PATH")"
 
-if [ "$MPH_VERSION" = "US1_0" ]; then
-  GAME_BUILD="$REPO/build-linux-release"
-  RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release"
-  TITLE_BANK_DIR="$REPO/generated/recomp"
+if [[ ! -f "$ROM_PATH" ]]; then
+  printf 'ROM not found: %s\n' "$ROM_PATH" >&2
+  exit 1
+fi
+if [[ ! -f "$GAME_CONFIG" ]]; then
+  printf 'Game config not found: %s\n' "$GAME_CONFIG" >&2
+  exit 1
+fi
+
+if [[ -z "$BUILD_DIR" ]]; then
+  if [[ "$MPH_VERSION" == "US1_0" ]]; then
+    BUILD_DIR="$ROOT/build-linux-release"
+  else
+    BUILD_DIR="$ROOT/build-linux-release-$MPH_VERSION"
+  fi
+fi
+if [[ -z "$RUNNER_BUILD_DIR" ]]; then
+  if [[ "$MPH_VERSION" == "US1_0" ]]; then
+    RUNNER_BUILD_DIR="$FRAMEWORK_ROOT/runner/build-mph-linux-release"
+  else
+    RUNNER_BUILD_DIR="$FRAMEWORK_ROOT/runner/build-mph-linux-release-$MPH_VERSION"
+  fi
+fi
+if [[ -z "$APPDIR" ]]; then
+  if [[ "$MPH_VERSION" == "US1_0" ]]; then
+    APPDIR="$ROOT/release-stage/MetroidPrimeHuntersRecomp-linux-x86_64.AppDir"
+  else
+    APPDIR="$ROOT/release-stage/MetroidPrimeHuntersRecomp-$MPH_VERSION-linux-x86_64.AppDir"
+  fi
+fi
+
+if [[ "$MPH_VERSION" == "US1_0" ]]; then
+  TITLE_BANK_DIR="$ROOT/generated/recomp"
 else
-  GAME_BUILD="$REPO/build-linux-release-$MPH_VERSION"
-  RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release-$MPH_VERSION"
-  TITLE_BANK_DIR="$REPO/generated/$MPH_VERSION/recomp"
+  TITLE_BANK_DIR="$ROOT/generated/$MPH_VERSION/recomp"
 fi
 
-cd "$REPO"
-test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
-  echo "ERROR: sibling ndsrecomp checkout is missing." >&2
-  exit 1
-}
-test -f "$ROM_PATH" || {
-  echo "ERROR: Metroid Prime Hunters ROM is missing: $ROM_PATH" >&2
-  exit 1
-}
-test -f "$GAME_CONFIG" || {
-  echo "ERROR: game config for $MPH_VERSION is missing: $GAME_CONFIG" >&2
-  exit 1
-}
+printf 'Building MPH profile %s (%s rev %s)\n' "$MPH_VERSION" "$GAME_CODE" "$REVISION"
 
-echo "[1/5] configure title banks ($MPH_VERSION)"
-cmake -S "$REPO" -B "$GAME_BUILD" -G "Unix Makefiles" \
+cmake -S "$ROOT" -B "$BUILD_DIR" \
   -DCMAKE_BUILD_TYPE=Release \
   -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
   -DMPH_VERSION="$MPH_VERSION" \
   -DMPH_ROM="$ROM_PATH"
-echo "[2/5] build title banks"
-cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
+cmake --build "$BUILD_DIR" --target metroidprimehuntersrecomp -j "$JOBS"
 
-echo "[3/5] install exact-ROM MPH runtime profile into pinned ndsrecomp runner"
-python3 "$REPO/tools/patch_ndsrecomp_mph_runtime.py" \
+python3 "$ROOT/tools/patch_ndsrecomp_mph_runtime.py" \
   --framework-root "$FRAMEWORK_ROOT" \
   --profiles "$PROFILE_FILE"
 
-echo "[4/5] configure runner"
-cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
+cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD_DIR" \
   -DCMAKE_BUILD_TYPE=Release \
   -DNDS_BOOTSTRAP_FIRMWARE=ON \
   -DNDS_TITLE_BANK_DIR="$TITLE_BANK_DIR" \
   -DNDS_TITLE_ROM_SHA1="$ROM_SHA1"
-echo "      build runner"
-cmake --build "$RUNNER_BUILD" -j"$JOBS"
+cmake --build "$RUNNER_BUILD_DIR" -j "$JOBS"
 
-if [ "$DO_PACKAGE" = "0" ]; then
-  echo "done: $RUNNER_BUILD/$RUNNER_NAME"
-  echo "config: $GAME_CONFIG"
+RUNNER="$RUNNER_BUILD_DIR/nds_runner"
+if [[ ! -x "$RUNNER" ]]; then
+  printf 'Runner missing after build: %s\n' "$RUNNER" >&2
+  exit 1
+fi
+
+if [[ "$FMV_RUNTIME" == "1" ]]; then
+  if ! grep -a -q 'mph_arm9_fmv_runtime' "$RUNNER"; then
+    printf 'Runner does not contain the required MPH FMV runtime bank.\n' >&2
+    exit 1
+  fi
+fi
+
+if ((PACKAGE == 0)); then
+  printf 'Runner ready: %s\n' "$RUNNER"
+  printf 'Profile config: %s\n' "$GAME_CONFIG"
   exit 0
 fi
 
-BIN="$RUNNER_BUILD/$RUNNER_NAME"
-test -f "$BIN" || { echo "ERROR: runner not built: $BIN" >&2; exit 1; }
-if [ "$FMV_RUNTIME" = "1" ]; then
-  strings "$BIN" | grep -q mph_arm9_fmv_runtime || {
-    echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
-    exit 1
-  }
-fi
-
-LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-LINUXDEPLOY_SHA=421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e
-APPIMAGETOOL_URL=https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-APPIMAGETOOL_SHA=a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0
-
-TOOLS_DIR="$RUNNER_BUILD/appimage-tools"
-mkdir -p "$TOOLS_DIR" "$OUT"
-fetch_tool() {
-  local url="$1" sha="$2" dest="$3"
-  if [ ! -f "$dest" ] || [ "$(sha256sum "$dest" | awk '{print $1}')" != "$sha" ]; then
-    curl -fL --retry 3 "$url" -o "$dest.tmp"
-    printf '%s  %s\n' "$sha" "$dest.tmp" | sha256sum -c - >/dev/null
-    mv "$dest.tmp" "$dest"
-  fi
-  chmod 0755 "$dest"
-}
-LINUXDEPLOY_BIN="$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
-APPIMAGETOOL_BIN="$TOOLS_DIR/appimagetool-x86_64.AppImage"
-fetch_tool "$LINUXDEPLOY_URL" "$LINUXDEPLOY_SHA" "$LINUXDEPLOY_BIN"
-fetch_tool "$APPIMAGETOOL_URL" "$APPIMAGETOOL_SHA" "$APPIMAGETOOL_BIN"
-
-WORK="$(mktemp -d)"
-trap 'chmod -R u+w "$WORK" 2>/dev/null || true; rm -rf "$WORK"' EXIT
-APPDIR="$WORK/AppDir"
-mkdir -p "$APPDIR/usr/bin/bios" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
-
-cp "$BIN" "$APPDIR/usr/bin/$RUNNER_NAME"
-cp "$GAME_CONFIG" "$APPDIR/usr/bin/game.toml"
-cp "$REPO/README.md" "$APPDIR/usr/bin/README.md"
-cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
-cp "$REPO/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
-
-python3 - "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" <<'PY'
-import struct, sys, zlib
-out = sys.argv[1]
-n = 256
-raw = b''.join(bytes([0]) + bytes([162, 62, 64]) * n for _ in range(n))
-def chunk(t, d):
-    c = t + d
-    return struct.pack(">I", len(d)) + c + struct.pack(">I", zlib.crc32(c) & 0xffffffff)
-png = b"\x89PNG\r\n\x1a\n"
-png += chunk(b"IHDR", struct.pack(">IIBBBBB", n, n, 8, 2, 0, 0, 0))
-png += chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
-open(out, "wb").write(png)
-PY
-cat > "$APPDIR/usr/share/applications/$APP_NAME.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Metroid Prime Hunters Recomp
-Exec=$RUNNER_NAME
-Icon=$APP_NAME
-Categories=Game;
-Terminal=false
-EOF
+rm -rf "$APPDIR"
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/mph-recomp" "$APPDIR/bios"
+cp "$RUNNER" "$APPDIR/usr/bin/nds_runner"
+cp "$GAME_CONFIG" "$APPDIR/usr/share/mph-recomp/game.toml"
+cp "$ROOT/packaging/BIOS_README.txt" "$APPDIR/bios/README.txt"
+cp "$ROOT/README.md" "$APPDIR/README.md"
+cp "$ROOT/LICENSE" "$APPDIR/LICENSE"
 
 cat > "$APPDIR/AppRun" <<'EOF'
-#!/bin/sh
-HERE="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
-export SDL_JOYSTICK_HIDAPI_STEAM=1
-export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
-SELF="${APPIMAGE:-$0}"
-RUNDIR="$(dirname "$(readlink -f "$SELF")")"
-mkdir -p "$RUNDIR/bios" 2>/dev/null || true
-if [ ! -f "$RUNDIR/bios/README.txt" ] && [ -f "$HERE/usr/bin/bios/README.txt" ]; then
-  cp "$HERE/usr/bin/bios/README.txt" "$RUNDIR/bios/README.txt" 2>/dev/null || true
+#!/usr/bin/env bash
+set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
+ROM="${1:-}"
+if [[ -z "$ROM" ]]; then
+  printf 'Usage: %s /path/to/MetroidPrimeHunters.nds\n' "$0" >&2
+  exit 2
 fi
-ROM=""
-for f in "$RUNDIR"/*.nds "$RUNDIR"/*.NDS; do
-  [ -e "$f" ] && ROM="$f" && break
-done
-cd "$RUNDIR" 2>/dev/null || true
-if [ "$#" -eq 0 ]; then
-  if [ -n "$ROM" ]; then
-    exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" --config "$HERE/usr/bin/game.toml"
-  fi
-  exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --config "$HERE/usr/bin/game.toml"
-fi
-exec "$HERE/usr/bin/nds_runner" "$@"
+shift || true
+exec "$HERE/usr/bin/nds_runner" "$HERE/bios" \
+  --interactive \
+  --rom "$ROM" \
+  --config "$HERE/usr/share/mph-recomp/game.toml" \
+  "$@"
 EOF
-chmod +x "$APPDIR/AppRun" "$APPDIR/usr/bin/$RUNNER_NAME"
+chmod +x "$APPDIR/AppRun"
 
-echo "[5/5] package AppImage"
-"$LINUXDEPLOY_BIN" --appimage-extract-and-run --appdir "$APPDIR" --executable "$APPDIR/usr/bin/$RUNNER_NAME" \
-  --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
-  --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null
-
-if [ "$MPH_VERSION" = "US1_0" ]; then
-  APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
-else
-  APP="$OUT/$APP_NAME-$MPH_VERSION-linux-v$VERSION-x86_64.AppImage"
+APPIMAGE_TOOL="${APPIMAGE_TOOL:-appimagetool}"
+if ! command -v "$APPIMAGE_TOOL" >/dev/null 2>&1; then
+  printf 'appimagetool not found; staged AppDir at %s\n' "$APPDIR" >&2
+  exit 1
 fi
-rm -f "$APP"
-ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run "$APPDIR" "$APP" >/dev/null
-chmod +x "$APP"
-bash "$REPO/tools/test_appimage_layout.sh" "$APPDIR"
-sha256sum "$APP"
+
+if [[ "$MPH_VERSION" == "US1_0" ]]; then
+  OUTPUT="$ROOT/release-stage/MetroidPrimeHuntersRecomp-linux-v${VERSION}-x86_64.AppImage"
+else
+  OUTPUT="$ROOT/release-stage/MetroidPrimeHuntersRecomp-${MPH_VERSION}-linux-v${VERSION}-x86_64.AppImage"
+fi
+ARCH=x86_64 "$APPIMAGE_TOOL" "$APPDIR" "$OUTPUT"
+printf 'Created %s\n' "$OUTPUT"

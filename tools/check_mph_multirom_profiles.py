@@ -2,10 +2,10 @@
 """Static consistency checks for Metroid Prime Hunters ROM profiles.
 
 This intentionally does not need a copyrighted ROM. It verifies that each
-profile's identity, coverage seed, game config, and host-side runtime addresses
-agree. When --melonprime-table is provided, Aim/Morph addresses are also
-cross-checked against melonPrimeDS's MelonPrimeGameRomAddrTable.h, which is the
-source of truth for those fields.
+profile's identity, coverage seed, game config, launcher policy, and host-side
+runtime addresses agree. When --melonprime-table is provided, Aim/Morph
+addresses are also cross-checked against melonPrimeDS's
+MelonPrimeGameRomAddrTable.h, which is the source of truth for those fields.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ import json
 import re
 import tomllib
 from pathlib import Path
+from typing import NoReturn
 
 
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -26,7 +27,7 @@ REQUIRED_RUNTIME_FIELDS = {
 }
 
 
-def die(message: str) -> "NoReturn":
+def die(message: str) -> NoReturn:
     raise SystemExit(f"ERROR: {message}")
 
 
@@ -132,6 +133,19 @@ def validate_registry(repo: Path, table: Path | None) -> None:
             die(f"duplicate cartridge identity: {game_code} rev {revision}")
         seen_identity.add(identity)
 
+        launcher_default_rom = profile.get("launcher_default_rom")
+        if (
+            not isinstance(launcher_default_rom, str)
+            or not launcher_default_rom
+            or not launcher_default_rom.lower().endswith(".nds")
+        ):
+            die(f"{key}.launcher_default_rom must be a non-empty .nds filename")
+        if Path(launcher_default_rom).name != launcher_default_rom:
+            die(f"{key}.launcher_default_rom must be a filename, not a path")
+        adaptive_widescreen = profile.get("adaptive_widescreen")
+        if not isinstance(adaptive_widescreen, bool):
+            die(f"{key}.adaptive_widescreen must be boolean")
+
         runtime = profile.get("runtime")
         if not isinstance(runtime, dict):
             die(f"{key}.runtime is required")
@@ -182,6 +196,22 @@ def validate_registry(repo: Path, table: Path | None) -> None:
                     f"expected {expected!r}"
                 )
 
+        display = game_config.get("display", {})
+        if not isinstance(display, dict):
+            die(f"{key}.game_config [display] must be a table")
+        config_adaptive = display.get("adaptive_widescreen")
+        if adaptive_widescreen:
+            if config_adaptive != "top":
+                die(
+                    f"{key} enables adaptive_widescreen in the profile but "
+                    "game config does not enable top-screen adaptive widescreen"
+                )
+        elif config_adaptive not in (None, "none"):
+            die(
+                f"{key} disables adaptive_widescreen in the profile but "
+                f"game config enables {config_adaptive!r}"
+            )
+
     # Explicit regression guard for the first non-US revision. These are the
     # values currently published by melonPrimeDS's source-of-truth table.
     eu = profiles.get("EU1_1")
@@ -201,6 +231,10 @@ def validate_registry(repo: Path, table: Path | None) -> None:
         die(f"EU1_1 runtime profile changed unexpectedly: {eu_runtime!r}")
     if eu.get("fmv_runtime") is not False:
         die("EU1_1 must not reuse the US1.0 FMV runtime capture")
+    if eu.get("adaptive_widescreen") is not False:
+        die("EU1_1 adaptive widescreen must remain disabled until validated")
+    if eu.get("launcher_default_rom") != "Metroid Prime Hunters (Europe Rev 1).nds":
+        die("EU1_1 launcher default ROM filename changed unexpectedly")
 
     print(f"OK: validated {len(profiles)} MPH ROM profiles")
     if melon is not None:

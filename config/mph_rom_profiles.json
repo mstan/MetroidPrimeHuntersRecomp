@@ -1,5 +1,5 @@
 {
-  "schema": 4,
+  "schema": 5,
   "runtime_address_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h",
   "runtime_detection_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/frontend/qt_sdl/MelonPrimeGameRomDetect.cpp",
   "runtime_checksum_source": "https://github.com/ag-advania/melonPrimeDS/blob/develop_hud/src/NDSCart/CartCommon.cpp",
@@ -96,6 +96,8 @@
   ],
   "profiles": {
     "US1_0": {
+      "base_profile": "US1_0",
+      "known_clean": true,
       "display_name": "Metroid Prime Hunters (USA rev 0)",
       "region": "USA",
       "game_code": "AMHE",
@@ -111,6 +113,8 @@
       "adaptive_widescreen": true
     },
     "EU1_1": {
+      "base_profile": "EU1_1",
+      "known_clean": true,
       "display_name": "Metroid Prime Hunters (Europe rev 1)",
       "region": "Europe",
       "game_code": "AMHP",

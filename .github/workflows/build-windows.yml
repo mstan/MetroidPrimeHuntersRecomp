@@ -19,6 +19,10 @@ jobs:
       CCACHE_MAXSIZE: 750M
       CMAKE_C_COMPILER_LAUNCHER: ccache
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
+      # Hosted CMake is a native Windows binary. Point it at MinGW's package
+      # prefix so SDL2's CMake package remains discoverable without installing
+      # a second copy of CMake inside MSYS2.
+      CMAKE_PREFIX_PATH: C:\msys64\mingw64
 
     steps:
       - name: Check out title sources
@@ -28,20 +32,15 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          # windows-2025 already ships C:\msys64. Reuse the runner image rather
-          # than downloading a second MSYS2 installation. Do not run a full
-          # rolling-release upgrade on every PR: the image is internally
-          # consistent and setup-msys2 can install the small set below directly.
+          # windows-2025 already includes C:\msys64 plus native Git, CMake,
+          # Ninja and Python. Inherit the hosted PATH and install only the
+          # MinGW-specific compiler/runtime dependencies we actually need.
+          path-type: inherit
           release: false
           update: false
-          # setup-msys2 also caches pacman payloads between runs.
           cache: true
           install: >-
-            git
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-python
             mingw-w64-x86_64-SDL2
             mingw-w64-x86_64-ccache
 
@@ -60,6 +59,22 @@ jobs:
             ) }}
           restore-keys: |
             mph-windows-mingw64-ccache-v1-
+
+      - name: Verify hosted build tools
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          command -v git
+          command -v python
+          command -v cmake
+          command -v ninja
+          command -v gcc
+          command -v ccache
+          git --version
+          python --version
+          cmake --version | head -n1
+          ninja --version
+          gcc --version | head -n1
 
       - name: Configure compiler cache
         shell: msys2 {0}

@@ -2,8 +2,9 @@
 Build Metroid Prime Hunters Recomp for one configured retail revision.
 
 US1_0 keeps the existing release paths. EU1_1 uses isolated generated banks,
-a revision-specific game config, a profile-specific launcher identity, and the
-shared exact-ROM runtime-address shim for Prime Controls/direct mouse aim.
+a revision-specific game config, a profile-specific launcher identity/policy,
+and the shared exact-ROM runtime-address shim for Prime Controls/direct mouse
+aim.
 
 Usage:
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
@@ -41,11 +42,13 @@ if ($null -eq $profileProperty) {
 $profile = $profileProperty.Value
 $romSha1 = [string]$profile.sha1
 $region = [string]$profile.region
+$launcherDefaultRom = [string]$profile.launcher_default_rom
+$launcherAdaptive = if ([bool]$profile.adaptive_widescreen) { 'ON' } else { 'OFF' }
 $gameConfig = [IO.Path]::GetFullPath(
   (Join-Path $root ([string]$profile.game_config)))
 
 if ([string]::IsNullOrWhiteSpace($RomPath)) {
-  $RomPath = Join-Path $root 'Metroid Prime Hunters.nds'
+  $RomPath = Join-Path $root $launcherDefaultRom
 }
 $romFull = [IO.Path]::GetFullPath($RomPath)
 if (-not (Test-Path -LiteralPath $romFull)) {
@@ -93,6 +96,7 @@ if (-not (Test-Path -LiteralPath $patchPython)) {
 Push-Location $root
 try {
   Write-Host "Building MPH profile $MphVersion ($($profile.game_code) rev $($profile.revision))"
+  Write-Host "Launcher adaptive widescreen: $launcherAdaptive"
 
   & $cmakePath -G $Generator -S $root -B $gameBuild `
     -DCMAKE_BUILD_TYPE=Release `
@@ -124,7 +128,9 @@ try {
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake" `
     "-DMPH_LAUNCHER_ROM_SHA1=$romSha1" `
-    "-DMPH_LAUNCHER_REGION=$region"
+    "-DMPH_LAUNCHER_REGION=$region" `
+    "-DMPH_LAUNCHER_DEFAULT_ROM=$launcherDefaultRom" `
+    "-DMPH_LAUNCHER_ADAPTIVE_WIDESCREEN=$launcherAdaptive"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
 
   & $cmakePath --build $launcherBuild -j $Jobs

@@ -6,14 +6,33 @@
 #include <string>
 #include <vector>
 
+#ifndef MPH_BUILD_VERSION
+#define MPH_BUILD_VERSION "US1_0"
+#endif
+#ifndef MPH_EXPECTED_SHA1
+#define MPH_EXPECTED_SHA1 "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
+#endif
+#ifndef MPH_EXPECTED_GAME_CODE
+#define MPH_EXPECTED_GAME_CODE "AMHE"
+#endif
+#ifndef MPH_EXPECTED_REVISION
+#define MPH_EXPECTED_REVISION 0
+#endif
+#ifndef MPH_EXPECTED_SIZE
+#define MPH_EXPECTED_SIZE 67108864
+#endif
+
 namespace {
 
 constexpr const char* kDefaultRom = "Metroid Prime Hunters.nds";
-constexpr const char* kExpectedSha1 =
-    "90164d1ac127ee5f9815ea4ae7de798c7b5fc629";
+constexpr const char* kBuildVersion = MPH_BUILD_VERSION;
+constexpr const char* kExpectedSha1 = MPH_EXPECTED_SHA1;
 constexpr const char* kExpectedTitle = "MP HUNTERS";
-constexpr const char* kExpectedGameCode = "AMHE";
-constexpr std::size_t kExpectedSize = 64u * 1024u * 1024u;
+constexpr const char* kExpectedGameCode = MPH_EXPECTED_GAME_CODE;
+constexpr unsigned kExpectedRevision =
+    static_cast<unsigned>(MPH_EXPECTED_REVISION);
+constexpr std::size_t kExpectedSize =
+    static_cast<std::size_t>(MPH_EXPECTED_SIZE);
 
 std::vector<uint8_t> read_file(const std::string& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -84,7 +103,7 @@ int main(int argc, char** argv) {
         valid = false;
     }
     if (title != kExpectedTitle || game_code != kExpectedGameCode ||
-        revision != 0u) {
+        revision != kExpectedRevision) {
         std::fprintf(stderr,
             "ROM identity mismatch: title=%s code=%s revision=%u\n",
             title.c_str(), game_code.c_str(), revision);
@@ -96,12 +115,15 @@ int main(int argc, char** argv) {
         valid = false;
     }
     if (!valid) {
-        std::fputs("refusing selection: this project is pinned to AMHE0\n",
-                   stderr);
+        std::fprintf(
+            stderr,
+            "refusing selection: this build targets MPH profile %s only\n",
+            kBuildVersion);
         return 1;
     }
 
     std::puts("selection=metroid-prime-hunters");
+    std::printf("profile=%s\n", kBuildVersion);
     std::printf("rom=%s\n", rom_path.c_str());
     std::printf("title=%s game_code=%s revision=%u sha1=%s\n",
                 title.c_str(), game_code.c_str(), revision, digest.c_str());
@@ -109,9 +131,6 @@ int main(int argc, char** argv) {
                 read_u32(rom, 0x24u), read_u32(rom, 0x34u));
     std::printf("arm9_size=0x%08x arm7_size=0x%08x\n",
                 read_u32(rom, 0x2Cu), read_u32(rom, 0x3Cu));
-    std::puts("reference=NoneGiven/MphRead (AMHE0-aware; non-matching recreation)");
     std::puts("boot_status=authentic-firmware-and-cartridge");
-    std::puts("attract_status=full-no-input-loop");
-    std::puts("gameplay_status=celestial-archives-entry");
     return 0;
 }

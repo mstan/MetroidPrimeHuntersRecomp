@@ -271,10 +271,11 @@ bank id: mph_amhp1_arm9_fmv_runtime
 - `--config` 省略時は `config/game-eu11.toml` を選ぶ
 - `--adaptive auto` が既定
 - EU1.1ではprofile policyに従い `--adaptive-widescreen none`
+- profileがAdaptive Widescreen未検証なら明示的な `--adaptive top` も拒否する
 - `benchmark.json` に `mph_profile` と `rom_sha1` を保存する
 - `--capture-runtime` 時はcapture SHA-1とbyte countも保存する
 
-EU1.1を誤ってUS1.0のAdaptive Widescreen有効状態でbenchmarkする既定値は廃止した。
+EU1.1を誤ってUS1.0のAdaptive Widescreen有効状態でbenchmark/coverage captureする経路はfail-closedにした。
 
 ### 9.3 Before window採取
 

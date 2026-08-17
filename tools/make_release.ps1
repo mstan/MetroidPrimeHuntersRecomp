@@ -6,9 +6,9 @@ assets, the selected revision's game config, documentation, and MinGW/SDL
 dependencies. ROMs, BIOS/firmware, saves, raw captures, and generated source
 are never staged.
 
-US1_0 keeps the historical release name and requires the validated FMV runtime
-bank. Other revision profiles may opt out of that bank until a revision-
-specific runtime capture has been produced.
+Profiles with a validated FMV runtime bank require that exact bank identity to
+be present in the runner. Profiles without one may opt out until their own
+revision-specific capture has been produced.
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Version,
@@ -17,6 +17,7 @@ param(
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$GameConfig = 'game.toml',
   [string]$Profile = 'US1_0',
+  [string]$FmvRuntimeBank = 'mph_arm9_fmv_runtime',
   [switch]$AllowNoFmvRuntime
 )
 
@@ -40,11 +41,12 @@ foreach ($required in @($runner, $launcher, $assets, $gameConfigPath)) {
 }
 
 if (-not $AllowNoFmvRuntime) {
-  # A US1.0 static-only runner is functional but drops the opening movies to
-  # roughly half speed. Keep the established release gate for that profile.
+  if ([string]::IsNullOrWhiteSpace($FmvRuntimeBank)) {
+    throw 'FMV runtime bank identity is empty.'
+  }
   $runnerText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($runner))
-  if (-not $runnerText.Contains('mph_arm9_fmv_runtime')) {
-    throw 'Runner does not contain the MPH FMV runtime bank.'
+  if (-not $runnerText.Contains($FmvRuntimeBank)) {
+    throw "Runner does not contain required FMV runtime bank '$FmvRuntimeBank'."
   }
 }
 

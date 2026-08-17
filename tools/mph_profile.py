@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import tomllib
 from pathlib import Path
 
 
@@ -76,6 +77,34 @@ def default_generated_inputs_dir(version: str) -> Path:
 def resolve_repo_path(value: str) -> Path:
     path = Path(value)
     return path if path.is_absolute() else REPO_ROOT / path
+
+
+def verify_game_config_identity(
+    config_path: Path,
+    profile: dict[str, object],
+    version: str,
+) -> None:
+    try:
+        with config_path.open("rb") as f:
+            document = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise SystemExit(f"unable to read game config {config_path}: {exc}") from exc
+
+    game = document.get("game")
+    if not isinstance(game, dict):
+        raise SystemExit(f"game config has no [game] table: {config_path}")
+    expected = {
+        "id": profile["game_code"],
+        "revision": profile["revision"],
+        "rom_size": profile["rom_size"],
+        "sha1": profile["sha1"],
+    }
+    for key, value in expected.items():
+        if game.get(key) != value:
+            raise SystemExit(
+                f"game config {config_path} game.{key}={game.get(key)!r}; "
+                f"expected {value!r} for {version}"
+            )
 
 
 def verify_rom_identity(

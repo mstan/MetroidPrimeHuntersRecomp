@@ -3,8 +3,8 @@ Build Metroid Prime Hunters Recomp for one configured retail revision.
 
 US1_0 keeps the existing release paths. Non-US profiles use isolated generated
 banks, a revision-specific game config, a profile-specific launcher
-identity/policy, and the shared exact-ROM runtime-address shim for Prime
-Controls/direct mouse aim.
+identity/policy, and the shared runtime base-profile / executable-compatibility
+detector for Prime Controls/direct mouse aim.
 
 Usage:
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File `

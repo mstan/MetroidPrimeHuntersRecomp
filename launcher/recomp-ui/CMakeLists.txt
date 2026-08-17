@@ -14,26 +14,73 @@ set(MPH_LAUNCHER_ROM_SHA1
     "Exact retail ROM SHA-1 accepted by this profile-specific launcher")
 set(MPH_LAUNCHER_REGION "USA" CACHE STRING
     "Region label shown by the profile-specific launcher")
+set(MPH_LAUNCHER_DEFAULT_ROM "Metroid Prime Hunters.nds" CACHE STRING
+    "Default ROM filename offered by this profile-specific launcher")
+option(MPH_LAUNCHER_ADAPTIVE_WIDESCREEN
+    "Expose and allow the title-specific adaptive widescreen enhancement" ON)
 
 # Keep launcher_main.cpp as the readable US1.0 baseline, but compile a
-# profile-specific generated TU. This avoids duplicating the 40+ KiB launcher
-# just to change cartridge identity metadata for another retail revision.
+# profile-specific generated TU. Every replacement below is preimage-guarded:
+# if the baseline launcher changes, configure fails instead of silently
+# applying a stale multi-ROM transformation.
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/launcher_main.cpp" MPH_LAUNCHER_SOURCE)
-set(_mph_us10_sha1 "90164d1ac127ee5f9815ea4ae7de798c7b5fc629")
-string(FIND "${MPH_LAUNCHER_SOURCE}" "${_mph_us10_sha1}" _mph_sha_pos)
-if(_mph_sha_pos EQUAL -1)
-    message(FATAL_ERROR "launcher_main.cpp no longer contains the US1.0 SHA-1 baseline")
+
+function(mph_launcher_replace_required old new description)
+    string(FIND "${MPH_LAUNCHER_SOURCE}" "${old}" _mph_replace_pos)
+    if(_mph_replace_pos EQUAL -1)
+        message(FATAL_ERROR
+            "launcher_main.cpp no longer contains ${description}")
+    endif()
+    string(REPLACE "${old}" "${new}"
+        _mph_replaced_source "${MPH_LAUNCHER_SOURCE}")
+    set(MPH_LAUNCHER_SOURCE "${_mph_replaced_source}" PARENT_SCOPE)
+endfunction()
+
+if(MPH_LAUNCHER_ADAPTIVE_WIDESCREEN)
+    set(_mph_adaptive_literal "true")
+    set(_mph_mod_count "2")
+else()
+    set(_mph_adaptive_literal "false")
+    set(_mph_mod_count "1")
 endif()
-string(REPLACE "${_mph_us10_sha1}" "${MPH_LAUNCHER_ROM_SHA1}"
-    MPH_LAUNCHER_SOURCE "${MPH_LAUNCHER_SOURCE}")
-set(_mph_region_line "game.region = \"USA\";")
-string(FIND "${MPH_LAUNCHER_SOURCE}" "${_mph_region_line}" _mph_region_pos)
-if(_mph_region_pos EQUAL -1)
-    message(FATAL_ERROR "launcher_main.cpp no longer contains the USA region baseline")
-endif()
-string(REPLACE "${_mph_region_line}"
+
+mph_launcher_replace_required(
+    "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
+    "${MPH_LAUNCHER_ROM_SHA1}"
+    "the US1.0 SHA-1 baseline")
+mph_launcher_replace_required(
+    "game.region = \"USA\";"
     "game.region = \"${MPH_LAUNCHER_REGION}\";"
-    MPH_LAUNCHER_SOURCE "${MPH_LAUNCHER_SOURCE}")
+    "the USA region baseline")
+mph_launcher_replace_required(
+    "exe / \"Metroid Prime Hunters.nds\";"
+    "exe / \"${MPH_LAUNCHER_DEFAULT_ROM}\";"
+    "the default MPH ROM filename")
+mph_launcher_replace_required(
+    "bool adaptive_widescreen = true;"
+    "bool adaptive_widescreen = ${_mph_adaptive_literal};"
+    "the adaptive-widescreen default")
+mph_launcher_replace_required(
+    "int mod_feature_count(void*) {\n    return 2;\n}"
+    "int mod_feature_count(void*) {\n    return ${_mph_mod_count};\n}"
+    "the two-feature mod count")
+mph_launcher_replace_required(
+    "if (!context || !output || index < 0 || index > 1) return 0;\n    const auto* state = static_cast<const ModState*>(context);"
+    "if (!context || !output || index < 0 || index >= ${_mph_mod_count}) return 0;\n    if (!${_mph_adaptive_literal}) ++index;\n    const auto* state = static_cast<const ModState*>(context);"
+    "the mod feature index guard")
+mph_launcher_replace_required(
+    "if (std::strcmp(package_id, \"mph-adaptive-widescreen\") == 0 &&\n        std::strcmp(feature_id, \"adaptive-widescreen\") == 0) {\n        state->adaptive_widescreen = enabled != 0;\n        return 1;\n    }"
+    "if (std::strcmp(package_id, \"mph-adaptive-widescreen\") == 0 &&\n        std::strcmp(feature_id, \"adaptive-widescreen\") == 0) {\n        if (!${_mph_adaptive_literal}) {\n            state->adaptive_widescreen = false;\n            return 0;\n        }\n        state->adaptive_widescreen = enabled != 0;\n        return 1;\n    }"
+    "the adaptive-widescreen enable handler")
+mph_launcher_replace_required(
+    "load_mod_state(mod_state);\n    RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);"
+    "load_mod_state(mod_state);\n    if (!${_mph_adaptive_literal}) mod_state.adaptive_widescreen = false;\n    RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);"
+    "the post-load mod-state initialization")
+mph_launcher_replace_required(
+    "const std::wstring rom_wide = widen(rom);\n    if (rom_wide.empty()) return false;"
+    "const std::wstring rom_wide = widen(rom);\n    if (rom_wide.empty()) return false;\n    adaptive = adaptive && ${_mph_adaptive_literal};"
+    "the runner launch profile gate")
+
 set(MPH_PROFILE_LAUNCHER_SOURCE
     "${CMAKE_CURRENT_BINARY_DIR}/launcher_main_profile.cpp")
 file(WRITE "${MPH_PROFILE_LAUNCHER_SOURCE}" "${MPH_LAUNCHER_SOURCE}")

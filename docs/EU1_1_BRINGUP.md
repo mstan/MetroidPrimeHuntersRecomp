@@ -343,8 +343,6 @@ PRごとに以下を検証する。
 
 このCIはROM、BIOS、firmware dumpを一切取得・保存しない。
 
-2026-08-17時点の最新CIでは上記項目を継続検証している。
-
 ## 12. mphCodexの役割
 
 Aim X/Y/MorphについてはmelonPrimeDS address tableをsource of truthとする。

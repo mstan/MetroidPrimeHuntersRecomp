@@ -44,6 +44,10 @@ $romSha1 = [string]$profile.sha1
 $region = [string]$profile.region
 $launcherDefaultRom = [string]$profile.launcher_default_rom
 $launcherAdaptive = if ([bool]$profile.adaptive_widescreen) { 'ON' } else { 'OFF' }
+$fmvRuntimeBank = [string]$profile.fmv_runtime_bank
+if ([string]::IsNullOrWhiteSpace($fmvRuntimeBank)) {
+  throw "Profile $MphVersion has no FMV runtime bank identity."
+}
 $gameConfig = [IO.Path]::GetFullPath(
   (Join-Path $root ([string]$profile.game_config)))
 
@@ -97,6 +101,7 @@ Push-Location $root
 try {
   Write-Host "Building MPH profile $MphVersion ($($profile.game_code) rev $($profile.revision))"
   Write-Host "Launcher adaptive widescreen: $launcherAdaptive"
+  Write-Host "FMV runtime bank identity: $fmvRuntimeBank"
 
   & $cmakePath -G $Generator -S $root -B $gameBuild `
     -DCMAKE_BUILD_TYPE=Release `
@@ -144,7 +149,8 @@ try {
     '-LauncherBuildDir', $LauncherBuildDir,
     '-RuntimeBinDir', $RuntimeBinDir,
     '-GameConfig', $gameConfig,
-    '-Profile', $MphVersion
+    '-Profile', $MphVersion,
+    '-FmvRuntimeBank', $fmvRuntimeBank
   )
   if (-not [bool]$profile.fmv_runtime) {
     $releaseArgs += '-AllowNoFmvRuntime'

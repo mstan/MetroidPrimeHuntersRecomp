@@ -11,6 +11,14 @@ jobs:
   windows:
     name: Windows ROM-free build
     runs-on: windows-2025
+    env:
+      # Keep compiler output reusable across PR iterations. ccache validates the
+      # compiler command/source content itself; this directory is only a cache,
+      # never a source of build truth.
+      CCACHE_DIR: ${{ github.workspace }}\.ccache
+      CCACHE_MAXSIZE: 750M
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
 
     steps:
       - name: Check out title sources
@@ -34,6 +42,31 @@ jobs:
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-python
             mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-ccache
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\.ccache
+          key: >-
+            mph-windows-mingw64-ccache-v1-${{ hashFiles(
+              'ndsrecomp.pin',
+              'recomp-ui.pin',
+              'launcher/recomp-ui/**',
+              'tools/patch_ndsrecomp_mph_runtime.py',
+              'tools/patch_ndsrecomp_rom_free_release.py',
+              'tools/patch_recomp_ui_mph_multirom.py'
+            ) }}
+          restore-keys: |
+            mph-windows-mingw64-ccache-v1-
+
+      - name: Configure compiler cache
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          ccache --version
+          ccache --set-config=max_size="$CCACHE_MAXSIZE"
+          ccache --zero-stats
 
       - name: Fetch pinned ndsrecomp and recomp-ui
         shell: msys2 {0}
@@ -137,6 +170,14 @@ jobs:
             -LauncherBuildDir 'launcher\recomp-ui\build-nightly' \
             -RuntimeBinDir "$runtime_bin"
           test -s "release-stage/MetroidPrimeHuntersRecomp-windows-x64-v${version}.zip"
+
+      - name: Show compiler cache stats
+        if: always()
+        shell: msys2 {0}
+        run: |
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats || true
+          fi
 
       - name: Upload Windows Nightly payload
         uses: actions/upload-artifact@v4

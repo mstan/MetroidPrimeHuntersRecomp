@@ -13,6 +13,8 @@
       "coverage": "coverage/adventure-main-entry-points.json",
       "game_config": "game.toml",
       "fmv_runtime": true,
+      "launcher_default_rom": "Metroid Prime Hunters.nds",
+      "adaptive_widescreen": true,
       "runtime": {
         "morph_state": "0x020DA818",
         "aim_x": "0x020DE526",
@@ -30,6 +32,8 @@
       "coverage": "coverage/eu11-bootstrap-entry-points.json",
       "game_config": "config/game-eu11.toml",
       "fmv_runtime": false,
+      "launcher_default_rom": "Metroid Prime Hunters (Europe Rev 1).nds",
+      "adaptive_widescreen": false,
       "runtime": {
         "morph_state": "0x020DB138",
         "aim_x": "0x020DEE46",

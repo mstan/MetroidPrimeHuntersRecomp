@@ -1,24 +1,26 @@
 <#
 Build Metroid Prime Hunters Recomp for one configured retail revision.
 
-US1_0 keeps the existing release path, including the recomp-ui launcher and
-portable ZIP. Other profiles currently build the title banks and runner only;
-they are bring-up builds until their title-specific runtime hooks are validated.
+US1_0 keeps the existing release paths. EU1_1 uses isolated generated banks,
+a revision-specific game config, a profile-specific launcher identity, and the
+shared exact-ROM runtime-address shim for Prime Controls/direct mouse aim.
 
 Usage:
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-    tools\build-windows.ps1 -Version 0.3.0 -MphVersion EU1_1
+    tools\build-windows.ps1 -Version 0.3.0 -MphVersion EU1_1 `
+    -RomPath 'D:\ROMs\Metroid Prime Hunters (Europe) (Rev 1).nds'
 #>
 param(
   [string]$Version = '0.1.0',
   [ValidateSet('US1_0', 'EU1_1')]
   [string]$MphVersion = 'US1_0',
+  [string]$RomPath = '',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
   [string]$GameBuildDir = '',
   [string]$RunnerBuildDir = '',
-  [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
+  [string]$LauncherBuildDir = '',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$RecompUiRoot = 'F:\Projects\recomp-ui'
 )
@@ -38,6 +40,17 @@ if ($null -eq $profileProperty) {
 }
 $profile = $profileProperty.Value
 $romSha1 = [string]$profile.sha1
+$region = [string]$profile.region
+$gameConfig = [IO.Path]::GetFullPath(
+  (Join-Path $root ([string]$profile.game_config)))
+
+if ([string]::IsNullOrWhiteSpace($RomPath)) {
+  $RomPath = Join-Path $root 'Metroid Prime Hunters.nds'
+}
+$romFull = [IO.Path]::GetFullPath($RomPath)
+if (-not (Test-Path -LiteralPath $romFull)) {
+  throw "ROM not found: $romFull"
+}
 
 if ([string]::IsNullOrWhiteSpace($GameBuildDir)) {
   if ($MphVersion -eq 'US1_0') {
@@ -53,6 +66,13 @@ if ([string]::IsNullOrWhiteSpace($RunnerBuildDir)) {
     $RunnerBuildDir = "..\ndsrecomp\runner\build-mph-release-$MphVersion"
   }
 }
+if ([string]::IsNullOrWhiteSpace($LauncherBuildDir)) {
+  if ($MphVersion -eq 'US1_0') {
+    $LauncherBuildDir = 'launcher\recomp-ui\build-release'
+  } else {
+    $LauncherBuildDir = "launcher\recomp-ui\build-release-$MphVersion"
+  }
+}
 
 $frameworkRoot = [IO.Path]::GetFullPath((Join-Path $root '..\ndsrecomp'))
 $gameBuild = [IO.Path]::GetFullPath((Join-Path $root $GameBuildDir))
@@ -65,6 +85,11 @@ if ($MphVersion -eq 'US1_0') {
     (Join-Path $root "generated\$MphVersion\recomp"))
 }
 
+$patchPython = Join-Path $root '.venv\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $patchPython)) {
+  $patchPython = 'python'
+}
+
 Push-Location $root
 try {
   Write-Host "Building MPH profile $MphVersion ($($profile.game_code) rev $($profile.revision))"
@@ -72,11 +97,16 @@ try {
   & $cmakePath -G $Generator -S $root -B $gameBuild `
     -DCMAKE_BUILD_TYPE=Release `
     -DNDSRECOMP_ROOT="$frameworkRoot" `
-    -DMPH_VERSION="$MphVersion"
+    -DMPH_VERSION="$MphVersion" `
+    -DMPH_ROM="$romFull"
   if ($LASTEXITCODE -ne 0) { throw 'Game CMake configure failed.' }
 
   & $cmakePath --build $gameBuild --target metroidprimehuntersrecomp -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Game bank build failed.' }
+
+  & $patchPython "$root\tools\patch_ndsrecomp_mph_runtime.py" `
+    --framework-root "$frameworkRoot" --profiles "$profileFile"
+  if ($LASTEXITCODE -ne 0) { throw 'ndsrecomp MPH runtime-profile patch failed.' }
 
   & $cmakePath -G $Generator -S "$frameworkRoot\runner" -B $runnerBuild `
     -DCMAKE_BUILD_TYPE=Release `
@@ -88,32 +118,32 @@ try {
   & $cmakePath --build $runnerBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Runner build failed.' }
 
-  if ($MphVersion -ne 'US1_0') {
-    $gameConfig = [IO.Path]::GetFullPath(
-      (Join-Path $root ([string]$profile.game_config)))
-    Write-Host ''
-    Write-Host "Bring-up runner built: $runnerBuild\nds_runner.exe"
-    Write-Host "Use the revision-specific config: $gameConfig"
-    Write-Host 'Launcher/release packaging intentionally skipped for this profile.'
-    Write-Host 'Prime Controls and direct mouse aim remain USA-only until revision addresses are validated.'
-    return
-  }
-
   & $cmakePath -G $Generator -S "$root\launcher\recomp-ui" -B $launcherBuild `
     -DCMAKE_BUILD_TYPE=Release `
+    -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
-    -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
+    -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake" `
+    "-DMPH_LAUNCHER_ROM_SHA1=$romSha1" `
+    "-DMPH_LAUNCHER_REGION=$region"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
 
   & $cmakePath --build $launcherBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed.' }
 
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-    "$root\tools\make_release.ps1" `
-    -Version $Version `
-    -RunnerBuildDir $RunnerBuildDir `
-    -LauncherBuildDir $LauncherBuildDir `
-    -RuntimeBinDir $RuntimeBinDir
+  $releaseArgs = @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+    "$root\tools\make_release.ps1",
+    '-Version', $Version,
+    '-RunnerBuildDir', $RunnerBuildDir,
+    '-LauncherBuildDir', $LauncherBuildDir,
+    '-RuntimeBinDir', $RuntimeBinDir,
+    '-GameConfig', $gameConfig,
+    '-Profile', $MphVersion
+  )
+  if (-not [bool]$profile.fmv_runtime) {
+    $releaseArgs += '-AllowNoFmvRuntime'
+  }
+  & powershell.exe @releaseArgs
   if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed.' }
 } finally {
   Pop-Location

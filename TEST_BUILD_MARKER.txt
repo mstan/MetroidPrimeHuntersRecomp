@@ -1,0 +1,1 @@
+TEST ONLY: guest MPH 21:9 projection/culling ON; host 448px adaptive framebuffer/HUD anchoring OFF.

@@ -20,6 +20,12 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
+          # windows-2025 already ships C:\msys64. Reuse that image installation
+          # instead of downloading/extracting a fresh MSYS2 release every run.
+          release: false
+          # setup-msys2 has a native package cache; keep it explicit so future
+          # workflow edits do not accidentally disable the fast rerun path.
+          cache: true
           update: true
           install: >-
             git

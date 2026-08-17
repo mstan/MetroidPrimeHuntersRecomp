@@ -5,9 +5,7 @@
 
 ## 1. 目的
 
-`MetroidPrimeHuntersRecomp` を USA revision 0 (`AMHE`, revision 0) 固定から
-multi-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revision 1)
-を安全にbring-upする。
+`MetroidPrimeHuntersRecomp` を USA revision 0 (`AMHE`, revision 0) 固定からmulti-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revision 1) を安全にbring-upする。
 
 現在はROM実体なしで実装・検証できる範囲を進め、次まで完了している。
 
@@ -24,8 +22,7 @@ multi-ROM化し、最初の追加対象として Europe revision 1 (`AMHP`, revi
 11. ROM不要CIでUS1.0/EU1.1のlauncher generated sourceを生成し、identityとfeature policyを直接検証する。
 12. Linux AppRunではprofile別 `game.toml` を唯一のtitle presentation policyとし、Adaptive Widescreen等をCLIで上書きしない。
 
-未完了なのは、EU1.1実ROMと実行環境を必要とするruntime validation、
-EU1.1固有coverageの拡張、必要に応じたEU1.1固有FMV runtime captureである。
+未完了なのは、EU1.1実ROMと実行環境を必要とするruntime validation、EU1.1固有coverageの拡張、必要に応じたEU1.1固有FMV runtime captureである。
 
 ## 2. EU1.1 identity
 
@@ -161,15 +158,11 @@ runner/src/mph_runtime_profiles.generated.h
 
 `coverage/eu11-bootstrap-entry-points.json`
 
-初期状態ではARM9 / ARM7の追加coverage rootを空にする。
-
-これは意図的である。
+初期状態ではARM9 / ARM7の追加coverage rootを空にする。これは意図的である。
 
 `prepare_mph.py` はROM headerのARM9/ARM7 entry PCを必ずseedするため、EU1.1はまずそのrootからstatic discoveryを行い、未コンパイル領域はruntime Interpreterへfallbackする。
 
-US1.0の `coverage/adventure-main-entry-points.json` に入っているabsolute PCをEU1.1へコピーしてはいけない。
-
-EU1.1自身を実行したtraceからのみEU1.1 coverageを拡張する。
+US1.0の `coverage/adventure-main-entry-points.json` に入っているabsolute PCをEU1.1へコピーしてはいけない。EU1.1自身を実行したtraceからのみEU1.1 coverageを拡張する。
 
 ## 7. Generated tree separation
 
@@ -191,9 +184,7 @@ generated/
     recomp/
 ```
 
-とする。
-
-これにより異なるROM由来のbankやbinaryが同じパスへ混ざらない。
+とする。これにより異なるROM由来のbankやbinaryが同じパスへ混ざらない。
 
 ## 8. Launcher identity / feature policy separation
 
@@ -252,13 +243,7 @@ generated/capture/mph_arm9_fmv_runtime.bin
 
 はUS1.0 runtime bytesとobserved PCsに対するbankである。
 
-EU1.1 profileは:
-
-```text
-fmv_runtime = false
-```
-
-とし、このbankを絶対に登録しない。
+EU1.1 profileは `fmv_runtime = false` とし、このbankを絶対に登録しない。
 
 EU1.1でopening FMV等がInterpreter fallbackでは遅い場合でも、US1.0 captureを流用してはいけない。EU1.1自身からITCM + main RAM captureを取得し、live-byte validation付きのEU1.1専用runtime bankを作る。
 
@@ -312,7 +297,7 @@ tools/build-linux.sh \
 
 EU1.1 package名には `EU1_1` suffixを付け、US1.0のhistorical filenameとは分離する。
 
-Linux AppRunはprofile別 `game.toml` をrunnerへ渡し、launcherのようなUS1.0固定Adaptive Widescreen CLI overrideを行わない。EU1.1では `config/game-eu11.toml` のnative presentation policyがそのまま有効になることを維持する。
+Linux AppRunはprofile別 `game.toml` をrunnerへ渡し、US1.0固定Adaptive Widescreen CLI overrideを行わない。EU1.1では `config/game-eu11.toml` のnative presentation policyがそのまま有効になる。
 
 ## 11. ROM不要static CI
 
@@ -348,8 +333,6 @@ PRごとに以下を検証する。
 Aim X/Y/MorphについてはmelonPrimeDS address tableをsource of truthとする。
 
 mphCodexは引き続き、今後Recomp固有のhost enhancementがsemantic stateを読む必要が出た場合のcross-version調査に利用する。
-
-例:
 
 | Semantic | US1.0 | EU1.1 |
 |---|---:|---:|
@@ -435,37 +418,15 @@ EU1.1では現在意図的に無効である。EU1.1を基本対応とするた�
 - Adventure camera / Scan Visor等の特殊scene
 - US1.0との差分があるsemantic addressを固定値で流用していないこと
 
-検証後にのみ、
-
-```json
-"adaptive_widescreen": true
-```
-
-とEU1.1 `game.toml` の対応display設定を同時に有効化する。
+検証後にのみ `"adaptive_widescreen": true` とEU1.1 `game.toml` の対応display設定を同時に有効化する。
 
 ### Gate F - EU1.1 deterministic coverage
 
-EU1.1 execution traceから
-
-- immutable ARM9 main-image call target
-- immutable ARM9 main-image indirect target
-- ARM7 main-image target
-
-のみを抽出し、EU1.1専用coverageへ昇格する。
-
-US1.0 absolute PCのaddress translationは行わない。
+EU1.1 execution traceからimmutable ARM9 main-image call target、immutable ARM9 main-image indirect target、ARM7 main-image targetのみを抽出し、EU1.1専用coverageへ昇格する。US1.0 absolute PCのaddress translationは行わない。
 
 ### Gate G - EU1.1 FMV runtime optimization
 
-必要な場合だけEU1.1自身からcaptureを作る。
-
-- capture SHA-1
-- live-byte validation
-- observed call targets
-- observed indirect targets
-- performance comparison
-
-を固定してからEU1.1 profileの `fmv_runtime` をtrueへ変更する。
+必要な場合だけEU1.1自身からcaptureを作る。capture SHA-1、live-byte validation、observed call targets、observed indirect targets、performance comparisonを固定してからEU1.1 profileの `fmv_runtime` をtrueへ変更する。
 
 ## 14. Supported判定
 
@@ -513,5 +474,4 @@ ROMなしで可能なidentity/profile、extraction routing、bank isolation、ru
 
 **NOT YET CLAIMED**
 
-EU1.1実ROMによるboot/gameplay/reference validationは別途必要である。
-このvalidationを通すまでは、コードがEU1.1を受理できることと、ゲーム動作が完全に検証済みであることを混同しない。
+EU1.1実ROMによるboot/gameplay/reference validationは別途必要である。このvalidationを通すまでは、コードがEU1.1を受理できることと、ゲーム動作が完全に検証済みであることを混同しない。

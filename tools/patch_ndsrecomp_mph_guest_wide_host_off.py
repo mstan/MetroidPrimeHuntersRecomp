@@ -40,6 +40,9 @@ def patch(framework_root: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--framework-root", type=Path, required=True)
+    # Accepted so this experiment can be appended to the normal runtime patch
+    # stack, which forwards the shared --profiles argument to every layer.
+    parser.add_argument("--profiles", type=Path, required=False)
     args = parser.parse_args()
     patch(args.framework_root.resolve())
 

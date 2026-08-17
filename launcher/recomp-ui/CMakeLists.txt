@@ -11,7 +11,7 @@ set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
     "Path to the ndsrecomp framework checkout (for the shared SHA-1 helper)")
 set(MPH_LAUNCHER_ROM_SHA1
     "90164d1ac127ee5f9815ea4ae7de798c7b5fc629" CACHE STRING
-    "Exact retail ROM SHA-1 accepted by this profile-specific launcher")
+    "Clean retail ROM SHA-1 metadata rendered for this profile-specific launcher")
 set(MPH_LAUNCHER_REGION "USA" CACHE STRING
     "Region label shown by the profile-specific launcher")
 set(MPH_LAUNCHER_DEFAULT_ROM "Metroid Prime Hunters.nds" CACHE STRING
@@ -48,6 +48,10 @@ mph_launcher_replace_required(
     "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
     "${MPH_LAUNCHER_ROM_SHA1}"
     "the US1.0 SHA-1 baseline")
+mph_launcher_replace_required(
+    "game.known_sha1_hex = sha1;\n    game.num_known_sha1 = std::size(sha1);"
+    "// MPH_MULTIROM_CONTENT_GATE: recomp-ui must not reject a modified ROM\n    // before nds_runner can apply the base/executable compatibility detector.\n    // The runner remains the authoritative fail-closed content gate.\n    game.known_sha1_hex = nullptr;\n    game.num_known_sha1 = 0;"
+    "the recomp-ui whole-ROM SHA-1 gate")
 mph_launcher_replace_required(
     "game.region = \"USA\";"
     "game.region = \"${MPH_LAUNCHER_REGION}\";"

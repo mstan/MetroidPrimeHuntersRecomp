@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Validate the current multi-ROM schema, then run the legacy deep checks.
 
-The legacy checker predates the all-version Adaptive Widescreen address table
-and the shared runtime-generic frontend config. Preserve its broad coverage on
-a temporary compatibility view while validating the current scale fields and
-generic config contract against the real registry.
+The legacy checker predates the all-version Adaptive Widescreen address table,
+the shared runtime-generic frontend config, and optional bootstrap-only coverage.
+Preserve its broad coverage on a temporary compatibility view while validating
+the current scale fields and generic config contract against the real registry.
 """
 
 from __future__ import annotations
@@ -105,6 +105,25 @@ def validate_scale_registry(repo: Path, table: Path | None) -> None:
         if profile.get("game_config") != "game.toml":
             die(f"{key}: content profiles must share the generic game.toml frontend config")
 
+        coverage = profile.get("coverage")
+        if not isinstance(coverage, str):
+            die(f"{key}.coverage must be a string; use an empty string for bootstrap-only")
+        if coverage:
+            coverage_path = repo / coverage
+            if not coverage_path.is_file():
+                die(f"{key}.coverage does not exist: {coverage_path}")
+            coverage_doc = json.loads(coverage_path.read_text(encoding="utf-8"))
+            if coverage_doc.get("game_sha1") != profile.get("sha1"):
+                die(f"{key}.coverage game_sha1 does not match profile SHA-1")
+
+    # EU1.1 never had promoted coverage: the removed file contained zero ARM9
+    # and zero ARM7 entries and existed only to satisfy the old required-file
+    # shape. Keep the source tree honest and represent that state as no seed.
+    if profiles.get("EU1_1", {}).get("coverage") != "":
+        die("EU1_1 should remain bootstrap-only until real coverage is promoted")
+    if (repo / "coverage" / "eu11-bootstrap-entry-points.json").exists():
+        die("obsolete empty EU1.1 bootstrap coverage placeholder still exists")
+
     if table:
         text = table.read_text(encoding="utf-8")
         rows = {
@@ -126,7 +145,7 @@ def validate_scale_registry(repo: Path, table: Path | None) -> None:
 
 
 def legacy_compat_view(repo: Path, destination: Path) -> Path:
-    """Synthesize the old per-profile config shape only for the legacy checker."""
+    """Synthesize old required-file/profile shapes only for the legacy checker."""
     target = destination / "repo"
     shutil.copytree(
         repo, target,
@@ -139,11 +158,30 @@ def legacy_compat_view(repo: Path, destination: Path) -> Path:
         for field in SCALE_FIELDS:
             runtime.pop(field, None)
 
-    # The old checker expects exact identity duplicated into each game config
-    # and also expects the historical EU1.1 widescreen-disable state. Generate
-    # those files only inside the temporary compatibility copy so production
-    # source keeps one generic game.toml.
+    # The old checker requires a concrete coverage file for every profile.
+    # Generate an empty identity-only manifest in the temporary compatibility
+    # copy when the production profile intentionally has no promoted coverage.
     for key, profile in registry["profiles"].items():
+        if not profile.get("coverage"):
+            legacy_coverage_rel = f"coverage/.legacy-{key}-bootstrap.json"
+            legacy_coverage_path = target / legacy_coverage_rel
+            legacy_coverage_path.parent.mkdir(parents=True, exist_ok=True)
+            legacy_coverage_path.write_text(
+                json.dumps(
+                    {
+                        "schema": 1,
+                        "game_sha1": profile["sha1"],
+                        "scenario": None,
+                        "selection": "legacy checker bootstrap compatibility view",
+                        "entry_points": {"arm9": [], "arm7": []},
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            profile["coverage"] = legacy_coverage_rel
+
         legacy_rel = f"config/.legacy-{key}.toml"
         profile["game_config"] = legacy_rel
         adaptive = profile.get("adaptive_widescreen") is True

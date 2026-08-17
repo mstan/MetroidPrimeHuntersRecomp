@@ -77,11 +77,24 @@ else()
 endif()
 set(MPH_INPUT_DIR "${MPH_GENERATED_DIR}/inputs")
 set(MPH_RECOMP_DIR "${MPH_GENERATED_DIR}/recomp")
-set(MPH_COVERAGE_SEEDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/${MPH_PROFILE_COVERAGE}")
-if(NOT EXISTS "${MPH_COVERAGE_SEEDS}")
-    message(FATAL_ERROR
-        "Coverage seed file for ${MPH_VERSION} not found: ${MPH_COVERAGE_SEEDS}")
+
+set(MPH_COVERAGE_SEEDS "")
+set(MPH_PREP_COVERAGE_ARGS)
+set(MPH_PREP_COVERAGE_DEPENDS)
+if(NOT MPH_PROFILE_COVERAGE STREQUAL "")
+    set(MPH_COVERAGE_SEEDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/${MPH_PROFILE_COVERAGE}")
+    if(NOT EXISTS "${MPH_COVERAGE_SEEDS}")
+        message(FATAL_ERROR
+            "Coverage seed file for ${MPH_VERSION} not found: ${MPH_COVERAGE_SEEDS}")
+    endif()
+    list(APPEND MPH_PREP_COVERAGE_ARGS
+        --coverage "${MPH_COVERAGE_SEEDS}")
+    list(APPEND MPH_PREP_COVERAGE_DEPENDS "${MPH_COVERAGE_SEEDS}")
+else()
+    message(STATUS
+        "MPH profile ${MPH_VERSION}: no static coverage seed; "
+        "using ROM-header ARM9/ARM7 bootstrap roots only")
 endif()
 
 message(STATUS
@@ -110,11 +123,11 @@ add_custom_command(
     COMMAND "${MPH_PYTHON}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_mph.py"
             --rom "${MPH_ROM}"
             --out "${MPH_INPUT_DIR}"
-            --coverage "${MPH_COVERAGE_SEEDS}"
+            ${MPH_PREP_COVERAGE_ARGS}
             --version "${MPH_VERSION}"
             --profiles "${MPH_PROFILE_FILE}"
     DEPENDS "${MPH_ROM}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/prepare_mph.py"
-            "${MPH_PROFILE_FILE}" "${MPH_COVERAGE_SEEDS}"
+            "${MPH_PROFILE_FILE}" ${MPH_PREP_COVERAGE_DEPENDS}
     COMMENT "Verifying ${MPH_VERSION} and preparing main/overlay code images")
 add_custom_target(mph_prepare DEPENDS ${MPH_PREP_OUTPUTS})
 

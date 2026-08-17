@@ -262,6 +262,8 @@ Current clean EU1.1 profile:
 - whole-ROM SHA-1: `bdcd1dea293e24c98d4c481430e90d21198985a5`
 - default launcher ROM: `Metroid Prime Hunters (Europe Rev 1).nds`
 - shared frontend config: `game.toml`
+- static coverage: none currently promoted; exact AOT preparation bootstraps
+  from the ROM-header ARM9/ARM7 entry points only
 - Adaptive Widescreen: exposed and revision-aware
 - FMV runtime bank: disabled until an EU1.1-specific capture is validated
 
@@ -319,23 +321,29 @@ during the build.
 The preparation path intentionally remains exact-content gated. This protects
 generated code provenance; it is not the runtime selector.
 
-Example EU1.1 preparation:
+EU1.1 currently has no promoted static coverage, so preparation intentionally
+uses only the ROM-header ARM9/ARM7 entry points:
 
 ```bash
 python tools/prepare_mph.py \
   --version EU1_1 \
   --rom "/path/to/Metroid Prime Hunters (Europe Rev 1).nds" \
-  --coverage coverage/eu11-bootstrap-entry-points.json \
   --out generated/EU1_1/inputs
 ```
 
-`prepare_mph.py` checks:
+`prepare_mph.py` always checks:
 
 - exact whole-ROM SHA-1
 - expected ROM size
 - game code at `0x0C`
 - revision at `0x1E`
-- coverage `game_sha1`
+
+When `--coverage <manifest.json>` is supplied, it additionally verifies the
+coverage `game_sha1` and adds those ARM9/ARM7 entry points. Omitting
+`--coverage` is a deliberate bootstrap-only mode and still emits the ROM-header
+entry roots. The old `coverage/eu11-bootstrap-entry-points.json` placeholder was
+removed because it contained zero ARM9 and zero ARM7 coverage entries and was
+therefore behaviorally identical to omitting coverage.
 
 It then extracts ARM9, ARM7 and overlays and emits content-specific seed
 configs.
@@ -388,8 +396,8 @@ produce the canonical melonPrimeDS executable checksums. It verifies:
 - upstream launcher/tests and the imported overlay QA tools remain pinned to the
   audited upstream title commit
 
-`MPH Multi-ROM Static Checks` #123 passed after the upstream `905ffab` / ndsrecomp
-`302404ad...` integration.
+The multi-ROM static workflow is required to pass after every profile/schema
+change, including bootstrap-only profiles with no promoted coverage file.
 
 ## 13. Remaining optimization work
 

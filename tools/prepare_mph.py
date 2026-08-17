@@ -186,7 +186,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rom", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--coverage", type=Path, required=True)
+    parser.add_argument(
+        "--coverage",
+        type=Path,
+        help=(
+            "optional static coverage seed manifest; omit to bootstrap from "
+            "the ROM-header ARM9/ARM7 entry points only"
+        ),
+    )
     parser.add_argument(
         "--version",
         default=DEFAULT_VERSION,
@@ -232,16 +239,20 @@ def main() -> int:
         )
 
     rom = ndspy.rom.NintendoDSRom(rom_bytes)
-    coverage = json.loads(args.coverage.read_text(encoding="utf-8"))
-    if coverage.get("game_sha1") != expected_sha1:
-        raise SystemExit(
-            f"static coverage seed identity does not match {args.version}"
-        )
-    coverage_entries = coverage.get("entry_points", {})
-    if not isinstance(coverage_entries, dict):
-        raise SystemExit("coverage entry_points must be an object")
-    arm9_coverage = list(coverage_entries.get("arm9", []))
-    arm7_coverage = list(coverage_entries.get("arm7", []))
+    arm9_coverage: list[dict[str, object]] = []
+    arm7_coverage: list[dict[str, object]] = []
+    if args.coverage is not None:
+        coverage = json.loads(args.coverage.read_text(encoding="utf-8"))
+        if coverage.get("game_sha1") != expected_sha1:
+            raise SystemExit(
+                f"static coverage seed identity does not match {args.version}"
+            )
+        coverage_entries = coverage.get("entry_points", {})
+        if not isinstance(coverage_entries, dict):
+            raise SystemExit("coverage entry_points must be an object")
+        arm9_coverage = list(coverage_entries.get("arm9", []))
+        arm7_coverage = list(coverage_entries.get("arm7", []))
+
     arm9_compressed = bytes(rom.arm9)
     arm9 = code_compression.decompress(arm9_compressed)
     if len(arm9) < len(arm9_compressed):
@@ -326,6 +337,13 @@ def main() -> int:
         f"{expected_game_code.decode('ascii')} revision={expected_revision} "
         f"SHA-1 {digest}"
     )
+    if args.coverage is None:
+        print("Static coverage: none; using ROM-header ARM9/ARM7 bootstrap roots only")
+    else:
+        print(
+            f"Static coverage: {len(arm9_coverage)} ARM9 + "
+            f"{len(arm7_coverage)} ARM7 seed entries from {args.coverage}"
+        )
     print(
         f"ARM9: {len(arm9_compressed):,} compressed bytes -> "
         f"{len(arm9):,} bytes at 0x{int(rom.arm9RamAddress):08X}"

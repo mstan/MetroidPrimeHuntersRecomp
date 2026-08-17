@@ -145,7 +145,7 @@
       "rom_size": 67108864,
       "sha1": "bdcd1dea293e24c98d4c481430e90d21198985a5",
       "program_id": "mph_amhp1",
-      "coverage": "coverage/eu11-bootstrap-entry-points.json",
+      "coverage": "",
       "game_config": "game.toml",
       "fmv_runtime": false,
       "fmv_runtime_bank": "mph_amhp1_arm9_fmv_runtime",

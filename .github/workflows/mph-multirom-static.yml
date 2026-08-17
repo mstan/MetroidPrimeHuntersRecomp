@@ -1,0 +1,104 @@
+name: MPH Multi-ROM Static Checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-multirom:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check Python syntax
+        run: |
+          python -m py_compile \
+            tools/prepare_mph.py \
+            tools/check_mph_multirom_profiles.py \
+            tools/patch_ndsrecomp_mph_runtime.py
+
+      - name: Check shell syntax
+        run: bash -n tools/build-linux.sh
+
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($path in @('tools/build-windows.ps1', 'tools/make_release.ps1')) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -ne 0) {
+              $failed = $true
+              Write-Error "$path has PowerShell parser errors:`n$($errors | Out-String)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: Cross-check runtime addresses against melonPrimeDS
+        run: |
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/ag-advania/melonPrimeDS/main/src/frontend/qt_sdl/MelonPrimeGameRomAddrTable.h \
+            -o /tmp/MelonPrimeGameRomAddrTable.h
+          python tools/check_mph_multirom_profiles.py \
+            --melonprime-table /tmp/MelonPrimeGameRomAddrTable.h
+
+      - name: Fetch exact pinned ndsrecomp revision
+        run: |
+          pin="$(tr -d '\r\n' < ndsrecomp.pin)"
+          test "${#pin}" -eq 40
+          git init /tmp/ndsrecomp
+          git -C /tmp/ndsrecomp remote add origin https://github.com/mstan/ndsrecomp.git
+          git -C /tmp/ndsrecomp fetch --depth 1 origin "$pin"
+          git -C /tmp/ndsrecomp checkout --detach FETCH_HEAD
+          test "$(git -C /tmp/ndsrecomp rev-parse HEAD)" = "$pin"
+
+      - name: Verify ndsrecomp runtime patch is idempotent
+        run: |
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root /tmp/ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          sha256sum \
+            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/title_patches.h \
+            /tmp/ndsrecomp/runner/src/title_patches.cpp \
+            /tmp/ndsrecomp/runner/src/frontend.cpp \
+            /tmp/ndsrecomp/runner/src/main.cpp \
+            > /tmp/first.sha256
+
+          python tools/patch_ndsrecomp_mph_runtime.py \
+            --framework-root /tmp/ndsrecomp \
+            --profiles config/mph_rom_profiles.json
+          sha256sum \
+            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h \
+            /tmp/ndsrecomp/runner/src/title_patches.h \
+            /tmp/ndsrecomp/runner/src/title_patches.cpp \
+            /tmp/ndsrecomp/runner/src/frontend.cpp \
+            /tmp/ndsrecomp/runner/src/main.cpp \
+            > /tmp/second.sha256
+          diff -u /tmp/first.sha256 /tmp/second.sha256
+
+          grep -q '0x020DB138u, 0x020DEE46u, 0x020DEE4Eu' \
+            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h
+          grep -q 'bdcd1dea293e24c98d4c481430e90d21198985a5' \
+            /tmp/ndsrecomp/runner/src/mph_runtime_profiles.generated.h
+          grep -q 'nds_title_patches_select_mph_runtime_profile' \
+            /tmp/ndsrecomp/runner/src/main.cpp
+          grep -q 'nds_title_patches_mph_in_ball' \
+            /tmp/ndsrecomp/runner/src/frontend.cpp
+          ! grep -q 'kMphUs10MorphState' /tmp/ndsrecomp/runner/src/frontend.cpp
+          ! grep -q 'kMphUs10AimX' /tmp/ndsrecomp/runner/src/title_patches.cpp
+          ! grep -q 'kMphUs10AimY' /tmp/ndsrecomp/runner/src/title_patches.cpp
+
+      - name: Diff sanity
+        run: git diff --check

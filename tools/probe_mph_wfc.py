@@ -40,6 +40,21 @@ DEFAULT_FILTERS = (
 )
 
 
+def _runner_help_mentions(runner: Path, token: str) -> bool:
+    try:
+        help_out = subprocess.check_output([str(runner), "--help"], text=True, timeout=3)
+    except subprocess.CalledProcessError as exc:
+        # Some runner builds emit help text and exit non-zero; inspect output anyway.
+        help_out = exc.output or ""
+    except Exception:
+        return False
+    return token in help_out
+
+
+def _is_unknown_command_error(exc: RuntimeError) -> bool:
+    return "unknown cmd" in str(exc).lower()
+
+
 def save_checkpoint(
     client: capture_lib.DebugClient,
     output: Path,
@@ -75,22 +90,49 @@ def event_counts_for_item(item: dict[str, Any]) -> dict[str, int]:
     return {name: ring_count(item, name) for name in DEFAULT_FILTERS}
 
 
-def wait_for_connection(
+def query_network_counts(
     client: capture_lib.DebugClient,
+    filters: tuple[str, ...],
     *,
-    require_tls: bool,
-    timeout_s: float,
-    stall_s: float,
+    use_net_progress: bool,
 ) -> dict[str, int]:
-    end = time.monotonic() + timeout_s
-    last_progress = time.monotonic()
-    last_total = 0
-    while time.monotonic() < end:
+    if use_net_progress:
         progress = client.command("net_progress")
         counts_raw = progress.get("counts", {})
         if not isinstance(counts_raw, dict):
             raise RuntimeError("net_progress returned malformed payload")
-        counts = {str(kind): int(value) for kind, value in counts_raw.items()}
+        return {str(kind): int(value) for kind, value in counts_raw.items()}
+
+    counts: dict[str, int] = {}
+    for kind in filters:
+        ring = client.command("net_ring_dump", max=256, filter=kind)
+        events = ring.get("events", [])
+        counts[str(kind)] = len(events) if isinstance(events, list) else 0
+    return counts
+
+
+def wait_for_connection(
+    client: capture_lib.DebugClient,
+    *,
+    require_tls: bool,
+    use_net_progress: bool,
+    timeout_s: float,
+    stall_s: float,
+) -> dict[str, int]:
+    filters = tuple(DEFAULT_FILTERS)
+    end = time.monotonic() + timeout_s
+    last_progress = time.monotonic()
+    last_total = 0
+    while time.monotonic() < end:
+        try:
+            counts = query_network_counts(
+                client, filters=filters, use_net_progress=use_net_progress
+            )
+        except RuntimeError as exc:
+            if use_net_progress and _is_unknown_command_error(exc):
+                use_net_progress = False
+                continue
+            raise
 
         if counts.get("backend_error", 0) > 0:
             raise RuntimeError(f"backend_error during test-connection: {counts}")
@@ -174,12 +216,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     output.mkdir(parents=True, exist_ok=True)
     profile = output / "profile"
     profile.mkdir(parents=True, exist_ok=True)
+    runner = args.runner.resolve()
+    runner_supports_firmware_state = _runner_help_mentions(
+        runner, "--firmware-state-path"
+    )
     if args.firmware_state_path is None and args.no_dumps:
-        args.firmware_state_path = profile / "firmware-generated.bin"
+        if runner_supports_firmware_state:
+            args.firmware_state_path = profile / "firmware-generated.bin"
     if args.save_path is None and args.no_dumps:
         args.save_path = profile / "Metroid Prime Hunters.sav"
 
-    runner = args.runner.resolve()
+    net_progress_supported = _runner_help_mentions(runner, "net_progress")
+
     command = [
         str(runner),
         str(args.bios.resolve()),
@@ -210,6 +258,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     if args.firmware_path:
         command.extend(["--firmware-path", str(args.firmware_path.resolve())])
     if args.firmware_state_path:
+        if not runner_supports_firmware_state and args.no_dumps:
+            raise RuntimeError(
+                f"runner {runner} does not support --firmware-state-path; restart with --no-dumps without firmware_state_path"
+            )
         command.extend([
             "--firmware-state-path", str(args.firmware_state_path.resolve())
         ])
@@ -287,6 +339,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                         wait_for_connection(
                             client,
                             require_tls=args.require_tls,
+                            use_net_progress=net_progress_supported,
                             timeout_s=args.connection_timeout,
                             stall_s=args.connection_stall_s,
                         )

@@ -15,6 +15,7 @@ import argparse
 import json
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +49,10 @@ def save_checkpoint(
 ) -> None:
     item = input_lib.save_checkpoint(client, output, len(report), label)
     item["net_state"] = client.command("net_state")
+    try:
+        item["net_progress"] = client.command("net_progress")
+    except RuntimeError:
+        item["net_progress"] = {"counts": {}}
     item["ring"] = {
         name: client.command("net_ring_dump", max=256, filter=name)
         for name in filters
@@ -61,6 +66,55 @@ def ring_count(item: dict[str, Any], kind: str) -> int:
     return len(events)
 
 
+def event_counts_for_item(item: dict[str, Any]) -> dict[str, int]:
+    progress = item.get("net_progress", {})
+    if isinstance(progress, dict):
+        raw = progress.get("counts", {})
+        if isinstance(raw, dict):
+            return {str(name): int(value) for name, value in raw.items()}
+    return {name: ring_count(item, name) for name in DEFAULT_FILTERS}
+
+
+def wait_for_connection(
+    client: capture_lib.DebugClient,
+    *,
+    require_tls: bool,
+    timeout_s: float,
+    stall_s: float,
+) -> dict[str, int]:
+    end = time.monotonic() + timeout_s
+    last_progress = time.monotonic()
+    last_total = 0
+    while time.monotonic() < end:
+        progress = client.command("net_progress")
+        counts_raw = progress.get("counts", {})
+        if not isinstance(counts_raw, dict):
+            raise RuntimeError("net_progress returned malformed payload")
+        counts = {str(kind): int(value) for kind, value in counts_raw.items()}
+
+        if counts.get("backend_error", 0) > 0:
+            raise RuntimeError(f"backend_error during test-connection: {counts}")
+        if counts.get("backend_drop", 0) > 0:
+            raise RuntimeError(f"backend_drop during test-connection: {counts}")
+
+        if (
+            counts.get("dhcp", 0) > 0
+            and counts.get("dns_query", 0) > 0
+            and counts.get("tcp_open", 0) > 0
+            and (counts.get("tls_record", 0) > 0 if require_tls else True)
+        ):
+            return counts
+
+        total = sum(counts.values())
+        if total != last_total:
+            last_total = total
+            last_progress = time.monotonic()
+        elif time.monotonic() - last_progress >= stall_s:
+            raise TimeoutError(f"connection progress stalled: {counts}")
+        time.sleep(0.25)
+    raise TimeoutError(f"connection test timed out: {counts}")
+
+
 def summarize(
     report: list[dict[str, Any]],
     filters: tuple[str, ...],
@@ -72,7 +126,8 @@ def summarize(
             "label": item["label"],
             "vblank9": item["vblank9"],
             "image": item["image"],
-            "counts": {name: ring_count(item, name) for name in filters},
+            "counts": event_counts_for_item(item),
+            "ring_counts": {name: ring_count(item, name) for name in filters},
         })
 
     final = report[-1] if report else {}
@@ -222,7 +277,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
                 for label, x, y, wait in flow_steps:
                     input_lib.tap(client, x, y, 12)
-                    input_lib.advance_frames(client, wait)
+                    if args.flow == "setup" and label == "test-connection":
+                        wait_for_connection(
+                            client,
+                            require_tls=args.require_tls,
+                            timeout_s=args.connection_timeout,
+                            stall_s=args.connection_stall_s,
+                        )
+                    else:
+                        input_lib.advance_frames(client, wait)
                     save(label)
 
                 if args.flow == "setup":
@@ -356,6 +419,23 @@ def main() -> int:
     )
     parser.add_argument("--wfc-provider", default="wiimmfi")
     parser.add_argument("--filter", action="append", default=list(DEFAULT_FILTERS))
+    parser.add_argument(
+        "--connection-timeout",
+        type=float,
+        default=60.0,
+        help="wall-time limit in seconds for WFC test-connection",
+    )
+    parser.add_argument(
+        "--connection-stall-s",
+        type=float,
+        default=12.0,
+        help="fail if network event counts make no progress for this many seconds",
+    )
+    parser.add_argument(
+        "--require-tls",
+        action="store_true",
+        help="require at least one tls_record event before test-connection succeeds",
+    )
     parser.add_argument(
         "--targets",
         type=int,

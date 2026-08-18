@@ -172,6 +172,12 @@ def summarize(
 def run(args: argparse.Namespace) -> dict[str, Any]:
     output = args.out.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    profile = output / "profile"
+    profile.mkdir(parents=True, exist_ok=True)
+    if args.firmware_state_path is None and args.no_dumps:
+        args.firmware_state_path = profile / "firmware-generated.bin"
+    if args.save_path is None and args.no_dumps:
+        args.save_path = profile / "Metroid Prime Hunters.sav"
 
     runner = args.runner.resolve()
     command = [
@@ -406,7 +412,7 @@ def main() -> int:
     )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=19983)
-    parser.add_argument("--instance-index", type=int, default=0)
+    parser.add_argument("--instance-index", type=int, default=1)
     parser.add_argument(
         "--flow",
         choices=("setup", "find-game", "search-game", "friends-rivals"),

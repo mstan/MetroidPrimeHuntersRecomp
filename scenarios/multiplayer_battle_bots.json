@@ -1,5 +1,5 @@
 {
-  "description": "Offline multiplayer BATTLE against bots -- no peer console required. This is the standard in-game measurement route: no navigation skill needed, and the arena is a menu-selected variable (Battle offers ARENA n/9), so swapping content is one pair of arrow taps. USE MULTI-CARD, NOT SINGLE-CARD: single-card play does not allow bots at all -- its slots read AVAILABLE and only accept peer consoles -- which is the most misleading thing about this flow. Coordinates, measured from captured frames: main-menu MULTIPLAYER (160,92) [ADVENTURE is (84,92)]; nickname dialog = two A presses; mode row y~80 (SINGLE-CARD x~50, MULTI-CARD x~128, WI-FI x~205); CREATE/JOIN row y~80 (CREATE x~50, JOIN x~128); game-mode grid top row y~58 (BATTLE x~50); arena arrows y~48 (left x~125, right x~232), confirm (222,173); hunter Samus (27,132) then A; waiting room ADD + at (222,173). START SEQUENCE -- after adding bots with ADD +, tap the green checkbox beside each bot to confirm it. Those checkboxes are per-slot CONFIRM controls, not a ready toggle and not a difficulty widget; confirming is what reveals a bot's star rating. Once every bot is confirmed a START GAME control appears on the right side of the lower screen; tap its measured center at (195,35). The match starts by tapping that on-screen control, NOT via the START or A key; pressing those does nothing.",
+  "description": "Offline Multi-Card BATTLE against three bots from the configured-profile main menu. Single-Card does not allow bots. The route selects MULTI-CARD, CREATE GAME, BATTLE, the current arena, Samus, adds three bots, confirms the three per-slot green checkmarks, and taps START GAME. The bot confirmation coordinates are deliberately asymmetric because the center card is vertically selected after the third add.",
   "actions": [
     {
       "kind": "touch",
@@ -9,22 +9,6 @@
     {
       "kind": "wait",
       "frames": 240
-    },
-    {
-      "kind": "wait",
-      "frames": 240
-    },
-    {
-      "kind": "key",
-      "key": "a"
-    },
-    {
-      "kind": "wait",
-      "frames": 240
-    },
-    {
-      "kind": "key",
-      "key": "a"
     },
     {
       "kind": "wait",
@@ -71,8 +55,8 @@
     },
     {
       "kind": "touch",
-      "x": 222,
-      "y": 173
+      "x": 212,
+      "y": 172
     },
     {
       "kind": "wait",
@@ -132,8 +116,8 @@
     },
     {
       "kind": "touch",
-      "x": 222,
-      "y": 133
+      "x": 97,
+      "y": 139
     },
     {
       "kind": "wait",
@@ -141,8 +125,8 @@
     },
     {
       "kind": "touch",
-      "x": 148,
-      "y": 60
+      "x": 154,
+      "y": 61
     },
     {
       "kind": "wait",
@@ -150,17 +134,8 @@
     },
     {
       "kind": "touch",
-      "x": 222,
-      "y": 60
-    },
-    {
-      "kind": "wait",
-      "frames": 180
-    },
-    {
-      "kind": "touch",
-      "x": 96,
-      "y": 146
+      "x": 212,
+      "y": 139
     },
     {
       "kind": "wait",

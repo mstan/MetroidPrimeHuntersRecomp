@@ -153,6 +153,14 @@
     {
       "kind": "wait",
       "frames": 300
+    },
+    {
+      "kind": "key",
+      "key": "l"
+    },
+    {
+      "kind": "wait",
+      "frames": 300
     }
   ]
 }

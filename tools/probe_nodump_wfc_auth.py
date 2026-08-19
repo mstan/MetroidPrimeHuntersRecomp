@@ -37,7 +37,14 @@ def main() -> int:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--save-path", type=Path, required=True)
+    parser.add_argument(
+        "--firmware-state-path", type=Path,
+        help="persist the generated firmware (WFC identity) across runs; "
+        "without it the guest-assigned WFC ID dies with the process and the "
+        "save is left mismatched against every future console identity",
+    )
     parser.add_argument("--identity-mac")
+    parser.add_argument("--instance-index", type=int, default=0)
     parser.add_argument("--port", type=int, default=20480)
     parser.add_argument("--wfc-provider", default="wiimmfi")
     parser.add_argument("--title-vblank", type=int, default=7800)
@@ -53,7 +60,10 @@ def main() -> int:
         "--network", "on", "--network-backend", "slirp",
         "--wfc", "on", "--wfc-provider", args.wfc_provider,
         "--freebios", "--generated-firmware", "--boot", "direct",
+        "--instance-index", str(args.instance_index),
     ]
+    if args.firmware_state_path:
+        command += ["--firmware-state-path", str(args.firmware_state_path)]
     if args.identity_mac:
         command += ["--identity-mac", args.identity_mac]
 

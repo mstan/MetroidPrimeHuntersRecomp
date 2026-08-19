@@ -129,6 +129,10 @@ def wait_for_connection(
     last_progress = time.monotonic()
     last_total = 0
     while time.monotonic() < end:
+        # In --serve mode the guest only executes inside run_to_event, so the
+        # poll loop must advance frames itself or the connection test can
+        # never make progress (the counters are frozen along with the guest).
+        input_lib.advance_frames(client, 120)
         try:
             counts = query_network_counts(
                 client, filters=filters, use_net_progress=use_net_progress
@@ -352,6 +356,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
                             timeout_s=args.connection_timeout,
                             stall_s=args.connection_stall_s,
                         )
+                        # Let the test resolve on screen so the checkpoint
+                        # shows the game's own success/failure banner rather
+                        # than the in-flight "Testing connection..." page.
+                        input_lib.advance_frames(client, 900)
                     else:
                         input_lib.advance_frames(client, wait)
                     save(label)

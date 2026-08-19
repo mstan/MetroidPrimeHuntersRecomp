@@ -144,9 +144,12 @@ def launch_instance(args: argparse.Namespace, index: int) -> Instance:
         args.wfc_provider,
         # Prepared per-profile firmware carries the console identity. The
         # runner instance index is still useful for host-side networking:
-        # slirp uses it to place each emulated DS on a distinct virtual LAN.
+        # slirp uses it to place each emulated DS on a distinct virtual LAN,
+        # and the local WFC peer bridge binds 127.0.0.1:27610+index. The base
+        # offset lets a run coexist with an unrelated live session already
+        # holding a lower bridge port.
         "--instance-index",
-        str(index),
+        str(args.instance_base + index),
         "--save-path",
         str(save_path),
     ]
@@ -656,6 +659,14 @@ def main() -> int:
         help="Per instance, the temporary name given to that peer.",
     )
     parser.add_argument("--base-port", type=int, default=20460)
+    parser.add_argument(
+        "--instance-base",
+        type=int,
+        default=0,
+        help="Offset added to each runner --instance-index (slirp subnet and "
+        "local WFC peer-bridge slot), so runs can coexist with another live "
+        "instance already holding lower bridge ports.",
+    )
     parser.add_argument("--startup-mode", default="automatic")
     parser.add_argument("--network-backend", default="slirp")
     parser.add_argument("--wfc-provider", default="wiimmfi")

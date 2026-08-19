@@ -1031,7 +1031,26 @@ std::wstring widen(const char* source) {
 }
 
 std::wstring quote(const std::wstring& value) {
-    return L"\"" + value + L"\"";
+    std::wstring out = L"\"";
+    size_t backslashes = 0;
+    for (wchar_t ch : value) {
+        if (ch == L'\\') {
+            ++backslashes;
+            continue;
+        }
+        if (ch == L'"') {
+            out.append(backslashes * 2 + 1, L'\\');
+            out.push_back(ch);
+            backslashes = 0;
+            continue;
+        }
+        out.append(backslashes, L'\\');
+        backslashes = 0;
+        out.push_back(ch);
+    }
+    out.append(backslashes * 2, L'\\');
+    out.push_back(L'"');
+    return out;
 }
 
 void append_arg(std::wstring& command, const wchar_t* name,
@@ -1054,6 +1073,58 @@ void append_binding_args(std::wstring& command, const ModState& mods) {
         flag += widen(option.id + std::strlen("pad-"));
         append_arg(command, flag.c_str(), widen((mods.*(option.member)).c_str()));
     }
+}
+
+void append_live_overlay_dev_args(std::wstring& command,
+                                  const std::filesystem::path& game_dir) {
+    std::error_code error;
+    std::filesystem::path mph_root = game_dir;
+    for (std::filesystem::path cursor = game_dir; !cursor.empty();
+         cursor = cursor.parent_path()) {
+        if (std::filesystem::is_regular_file(
+                cursor / "scenarios" / "multiplayer_battle_bots.json",
+                error)) {
+            mph_root = cursor;
+            break;
+        }
+        if (cursor == cursor.parent_path()) break;
+    }
+
+    const std::filesystem::path workspace = mph_root.parent_path();
+    const std::filesystem::path ndsrecomp_root =
+        workspace / "ndsrecomp-live-overlay-provider";
+    const std::filesystem::path compile_tool =
+        ndsrecomp_root / "tools" / "compile_live_shards.py";
+    const std::filesystem::path runner_build =
+        ndsrecomp_root / "runner" / "build-live-provider-mph";
+    const std::filesystem::path recompiler =
+        ndsrecomp_root / "recompiler" / "build-live-provider" /
+        "nds_recompile.exe";
+    const std::filesystem::path gcc =
+        "C:/msys64/mingw64/bin/gcc.exe";
+    if (!std::filesystem::is_regular_file(compile_tool, error) ||
+        !std::filesystem::is_directory(runner_build, error) ||
+        !std::filesystem::is_regular_file(recompiler, error) ||
+        !std::filesystem::is_regular_file(gcc, error)) {
+        return;
+    }
+
+    const std::filesystem::path cache =
+        mph_root / "generated" / "live-shard-cache-v4";
+    const std::wstring live_command =
+        L"py -3 " + quote(compile_tool.wstring()) +
+        L" --ndsrecomp-root " + quote(ndsrecomp_root.wstring()) +
+        L" --runner-build " + quote(runner_build.wstring()) +
+        L" --recompiler " + quote(recompiler.wstring()) +
+        L" --max-pages 6 --min-hits 8 --generated-opt=-O2 --gcc " +
+        quote(gcc.wstring());
+
+    command += L" --live-overlay-enable --live-overlay-auto";
+    append_arg(command, L"--live-overlay-activation-delay-ms", L"90000");
+    append_arg(command, L"--live-overlay-auto-delay-ms", L"90000");
+    append_arg(command, L"--live-overlay-auto-cooldown-ms", L"30000");
+    append_arg(command, L"--live-overlay-command", live_command);
+    append_arg(command, L"--live-overlay-cache", cache.wstring());
 }
 
 bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
@@ -1131,7 +1202,12 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         std::to_wstring(mods.virtual_stylus_sensitivity) +
         L" --mph-pad-aim-sensitivity " +
         std::to_wstring(mods.pad_aim_sensitivity) +
-        L" --startup-mode automatic" +
+        // Authentic firmware LLE is still available to framework tests, but
+        // it can spend an unbounded interval before display timing starts and
+        // presents two white windows to a player. Direct cartridge boot uses
+        // the same mutable firmware image (identity, WFC settings, updates)
+        // while entering the title deterministically.
+        L" --startup-mode automatic --boot direct" +
         // The runner's own default keeps networking OFF (probe/CI safety);
         // a player launching through the UI expects Nintendo WFC to work,
         // so the launcher turns it on and points it at Wiimmfi.
@@ -1146,8 +1222,9 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     if (valid_player_name(mods.player_name))
         append_arg(command, L"--player-name", widen(mods.player_name.c_str()));
     if (no_dumps_mode)
-        command += L" --freebios --generated-firmware --boot direct";
+        command += L" --freebios --generated-firmware";
     append_binding_args(command, mods);
+    append_live_overlay_dev_args(command, game_dir);
 
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);

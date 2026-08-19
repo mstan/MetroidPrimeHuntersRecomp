@@ -114,6 +114,8 @@ def main() -> int:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--actions", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--save-path", type=Path,
+                        help="optional cartridge save to load/update")
     parser.add_argument("--overlays", type=Path,
                         default=Path("generated/inputs/overlays.json"))
     parser.add_argument("--port", type=int, default=19890)
@@ -122,6 +124,17 @@ def main() -> int:
     parser.add_argument("--settle-frames", type=int, default=45)
     parser.add_argument("--play-frames", type=int, default=0,
                         help="hold forward this many frames after the route")
+    parser.add_argument("--runner-arg", action="append", default=[],
+                        help="extra argument passed through to the runner")
+    parser.add_argument("--live-overlay-trigger", action="store_true",
+                        help="trigger live overlay compilation after route")
+    parser.add_argument("--live-overlay-wait-seconds", type=float,
+                        default=180.0)
+    parser.add_argument("--live-overlay-post-frames", type=int, default=0,
+                        help="advance after live shards load to exercise them")
+    parser.add_argument("--live-overlay-diagnostics", type=int, default=256,
+                        help="dump this many recent live overlay diagnostic "
+                             "ring entries at the end of the route")
     parser.add_argument("--no-shots", action="store_true")
     args = parser.parse_args()
 
@@ -130,10 +143,19 @@ def main() -> int:
     if isinstance(actions, dict):
         actions = actions.get("actions", [])
 
+    runner_cmd = [
+        str(args.runner), str(args.bios), "--serve", "--port", str(args.port),
+        "--rom", str(args.rom.resolve()), "--config", str(args.config.resolve()),
+        "--startup-mode", "automatic",
+    ]
+    if args.save_path:
+        runner_cmd += ["--save-path", str(args.save_path.resolve())]
+    else:
+        runner_cmd += ["--no-save"]
+    runner_cmd += args.runner_arg
+
     proc = subprocess.Popen(
-        [str(args.runner), str(args.bios), "--serve", "--port", str(args.port),
-         "--rom", str(args.rom.resolve()), "--config", str(args.config.resolve()),
-         "--no-save", "--startup-mode", "automatic"],
+        runner_cmd,
         cwd=str(args.runner.parent),
         stdout=(args.out / "runner.stdout.log").open("wb"),
         stderr=(args.out / "runner.stderr.log").open("wb"))
@@ -189,7 +211,38 @@ def main() -> int:
                 client.screenshot(args.out / "9998-after-walk.png")
             print(f"held forward {args.play_frames} frames")
 
+        if args.live_overlay_trigger:
+            before = client.cmd("live_overlay_status")
+            before_started = int(before.get("runs_started", 0))
+            print("live_overlay_trigger:",
+                  json.dumps(client.cmd("live_overlay_trigger")))
+            deadline = time.time() + args.live_overlay_wait_seconds
+            status = before
+            while time.time() < deadline:
+                status = client.cmd("live_overlay_status")
+                if (not status.get("busy") and
+                        int(status.get("runs_finished", 0)) > before_started):
+                    break
+                time.sleep(0.5)
+            print("live_overlay_status:", json.dumps(status))
+            if args.live_overlay_post_frames:
+                client.advance(args.live_overlay_post_frames)
+                print(f"advanced {args.live_overlay_post_frames} frames "
+                      "after live overlay status")
+
         print("static_coverage:", json.dumps(client.cmd("static_coverage")))
+        live_status = client.cmd("live_overlay_status")
+        print("live_overlay_status_final:", json.dumps(live_status))
+        if args.live_overlay_diagnostics:
+            diag = client.cmd("live_overlay_diagnostics",
+                              count=args.live_overlay_diagnostics)
+            diag_path = (args.out / "live_overlay_diagnostics.json").resolve()
+            diag_path.write_text(json.dumps(diag, indent=2), encoding="utf-8")
+            print("live_overlay_diagnostics:", json.dumps({
+                "path": diag_path.as_posix(),
+                "count": diag.get("count"),
+                "latest_seq": diag.get("latest_seq"),
+            }))
         manifest = (args.out / "coverage.json").resolve()
         res = client.cmd("coverage_manifest", path=manifest.as_posix())
         print("coverage_manifest:", json.dumps(res))

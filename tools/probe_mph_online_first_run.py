@@ -84,6 +84,46 @@ def press(
     wait_frames(client, process, wait)
 
 
+def wait_for_connection(
+    client: capture_lib.DebugClient,
+    *,
+    require_tls: bool,
+    timeout_s: float = 60.0,
+    stall_s: float = 12.0,
+) -> dict[str, int]:
+    end = time.monotonic() + timeout_s
+    last_progress = time.monotonic()
+    last_total = 0
+    while time.monotonic() < end:
+        progress = client.command("net_progress")
+        counts_raw = progress.get("counts", {})
+        if not isinstance(counts_raw, dict):
+            raise RuntimeError("net_progress returned malformed payload")
+        counts = {str(kind): int(value) for kind, value in counts_raw.items()}
+
+        if counts.get("backend_error", 0) > 0:
+            raise RuntimeError(f"backend_error during connection: {counts}")
+        if counts.get("backend_drop", 0) > 0:
+            raise RuntimeError(f"backend_drop during connection: {counts}")
+
+        if (
+            counts.get("dhcp", 0) > 0
+            and counts.get("dns_query", 0) > 0
+            and counts.get("tcp_open", 0) > 0
+            and (counts.get("tls_record", 0) > 0 if require_tls else True)
+        ):
+            return counts
+
+        total = sum(counts.values())
+        if total != last_total:
+            last_total = total
+            last_progress = time.monotonic()
+        elif time.monotonic() - last_progress >= stall_s:
+            raise TimeoutError(f"connection progress stalled: {counts}")
+        time.sleep(0.25)
+    raise TimeoutError(f"connection progress timeout: {counts}")
+
+
 class InteractiveSession:
     def __init__(
         self,
@@ -120,6 +160,17 @@ class InteractiveSession:
         item = input_lib.save_checkpoint(
             self.client, self.output, len(self.report), label
         )
+        try:
+            item["net_progress"] = self.client.command("net_progress")
+        except RuntimeError:
+            item["net_progress"] = {"counts": {}}
+        try:
+            item["ring"] = {
+                name: self.client.command("net_ring_dump", max=64, filter=name)
+                for name in FILTERS
+            }
+        except RuntimeError:
+            item["ring"] = {}
         self.report.append(item)
         return item
 
@@ -165,20 +216,22 @@ def setup_and_power_off(session: InteractiveSession) -> dict[str, Any]:
     )
     for label, x, y, wait in route:
         tap(session.client, session.process, x, y, wait)
+        if label == "test-connection":
+            wait_for_connection(
+                session.client,
+                require_tls=True,
+                timeout_s=90.0,
+                stall_s=12.0,
+            )
         session.save(label)
     press(session.client, session.process, "b", 600)
     session.save("setup-root-after-back")
     press(session.client, session.process, "b", 600)
     prompt = session.save("system-will-shut-down")
 
-    rings = {
-        name: session.client.command("net_ring_dump", max=256, filter=name)
-        for name in FILTERS
-    }
-    counts = {
-        name: len(value.get("events", [])) if isinstance(value, dict) else 0
-        for name, value in rings.items()
-    }
+    counts_raw = prompt.get("net_progress", {}).get("counts", {})
+    counts = {str(name): int(value) for name, value in counts_raw.items()}
+
     if counts.get("dhcp", 0) == 0 or counts.get("backend_error", 0) != 0:
         raise RuntimeError(f"connection test did not succeed cleanly: {counts}")
 
@@ -236,14 +289,8 @@ def direct_online(
             break
     wait_frames(session.client, session.process, 2400)
     final = session.save("post-connect")
-    rings = {
-        name: session.client.command("net_ring_dump", max=256, filter=name)
-        for name in FILTERS
-    }
-    counts = {
-        name: len(value.get("events", [])) if isinstance(value, dict) else 0
-        for name, value in rings.items()
-    }
+    counts_raw = final.get("net_progress", {}).get("counts", {})
+    counts = {str(name): int(value) for name, value in counts_raw.items()}
     if counts.get("tls_record", 0) == 0 or counts.get("backend_error", 0) != 0:
         raise RuntimeError(f"Wiimmfi authentication failed: {counts}")
     if require_no_notice_pages and (arrow_pages != 0 or ok_pages != 0):

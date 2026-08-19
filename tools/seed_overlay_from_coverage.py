@@ -34,9 +34,10 @@ import json
 from pathlib import Path
 
 PAGE = 4096
-# Roots are scheduler slice-resume points and usually land mid-function, which
-# makes them poor discovery seeds. Calls and indirect targets are real entries.
-GOOD_KINDS = {"call", "indirect"}
+# Roots are real scheduler/native resume entries. Schema 3 binds them to the
+# exact resident generation, so they are safe inputs to the recompiler's
+# generated interior-entry switch rather than ambiguous session-wide PCs.
+GOOD_KINDS = {"root", "call", "indirect"}
 
 
 def main() -> int:
@@ -50,7 +51,7 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, nargs="+", required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--include-roots", action="store_true",
-                        help="also seed kind=root PCs (usually fragments code)")
+                        help="compatibility no-op; schema-3 roots are included")
     args = parser.parse_args()
 
     meta = {int(o["id"]): o
@@ -75,6 +76,10 @@ def main() -> int:
         data = json.loads(path.read_text(encoding="utf-8"))
         if data.get("kind") != "ndsrecomp-tier3-coverage":
             raise SystemExit(f"{path} is not a coverage manifest")
+        if int(data.get("schema", 0)) < 3:
+            raise SystemExit(
+                f"{path} predates generation-bound entry points; capture a "
+                "schema-3 manifest before seeding overlays")
         for page in data.get("pages", {}).get("entries", []):
             if int(page["cpu"]) != 9:
                 continue
@@ -85,9 +90,9 @@ def main() -> int:
             off = addr - lo
             if image[off:off + len(raw)] == raw:
                 resident.add(addr)
+                points += page.get("entry_points", [])
             else:
                 foreign += 1
-        points += data.get("entry_points_arm9", [])
 
     print(f"captured pages inside this overlay that MATCH its image: "
           f"{len(resident)}")
@@ -96,7 +101,7 @@ def main() -> int:
     if not resident:
         raise SystemExit("no page proved this overlay resident; nothing to seed")
 
-    kinds_ok = GOOD_KINDS | ({"root"} if args.include_roots else set())
+    kinds_ok = GOOD_KINDS
     seeds: dict[tuple[int, str], int] = {}
     dropped_kind = dropped_unproven = 0
     for point in points:

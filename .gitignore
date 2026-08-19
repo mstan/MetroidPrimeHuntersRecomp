@@ -14,6 +14,10 @@
 /saves/
 /captures/
 /scratch/
+/coverage/prime-route-*/
+/coverage/live-overlay-route-*/
+/coverage/seed-probes/
+/live-overlay-cache*/
 *.sav
 *.log
 /rom.cfg

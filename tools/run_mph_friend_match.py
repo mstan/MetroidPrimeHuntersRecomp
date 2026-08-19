@@ -83,7 +83,11 @@ JOIN_ATTEMPTS = (
     # third attempts were delivered to the WFC menu and then to a 52200
     # "unable to connect to Nintendo WFC" modal, proving nothing). Anything
     # else to try has to be a fresh run, not a further tap in this one.
-    ("select-then-a", (("tap", *GAME_ROW), ("key", "a")), 8),
+    # Settle beats kept short: the guest lands on SELECT HUNTER and the host
+    # slot-polls it (game-layer type-6, slot=0x7f "none picked") for only a
+    # few seconds before parking, and the whole room dies ~195s after the
+    # join if the guest never picks. The hunter pick must follow promptly.
+    ("select-then-a", (("tap", *GAME_ROW), ("key", "a")), 2),
 )
 # Publishing drops the host into game setup, whose first tab is the mode picker
 # (BATTLE is the large pre-selected disc). The room is advertised at PLAYERS 1/4
@@ -155,6 +159,12 @@ def launch_instance(args: argparse.Namespace, index: int) -> Instance:
     ]
     if args.firmware_path is not None:
         command.extend(["--firmware-path", str(args.firmware_path)])
+    if args.net_capture:
+        # Full-payload evidence for the P2P session: the runner writes the
+        # native capture plus a Wireshark-readable "<path>.pcap" sibling.
+        command.extend(
+            ["--net-capture-out", str(output / "net-capture.ndscap")]
+        )
 
     stdout = (output / "runner.stdout.log").open("wb")
     stderr = (output / "runner.stderr.log").open("wb")
@@ -490,6 +500,13 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
                 )
                 if state == "off-lobby":
                     joined = True
+            # Once the guest is in the room it appears on the host as NOT
+            # READY, and the host tears the room down within ~30s if nobody
+            # readies up. Both sides stay in frame lockstep (a peer that stops
+            # advancing stops answering), so the recovery beats below run
+            # identically on host and guest -- keep JOIN_ATTEMPTS settle/recovery
+            # small so the whole join window fits inside the host's hold time
+            # and the post-join hunter pick lands before the room is dropped.
             # Clear whatever the attempt left on screen so the next one starts
             # from the lobby: page the 80430 modal forward, close it, and if
             # closing it dropped the console offline, answer the reconnect
@@ -521,6 +538,22 @@ def drive(args: argparse.Namespace, instances: list[Instance]) -> dict[str, Any]
                 print(f"[join] {name}: {final} joined={joined}", flush=True)
 
     for_each(instances, join_phase)
+
+    if args.dump_ram:
+        # Post-join ARM9 memory snapshot per instance, for offline analysis
+        # of the game netcode globals (aid assignment, connected-peer mask,
+        # per-type pending masks) in exactly the stalled state.
+        def dump_ram(instance: Instance) -> None:
+            assert instance.client is not None
+            resp = instance.client.command("read_region", region="mainram")
+            raw = resp.get("hex") or resp.get("data") if isinstance(resp, dict) else None
+            if raw:
+                (instance.output / "mainram-postjoin.bin").write_bytes(
+                    bytes.fromhex(raw)
+                )
+                print(f"[{instance.index}] dumped mainram-postjoin.bin", flush=True)
+
+        for_each(instances, dump_ram)
 
     post_join_log: list[dict[str, Any]] = []
 
@@ -659,6 +692,18 @@ def main() -> int:
         help="Per instance, the temporary name given to that peer.",
     )
     parser.add_argument("--base-port", type=int, default=20460)
+    parser.add_argument(
+        "--dump-ram",
+        action="store_true",
+        help="Dump each instance's 4MB main RAM right after the join "
+        "attempt settles, for offline netcode-global analysis.",
+    )
+    parser.add_argument(
+        "--net-capture",
+        action="store_true",
+        help="Write a per-instance --net-capture-out file (plus .pcap "
+        "sibling) with full packet payloads for protocol-level analysis.",
+    )
     parser.add_argument(
         "--instance-base",
         type=int,

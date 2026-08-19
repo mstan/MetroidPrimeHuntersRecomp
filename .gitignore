@@ -35,3 +35,9 @@ __pycache__/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Ghidra project databases (opaque, huge, unmergeable) - keep only annotations
+ghidra/*.rep/
+ghidra/*.gpr
+ghidra/*.lock
+ghidra/*.ghpr

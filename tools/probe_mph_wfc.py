@@ -42,7 +42,12 @@ DEFAULT_FILTERS = (
 
 def _runner_help_mentions(runner: Path, token: str) -> bool:
     try:
-        help_out = subprocess.check_output([str(runner), "--help"], text=True, timeout=3)
+        help_out = subprocess.check_output(
+            [str(runner), "--help"],
+            text=True,
+            timeout=3,
+            stderr=subprocess.STDOUT,
+        )
     except subprocess.CalledProcessError as exc:
         # Some runner builds emit help text and exit non-zero; inspect output anyway.
         help_out = exc.output or ""
@@ -164,18 +169,22 @@ def summarize(
 ) -> dict[str, Any]:
     steps = []
     for item in report:
+        counts = event_counts_for_item(item)
+        missing = {name: 0 for name in filters if name not in counts}
+        if missing:
+            counts.update(missing)
         steps.append({
             "label": item["label"],
             "vblank9": item["vblank9"],
             "image": item["image"],
-            "counts": event_counts_for_item(item),
+            "counts": counts,
             "ring_counts": {name: ring_count(item, name) for name in filters},
         })
 
     final = report[-1] if report else {}
-    final_counts = {name: ring_count(final, name) for name in filters}
+    final_counts = {name: int(final.get("counts", {}).get(name, 0)) for name in filters}
     max_counts = {
-        name: max((step["counts"][name] for step in steps), default=0)
+        name: max((step["counts"].get(name, 0) for step in steps), default=0)
         for name in filters
     }
     network_reached = (

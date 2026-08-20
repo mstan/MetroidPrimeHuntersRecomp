@@ -97,9 +97,10 @@ If your ROM does not match, the launcher/runner should reject it.
   validated from start to finish.
 - Widescreen is still being audited. Some scenes, effects, HUD placement,
   movies, fades, or screen-routing behavior may be wrong.
-- Online play is experimental. Wiimmfi can reach the lobby in validated flows,
-  but in-game play is ultimately untested. There is no guarantee that a match
-  will connect, stay connected, or avoid desync.
+- Online play is experimental. A full Wiimmfi match has been played between two
+  instances on one machine, but playing against someone on a different machine
+  is unvalidated, and no match is guaranteed to connect, stay connected, or
+  avoid desync. See "Online Play" below.
 - Save behavior and settings are still part of early release testing. Keep
   backups of anything you care about.
 
@@ -142,9 +143,22 @@ Keyboard, mouse, and gamepad bindings are editable from the launcher Mods page.
 
 ## Online Play
 
-Nintendo WFC / Wiimmfi support is experimental. The current validated state is
-lobby connectivity: Metroid Prime Hunters can authenticate through Wiimmfi and
-reach a Friends and Rivals lobby where a locally hosted game is visible.
+Nintendo WFC / Wiimmfi support is experimental, but it does work: the game
+authenticates against the live Wiimmfi servers over the real internet, and a
+**complete online match has been played end to end** — two consoles in one
+Friends and Rivals game, both players in the arena and visibly moving, with
+player state streaming between them for the duration of the match.
+
+Also validated: the Wi-Fi connection test passes repeatedly, the connection is
+preconfigured out of the box (the generated firmware already carries the access
+point, so the Nintendo WFC setup menu is not required before playing online),
+and friends added to your roster persist across restarts.
+
+**What is not yet validated: playing against someone on a different machine.**
+The match above was two instances on one computer. Because they shared a public
+IP address, the DS's own matchmaking took its same-network shortcut and never
+performed NAT negotiation — the step real internet play between two households
+depends on. Expect remote play to need more work.
 
 The launcher keeps the console firmware profile in
 `%APPDATA%\MetroidPrimeHuntersRecomp`. Wi-Fi settings, console/game-card
@@ -152,8 +166,14 @@ pairing, and WFC updates survive both the in-game system shutdown flow and a
 normal window close. Confirming the WFC settings shutdown prompt closes the
 application automatically.
 
-Actually joining a match and playing in-game online is not guaranteed. It may
-fail to connect, disconnect, or desync.
+Note that your console identity (in `%APPDATA%`) and your cartridge save (kept
+next to the ROM) form a matched pair: Nintendo WFC ties a game card to a
+console. If you move or delete one without the other, the game will report that
+the WFC ID from the Nintendo DS and the Game Card do not match. Keep them
+together, or back them up together.
+
+Beyond that, online play remains experimental and may still disconnect or
+desync.
 
 The Wi-Fi implementation is built on
 [melonDS](https://github.com/melonDS-emu/melonDS)'s Wi-Fi work in the shared

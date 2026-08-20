@@ -147,13 +147,28 @@ for f in "$RUNDIR"/*.nds "$RUNDIR"/*.NDS; do
 done
 cd "$RUNDIR" 2>/dev/null || true
 if [ "$#" -eq 0 ]; then
-  if [ -n "$ROM" ]; then
-    exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
+  show_error() {
+    msg="$1"
+    if command -v zenity >/dev/null 2>&1; then zenity --error --text="$msg"
+    elif command -v kdialog >/dev/null 2>&1; then kdialog --error "$msg"
+    elif command -v xmessage >/dev/null 2>&1; then xmessage "$msg"
+    else echo "$msg" >&2; fi
+  }
+  if [ -z "$ROM" ]; then
+    show_error "No Metroid Prime Hunters .nds ROM found. Please place the legally obtained USA revision 0 ROM next to the AppImage."
+    exit 1
   fi
-  exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
+  EXPECTED_SHA1="__INJECT_ROM_SHA1__"
+  ACTUAL_SHA1="$(sha1sum "$ROM" | awk '{print $1}')"
+  if [ "$ACTUAL_SHA1" != "$EXPECTED_SHA1" ]; then
+    show_error "The selected ROM does not match the supported USA revision 0 dump (AMHE0). Expected SHA-1: $EXPECTED_SHA1"
+    exit 1
+  fi
+  exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
 fi
 exec "$HERE/usr/bin/nds_runner" "$@"
 EOF
+sed -i "s/__INJECT_ROM_SHA1__/$ROM_SHA1/" "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun" "$APPDIR/usr/bin/$RUNNER_NAME"
 
 echo "[4/4] package AppImage"

@@ -959,6 +959,21 @@ int check_dump(const std::filesystem::path& dir, const NdsDump& dump) {
     return gba::sha1(data.data(), data.size()).hex() == dump.sha1 ? 1 : 2;
 }
 
+// 0 = rom missing, 1 = verified, 2 = present but wrong hash.
+int check_rom(const std::filesystem::path& path, const char* expected_sha1) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) return 0;
+    const std::streamoff size = file.tellg();
+    if (size <= 0) return 2;
+    std::vector<uint8_t> data(static_cast<std::size_t>(size));
+    file.seekg(0);
+    if (!file.read(reinterpret_cast<char*>(data.data()),
+                   static_cast<std::streamsize>(data.size()))) {
+        return 2;
+    }
+    return gba::sha1(data.data(), data.size()).hex() == expected_sha1 ? 1 : 2;
+}
+
 int nds_bios_verify(const char* bios_path, RecompLauncherCBiosVerify* out) {
     if (!out) return 0;
     std::memset(out, 0, sizeof(*out));
@@ -1130,9 +1145,32 @@ void append_live_overlay_dev_args(std::wstring& command,
 bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                    int display_layout, bool adaptive,
                    const ModState& mods,
-                   int supersampling, int antialiasing) {
+                   int supersampling, int antialiasing,
+                   const char* expected_sha1) {
     const std::wstring rom_wide = widen(rom);
-    if (rom_wide.empty()) return false;
+    if (rom_wide.empty()) {
+        MessageBoxW(nullptr,
+            L"No ROM was selected. Please provide a legally obtained Metroid "
+            L"Prime Hunters USA revision 0 ROM.",
+            L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
+        return false;
+    }
+
+    const int rom_status = check_rom(rom_wide, expected_sha1);
+    if (rom_status == 0) {
+        MessageBoxW(nullptr,
+            L"The selected ROM could not be found or opened.\n\n"
+            L"Please verify that the file exists.",
+            L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
+        return false;
+    }
+    if (rom_status == 2) {
+        MessageBoxW(nullptr,
+            L"The selected ROM does not match the supported USA revision 0 dump (AMHE0).\n\n"
+            L"The selected ROM has an unexpected SHA-1.",
+            L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
+        return false;
+    }
 
     const std::filesystem::path runner = game_dir / "nds_runner.exe";
     const std::filesystem::path config = game_dir / "game.toml";
@@ -1377,6 +1415,7 @@ int main(int argc, char** argv) {
                          mod_state.adaptive_widescreen,
                          mod_state,
                          settings.supersampling,
-                         settings.antialiasing) ? 0 : 3;
+                         settings.antialiasing,
+                         sha1[0]) ? 0 : 3;
 }
 #endif

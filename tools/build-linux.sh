@@ -69,7 +69,7 @@ fi
 
 BIN="$RUNNER_BUILD/$RUNNER_NAME"
 test -f "$BIN" || { echo "ERROR: runner not built: $BIN" >&2; exit 1; }
-strings "$BIN" | grep -q mph_arm9_fmv_runtime || {
+grep -a -q mph_arm9_fmv_runtime "$BIN" || {
   echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
   exit 1
 }

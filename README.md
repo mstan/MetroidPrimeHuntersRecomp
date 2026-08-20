@@ -101,6 +101,9 @@ If your ROM does not match, the launcher/runner should reject it.
   instances on one machine, but playing against someone on a different machine
   is unvalidated, and no match is guaranteed to connect, stay connected, or
   avoid desync. See "Online Play" below.
+- **Only one Nintendo WFC connection per launch.** The first connection works;
+  if you disconnect and try to reconnect without restarting, the game reports
+  error 52200. Quit and relaunch between online sessions.
 - Save behavior and settings are still part of early release testing. Keep
   backups of anything you care about.
 
@@ -171,6 +174,12 @@ next to the ROM) form a matched pair: Nintendo WFC ties a game card to a
 console. If you move or delete one without the other, the game will report that
 the WFC ID from the Nintendo DS and the Game Card do not match. Keep them
 together, or back them up together.
+
+**Known limitation — one connection per launch.** Connecting to Nintendo WFC
+works the first time after you start the application. If you disconnect and
+then try to connect again in the same session, the game reports error 52200.
+Quit and relaunch to go online again. This is a known bug, not a problem with
+your network or your profile.
 
 Beyond that, online play remains experimental and may still disconnect or
 desync.

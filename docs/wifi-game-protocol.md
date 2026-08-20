@@ -25,6 +25,17 @@ game message set   <- this document
 The DWC layer strips its own `"DT"` framing before calling the game's
 receive callback, so everything below is the raw game payload.
 
+MPH sends its gameplay messages as DWC **unreliable** user data, so on the
+UDP flow between the two consoles they appear raw — no `fe fe`, no `DT`.
+Reliable DWC sends (and the match handshake) do carry `"DT"`, which is why
+the framing differs between the join sequence and the match itself.
+
+Everything before the match — the GPCM buddy-message `MAT` commands (a raw
+command byte immediately after `"GPCM3vMAT"`), the `SBCM` server-browser
+relay that hands over the local address, the direct GT2 connect on the
+private addresses when both consoles share one public IP, and the DT-framed
+match SYN / SYN_ACK / ACK — completes healthily and is out of scope here.
+
 ## Message framing
 
 Each game datagram carries a **set** of typed sub-messages:

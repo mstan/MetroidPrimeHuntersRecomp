@@ -41,3 +41,7 @@ ghidra/*.rep/
 ghidra/*.gpr
 ghidra/*.lock
 ghidra/*.ghpr
+
+# Runtime artifacts from playing (coverage manifests, local bios/identity)
+*-coverage-*-part*.json
+bios/

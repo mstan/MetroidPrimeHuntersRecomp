@@ -40,6 +40,54 @@ PAGE = 4096
 GOOD_KINDS = {"root", "call", "indirect"}
 
 
+def expand_root_bits(page):
+    """Schema-4 pages carry roots as bitmaps; expand them back to entries.
+
+    Schema 4 stopped writing one JSON record per root address -- they were 94%
+    of a manifest's entries and the interpreter re-enters at essentially every
+    instruction of hot interpreted code, so the record shape was storing a dense
+    bitmap one address at a time. The address set and its ARM/Thumb mode are
+    preserved exactly, which is all this tool needs; only the per-address hit
+    count is now a per-256-byte-block share, and this tool uses hits solely to
+    annotate the emitted TOML.
+
+    The bitmaps here are the PER-PAGE ones, so they remain bound to the exact
+    resident generation, which is the whole basis of this tool's attribution.
+    The manifest's session-wide root_map is deliberately NOT read: it is not
+    generation-bound and using it would reintroduce the problem this tool
+    exists to solve.
+    """
+    base = int(page["addr"], 16)
+    blocks = page.get("root_hits") or []
+    found = []
+    for key, stride in (("root_arm", 4), ("root_thumb", 2)):
+        blob = page.get(key)
+        if not blob:
+            continue
+        mode = "arm" if stride == 4 else "thumb"
+        for index, byte in enumerate(base64.b64decode(blob)):
+            if not byte:
+                continue
+            for bit in range(8):
+                if byte & (1 << bit):
+                    found.append((base + (index * 8 + bit) * stride, mode))
+    if not found:
+        return []
+    n = len(blocks)
+
+    def block_of(addr):
+        return min(((addr - base) * n) // PAGE, n - 1) if n else 0
+
+    share = {}
+    if n:
+        counts = {}
+        for addr, _ in found:
+            counts[block_of(addr)] = counts.get(block_of(addr), 0) + 1
+        share = {b: blocks[b] // c for b, c in counts.items()}
+    return [{"addr": f"0x{addr:08X}", "mode": mode, "kind": "root",
+             "hits": share.get(block_of(addr), 0)} for addr, mode in found]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -76,10 +124,11 @@ def main() -> int:
         data = json.loads(path.read_text(encoding="utf-8"))
         if data.get("kind") != "ndsrecomp-tier3-coverage":
             raise SystemExit(f"{path} is not a coverage manifest")
-        if int(data.get("schema", 0)) < 3:
+        schema = int(data.get("schema", 0))
+        if schema < 3:
             raise SystemExit(
                 f"{path} predates generation-bound entry points; capture a "
-                "schema-3 manifest before seeding overlays")
+                "schema-3 or later manifest before seeding overlays")
         for page in data.get("pages", {}).get("entries", []):
             if int(page["cpu"]) != 9:
                 continue
@@ -91,6 +140,8 @@ def main() -> int:
             if image[off:off + len(raw)] == raw:
                 resident.add(addr)
                 points += page.get("entry_points", [])
+                if schema >= 4:
+                    points += expand_root_bits(page)
             else:
                 foreign += 1
 

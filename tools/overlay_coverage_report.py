@@ -26,6 +26,7 @@ drop would make a route look better covered than it is.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 from pathlib import Path
 
@@ -40,6 +41,40 @@ def load_overlays(path: Path) -> list[dict]:
     return overlays
 
 
+def expand_roots(record):
+    """Yield (addr, hits) from a schema-4 root bitmap record.
+
+    Hit counts are stored per 256-byte block rather than per address, so a
+    block's count is split evenly across the addresses set inside it; summing a
+    whole block reproduces its count exactly.
+    """
+    base = int(record["addr"], 16)
+    blocks = record.get("root_hits") or []
+    found = []
+    for key, stride in (("root_arm", 4), ("root_thumb", 2)):
+        blob = record.get(key)
+        if not blob:
+            continue
+        for index, byte in enumerate(base64.b64decode(blob)):
+            if not byte:
+                continue
+            for bit in range(8):
+                if byte & (1 << bit):
+                    found.append(base + (index * 8 + bit) * stride)
+    n = len(blocks)
+    if not n:
+        return [(addr, 0) for addr in found]
+
+    def block_of(addr):
+        return min(((addr - base) * n) // 4096, n - 1)
+
+    counts = {}
+    for addr in found:
+        counts[block_of(addr)] = counts.get(block_of(addr), 0) + 1
+    return [(addr, blocks[block_of(addr)] // counts[block_of(addr)])
+            for addr in found]
+
+
 def load_points(paths: list[Path]) -> tuple[list[tuple[int, int, str]], list[str]]:
     """Return [(addr, hits, kind)] for ARM9, plus a note per source."""
     points: list[tuple[int, int, str]] = []
@@ -50,7 +85,20 @@ def load_points(paths: list[Path]) -> tuple[list[tuple[int, int, str]], list[str
             entries = data.get("entry_points_arm9", [])
             points += [(int(e["addr"], 16), int(e.get("hits", 0)),
                         str(e.get("kind", "?"))) for e in entries]
-            notes.append(f"{path.name}: manifest, {len(entries)} ARM9 entries")
+            # Schema 4 moved roots out of the per-address arrays and into
+            # bitmaps, because they were 94% of the records and are dense
+            # rather than sparse. Every address is still there; without this
+            # branch a schema-4 manifest would silently report only the call
+            # and indirect targets and look like a coverage collapse.
+            roots = 0
+            for record in data.get("root_map", []):
+                if int(record.get("cpu", 9)) != 9:
+                    continue
+                for addr, hits in expand_roots(record):
+                    points.append((addr, hits, "root"))
+                    roots += 1
+            notes.append(f"{path.name}: manifest, {len(entries)} ARM9 entries"
+                         + (f" + {roots} bitmap roots" if roots else ""))
             continue
         block = data.get("tier3_coverage") or {}
         entries = [e for e in block.get("entries", []) if int(e["cpu"]) == 9]

@@ -40,6 +40,16 @@ adaptive_hud_center_width = 128
 # inserted cartridge after the normal firmware sequence.
 startup_mode = "automatic"
 
+[network.wfc]
+# Guest CRT errno word (AMHE USA rev0 ARM9 static binary), zeroed by the
+# runner on every AP association. Fixes error 52200 on the second and later
+# Nintendo WFC connects within one launch: the DWC connection-test thread
+# checks errno == ERANGE after atoi() without clearing errno, and modern
+# WFC services send login numbers that overflow the guest's 32-bit strtol,
+# leaving errno = ERANGE for the rest of the boot (beads-lqa.8). Inert
+# unless networking is enabled at launch.
+clear_crt_errno_addr = 0x021021EC
+
 [cartridge]
 # melonDS ROMList entry AMHE: SaveMemType 5 (256 KiB flash).
 save_type = "flash"

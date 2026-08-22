@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 # Build a Metroid Prime Hunters Recomp Linux x86_64 AppImage.
 #
-# The current recomp-ui launcher is Windows-only, so this packages the title
-# runner directly. Put a legally dumped Metroid Prime Hunters .nds and a bios/
-# folder beside the AppImage; AppRun auto-detects the ROM.
+# Packages the native Linux recomp-ui launcher together with the title runner.
+# Put a legally dumped Metroid Prime Hunters .nds and an optional bios/ folder
+# beside the AppImage; launcher state remains outside the read-only AppImage.
 set -euo pipefail
 
 APP_NAME="MetroidPrimeHuntersRecomp"
 TITLE_TARGET="metroidprimehuntersrecomp"
 ROM_SHA1="90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 RUNNER_NAME="nds_runner"
+LAUNCHER_NAME="mph-recomp-ui"
 VERSION="0.1.0"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="$(cd "$REPO/../ndsrecomp" && pwd)"
+RECOMP_UI_ROOT="$(cd "$REPO/../recomp-ui" && pwd)"
 OUT="$REPO/release-linux"
 
 while [ $# -gt 0 ]; do
@@ -34,11 +36,16 @@ done
 
 GAME_BUILD="$REPO/build-linux-release"
 RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release"
+LAUNCHER_BUILD="$REPO/launcher/recomp-ui/build-linux-release"
 TITLE_BANK_DIR="$REPO/generated/recomp"
 
 cd "$REPO"
 test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
   echo "ERROR: sibling ndsrecomp checkout is missing." >&2
+  exit 1
+}
+test -f "$RECOMP_UI_ROOT/recomp_ui.cmake" || {
+  echo "ERROR: sibling recomp-ui checkout is missing." >&2
   exit 1
 }
 test -f "$REPO/Metroid Prime Hunters.nds" || {
@@ -62,14 +69,28 @@ cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
 echo "      build runner"
 cmake --build "$RUNNER_BUILD" -j"$JOBS"
 
+echo "      configure Linux launcher"
+cmake -S "$REPO/launcher/recomp-ui" -B "$LAUNCHER_BUILD" -G "Unix Makefiles" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
+  -DRECOMP_UI_ROOT="$RECOMP_UI_ROOT"
+echo "      build Linux launcher"
+cmake --build "$LAUNCHER_BUILD" --target "$LAUNCHER_NAME" -j"$JOBS"
+
 if [ "$DO_PACKAGE" = "0" ]; then
   echo "done: $RUNNER_BUILD/$RUNNER_NAME"
+  echo "done: $LAUNCHER_BUILD/$LAUNCHER_NAME"
   exit 0
 fi
 
 BIN="$RUNNER_BUILD/$RUNNER_NAME"
+LAUNCHER_BIN="$LAUNCHER_BUILD/$LAUNCHER_NAME"
 test -f "$BIN" || { echo "ERROR: runner not built: $BIN" >&2; exit 1; }
-strings "$BIN" | grep -q mph_arm9_fmv_runtime || {
+test -f "$LAUNCHER_BIN" || {
+  echo "ERROR: launcher not built: $LAUNCHER_BIN" >&2
+  exit 1
+}
+grep -a -q mph_arm9_fmv_runtime "$BIN" || {
   echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
   exit 1
 }
@@ -101,6 +122,8 @@ APPDIR="$WORK/AppDir"
 mkdir -p "$APPDIR/usr/bin/bios" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
 
 cp "$BIN" "$APPDIR/usr/bin/$RUNNER_NAME"
+cp "$LAUNCHER_BIN" "$APPDIR/usr/bin/$LAUNCHER_NAME"
+cp -a "$LAUNCHER_BUILD/assets" "$APPDIR/usr/bin/assets"
 cp "$REPO/game.toml" "$APPDIR/usr/bin/game.toml"
 cp "$REPO/README.md" "$APPDIR/usr/bin/README.md"
 cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
@@ -123,7 +146,7 @@ cat > "$APPDIR/usr/share/applications/$APP_NAME.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Metroid Prime Hunters Recomp
-Exec=$RUNNER_NAME
+Exec=$LAUNCHER_NAME
 Icon=$APP_NAME
 Categories=Game;
 Terminal=false
@@ -141,23 +164,21 @@ mkdir -p "$RUNDIR/bios" 2>/dev/null || true
 if [ ! -f "$RUNDIR/bios/README.txt" ] && [ -f "$HERE/usr/bin/bios/README.txt" ]; then
   cp "$HERE/usr/bin/bios/README.txt" "$RUNDIR/bios/README.txt" 2>/dev/null || true
 fi
-ROM=""
-for f in "$RUNDIR"/*.nds "$RUNDIR"/*.NDS; do
-  [ -e "$f" ] && ROM="$f" && break
-done
 cd "$RUNDIR" 2>/dev/null || true
 if [ "$#" -eq 0 ]; then
-  if [ -n "$ROM" ]; then
-    exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --rom "$ROM" --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
-  fi
-  exec "$HERE/usr/bin/nds_runner" "$RUNDIR/bios" --interactive --config "$HERE/usr/bin/game.toml" --screen-layout separate --adaptive-widescreen top --startup-mode automatic
+  export MPH_RECOMP_DATA_DIR="$RUNDIR"
+  exec "$HERE/usr/bin/mph-recomp-ui"
 fi
 exec "$HERE/usr/bin/nds_runner" "$@"
 EOF
-chmod +x "$APPDIR/AppRun" "$APPDIR/usr/bin/$RUNNER_NAME"
+chmod +x "$APPDIR/AppRun" \
+  "$APPDIR/usr/bin/$RUNNER_NAME" \
+  "$APPDIR/usr/bin/$LAUNCHER_NAME"
 
 echo "[4/4] package AppImage"
-"$LINUXDEPLOY_BIN" --appimage-extract-and-run --appdir "$APPDIR" --executable "$APPDIR/usr/bin/$RUNNER_NAME" \
+"$LINUXDEPLOY_BIN" --appimage-extract-and-run --appdir "$APPDIR" \
+  --executable "$APPDIR/usr/bin/$RUNNER_NAME" \
+  --executable "$APPDIR/usr/bin/$LAUNCHER_NAME" \
   --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null
 

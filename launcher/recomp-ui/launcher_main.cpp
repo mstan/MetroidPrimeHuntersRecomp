@@ -2,7 +2,13 @@
 #include "launcher_profile.h"
 #include "sha1.h"
 
+#ifdef _WIN32
 #include <windows.h>
+#else
+#include <spawn.h>
+#include <unistd.h>
+extern char **environ;
+#endif
 
 #include <array>
 #include <cstdlib>
@@ -354,10 +360,25 @@ void copy_text(char (&target)[N], const char* source) {
 }
 
 std::filesystem::path mod_settings_path() {
+#ifdef _WIN32
     if (const char* appdata = std::getenv("APPDATA")) {
         return std::filesystem::path(appdata) /
                "MetroidPrimeHuntersRecomp" / "mods.ini";
     }
+#else
+    if (const char* xdg = std::getenv("XDG_CONFIG_HOME")) {
+        if (xdg[0]) {
+            return std::filesystem::path(xdg) /
+                   "MetroidPrimeHuntersRecomp" / "mods.ini";
+        }
+    }
+    if (const char* home = std::getenv("HOME")) {
+        if (home[0]) {
+            return std::filesystem::path(home) / ".config" /
+                   "MetroidPrimeHuntersRecomp" / "mods.ini";
+        }
+    }
+#endif
     return std::filesystem::temp_directory_path() /
            "MetroidPrimeHuntersRecomp-mods.ini";
 }
@@ -506,12 +527,22 @@ bool save_mod_state(ModState& state) {
             return false;
         }
     }
+#ifdef _WIN32
     if (!MoveFileExW(temporary.c_str(), state.settings_path.c_str(),
                      MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
         state.last_error = "Could not replace launcher mod settings.";
         std::filesystem::remove(temporary, error);
         return false;
     }
+#else
+    std::filesystem::rename(temporary, state.settings_path, error);
+    if (error) {
+        state.last_error = "Could not replace launcher mod settings: " +
+                           error.message();
+        std::filesystem::remove(temporary, error);
+        return false;
+    }
+#endif
     state.last_error.clear();
     return true;
 }
@@ -1018,6 +1049,8 @@ int nds_persist_setup(void* context, const char* rom_path,
     return save_mod_state(*state) ? 0 : 1;
 }
 
+#ifdef _WIN32
+
 std::wstring widen(const char* source) {
     if (!source || !source[0]) return {};
     const int count = MultiByteToWideChar(
@@ -1065,13 +1098,15 @@ void append_binding_args(std::wstring& command, const ModState& mods) {
     for (const BindingOption& option : kBindingOptions) {
         std::wstring flag = L"--mph-bind-";
         flag += widen(option.id);
-        append_arg(command, flag.c_str(), widen((mods.*(option.member)).c_str()));
+        append_arg(command, flag.c_str(),
+                   widen((mods.*(option.member)).c_str()));
     }
     for (const BindingOption& option : kPadBindingOptions) {
         // Row id "pad-<action>" maps to --mph-pad-bind-<action>.
         std::wstring flag = L"--mph-pad-bind-";
         flag += widen(option.id + std::strlen("pad-"));
-        append_arg(command, flag.c_str(), widen((mods.*(option.member)).c_str()));
+        append_arg(command, flag.c_str(),
+                   widen((mods.*(option.member)).c_str()));
     }
 }
 
@@ -1127,21 +1162,61 @@ void append_live_overlay_dev_args(std::wstring& command,
     append_arg(command, L"--live-overlay-cache", cache.wstring());
 }
 
+#else
+
+void append_arg(std::vector<std::string>& args, const std::string& name,
+                const std::string& value) {
+    args.push_back(name);
+    args.push_back(value);
+}
+
+void append_binding_args(std::vector<std::string>& args,
+                         const ModState& mods) {
+    for (const BindingOption& option : kBindingOptions) {
+        append_arg(args, std::string("--mph-bind-") + option.id,
+                   mods.*(option.member));
+    }
+    for (const BindingOption& option : kPadBindingOptions) {
+        append_arg(args,
+                   std::string("--mph-pad-bind-") +
+                       (option.id + std::strlen("pad-")),
+                   mods.*(option.member));
+    }
+}
+
+#endif
+
 bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                    int display_layout, bool adaptive,
                    const ModState& mods,
                    int supersampling, int antialiasing) {
-    const std::wstring rom_wide = widen(rom);
-    if (rom_wide.empty()) return false;
+    if (!rom || !rom[0]) return false;
 
+    std::filesystem::path data_dir = game_dir;
+#ifndef _WIN32
+    if (const char* env = std::getenv("MPH_RECOMP_DATA_DIR");
+        env && env[0])
+        data_dir = std::filesystem::absolute(env);
+#endif
+
+#ifdef _WIN32
     const std::filesystem::path runner = game_dir / "nds_runner.exe";
+#else
+    const std::filesystem::path runner = game_dir / "nds_runner";
+#endif
     const std::filesystem::path config = game_dir / "game.toml";
+
     if (!std::filesystem::is_regular_file(runner) ||
         !std::filesystem::is_regular_file(config)) {
+#ifdef _WIN32
         MessageBoxW(nullptr,
             L"The release is incomplete: nds_runner.exe or game.toml is "
             L"missing. Re-extract the full release ZIP.",
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
+#else
+        std::fprintf(stderr,
+            "The release is incomplete: nds_runner or game.toml is missing.\n");
+#endif
         return false;
     }
 
@@ -1155,7 +1230,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         mods.bios_path.c_str());
     bool no_dumps_mode = false;
     if (bios.empty()) {
-        bios = game_dir / "bios";
+        bios = data_dir / "bios";
         bool conventional_dumps = true;
         for (const NdsDump& dump : kNdsDumps) {
             if (!std::filesystem::is_regular_file(bios / dump.file))
@@ -1163,13 +1238,18 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         }
         if (!conventional_dumps) {
             no_dumps_mode = true;
-            // The bios folder still hosts the persisted per-install identity.
+        // The bios folder still hosts the persisted per-install identity.
             std::error_code error;
             std::filesystem::create_directories(bios, error);
         }
     }
+
     const std::filesystem::path firmware_state = firmware_state_path(
         mods.settings_path, no_dumps_mode);
+
+#ifdef _WIN32
+    const std::wstring rom_wide = widen(rom);
+    if (rom_wide.empty()) return false;
 
     std::wstring command =
         quote(runner.wstring()) + L" " + quote(bios.wstring()) +
@@ -1212,6 +1292,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         // a player launching through the UI expects Nintendo WFC to work,
         // so the launcher turns it on and points it at Wiimmfi.
         L" --network on --wfc on --wfc-provider wiimmfi";
+
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
     // beads-yjp.16: the firmware console nickname. Passed only when the
     // player both configured a name and left the identity feature on;
@@ -1220,7 +1301,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     // "ndsrecomp"). Re-validated here so a hand-edited mods.ini can never
     // hand the runner a name it will refuse to start on.
     if (valid_player_name(mods.player_name))
-        append_arg(command, L"--player-name", widen(mods.player_name.c_str()));
+        append_arg(command, L"--player-name",
+                   widen(mods.player_name.c_str()));
     if (no_dumps_mode)
         command += L" --freebios --generated-firmware";
     append_binding_args(command, mods);
@@ -1240,6 +1322,92 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
     return true;
+
+#else
+
+    std::vector<std::string> args;
+    args.push_back(runner.string());
+    args.push_back(bios.string());
+
+    args.push_back("--interactive");
+
+    append_arg(args, "--rom", rom);
+    append_arg(args, "--config", config.string());
+    append_arg(args, "--screen-layout",
+               adaptive || mods.prime_controls || display_layout == 1
+                   ? "separate" : "stacked");
+    append_arg(args, "--adaptive-widescreen", adaptive ? "top" : "none");
+    append_arg(args, "--internal-resolution",
+               std::to_string(mods.hd_rendering
+                                  ? mods.internal_resolution : 1));
+    append_arg(args, "--texture-upscale",
+               std::to_string(mods.hd_rendering
+                                  ? mods.texture_upscale : 1));
+    append_arg(args, "--supersampling", std::to_string(supersampling));
+    append_arg(args, "--antialiasing", std::to_string(antialiasing));
+    append_arg(args, "--relative-mouse-touch",
+               mods.prime_controls ? "on" : "off");
+    append_arg(args, "--relative-mouse-sensitivity",
+               std::to_string(mods.mouse_sensitivity));
+    append_arg(args, "--relative-mouse-invert-y",
+               mods.mouse_invert_y ? "on" : "off");
+    append_arg(args, "--relative-mouse-fire-key", "l");
+    append_arg(args, "--mph-prime-controls",
+               mods.prime_controls ? "on" : "off");
+    append_arg(args, "--mph-virtual-stylus-sensitivity",
+               std::to_string(mods.virtual_stylus_sensitivity));
+    append_arg(args, "--mph-pad-aim-sensitivity",
+               std::to_string(mods.pad_aim_sensitivity));
+    append_arg(args, "--startup-mode", "automatic");
+    append_arg(args, "--boot", "direct");
+    append_arg(args, "--network", "on");
+    append_arg(args, "--wfc", "on");
+    append_arg(args, "--wfc-provider", "wiimmfi");
+    append_arg(args, "--firmware-state-path", firmware_state.string());
+
+    if (valid_player_name(mods.player_name))
+        append_arg(args, "--player-name", mods.player_name);
+
+    if (no_dumps_mode) {
+        args.push_back("--freebios");
+        args.push_back("--generated-firmware");
+    }
+
+    append_binding_args(args, mods);
+
+    std::vector<char*> argv;
+    argv.reserve(args.size() + 1);
+    for (std::string& arg : args)
+        argv.push_back(arg.data());
+    argv.push_back(nullptr);
+
+    posix_spawn_file_actions_t actions;
+    if (posix_spawn_file_actions_init(&actions) != 0)
+        return false;
+
+    const int chdir_rc =
+        posix_spawn_file_actions_addchdir_np(&actions,
+                                             data_dir.c_str());
+    if (chdir_rc != 0) {
+        posix_spawn_file_actions_destroy(&actions);
+        std::fprintf(stderr, "posix_spawn chdir setup failed: %s\n",
+                     std::strerror(chdir_rc));
+        return false;
+    }
+
+    pid_t pid = 0;
+    const int rc = posix_spawn(
+        &pid, runner.c_str(), &actions, nullptr, argv.data(), environ);
+    posix_spawn_file_actions_destroy(&actions);
+
+    if (rc != 0) {
+        std::fprintf(stderr, "posix_spawn failed: %s\n",
+                     std::strerror(rc));
+        return false;
+    }
+
+    return true;
+#endif
 }
 
 }  // namespace
@@ -1272,9 +1440,17 @@ int main(int argc, char** argv) {
     };
     const std::filesystem::path exe = std::filesystem::weakly_canonical(
         std::filesystem::absolute(argv[0])).parent_path();
+
+    std::filesystem::path data_dir = exe;
+#ifndef _WIN32
+    if (const char* env = std::getenv("MPH_RECOMP_DATA_DIR");
+        env && env[0])
+        data_dir = std::filesystem::absolute(env);
+#endif
+
     ModState mod_state{};
     mod_state.settings_path = mod_settings_path();
-    mod_state.default_bios_dir = exe / "bios";
+    mod_state.default_bios_dir = data_dir / "bios";
     load_mod_state(mod_state);
     RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);
     copy_text(settings.bios_path, mod_state.bios_path.c_str());
@@ -1332,7 +1508,8 @@ int main(int argc, char** argv) {
     // next to the exe. A remembered path whose file is gone falls back too,
     // so a moved or deleted ROM presents the bundled default rather than a
     // stale selection the user cannot launch.
-    std::filesystem::path default_rom = exe / "Metroid Prime Hunters.nds";
+    std::filesystem::path default_rom =
+        data_dir / "Metroid Prime Hunters.nds";
     if (!mod_state.rom_path.empty()) {
         std::error_code rom_error;
         const std::filesystem::path remembered(mod_state.rom_path);
@@ -1361,12 +1538,19 @@ int main(int argc, char** argv) {
     {
         const std::string typed = settings.player_name;
         if (!typed.empty() && !valid_player_name(typed)) {
+#ifdef _WIN32
             MessageBoxW(nullptr,
                 L"The player name must be 1-10 characters: letters, digits, "
                 L"spaces, and common punctuation. Launching with the default "
                 L"name instead.",
                 L"Metroid Prime Hunters Recomp",
                 MB_OK | MB_ICONINFORMATION);
+#else
+            std::fprintf(stderr,
+                "The player name must be 1-10 characters: letters, digits, "
+                "spaces, and common punctuation. Launching with the default "
+                "name instead.\n");
+#endif
             mod_state.player_name.clear();
         } else {
             mod_state.player_name = typed;

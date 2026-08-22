@@ -8,7 +8,9 @@ fi
 
 APPDIR="$(cd "$1" && pwd)"
 test -x "$APPDIR/usr/bin/nds_runner"
+test -x "$APPDIR/usr/bin/mph-recomp-ui"
 test -f "$APPDIR/usr/bin/game.toml"
+test -d "$APPDIR/usr/bin/assets"
 test -f "$APPDIR/usr/bin/bios/README.txt"
 
 for pattern in '*.nds' '*.NDS' '*.sav' '*.bin' '*.rom' '*.gpr' 'biosnds9.rom' 'biosnds7.rom' 'firmware.bin'; do

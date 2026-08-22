@@ -111,60 +111,83 @@ add_custom_command(
     DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
     COMMENT "Discovering and recompiling the AMHE0 ARM7 initial closure")
 
-set(MPH_FMV_RUNTIME_CONFIG
-    "${CMAKE_CURRENT_SOURCE_DIR}/config/mph_arm9_fmv_runtime.toml")
-set(MPH_FMV_RUNTIME_IMAGE
-    "${MPH_GENERATED_DIR}/capture/mph_arm9_fmv_runtime.bin"
-    CACHE FILEPATH "Deterministic MPH FMV ITCM+main-RAM capture")
-set(MPH_FMV_RUNTIME_SOURCES)
-set(MPH_FMV_RUNTIME_STAMP)
-if(EXISTS "${MPH_FMV_RUNTIME_CONFIG}" AND EXISTS "${MPH_FMV_RUNTIME_IMAGE}")
-    foreach(shard RANGE 0 31)
+# Content-validated runtime banks: code the guest copies into RAM at run
+# time (ITCM mirrors, the local-wireless ARM7 driver, ...), captured live,
+# promoted via tools/promote_runtime_coverage.py, and validated against live
+# guest bytes before dispatch. Each entry is "<bank>;<shards>"; the bank's
+# config lives at config/<bank>.toml and its (git-ignored) capture image at
+# generated/capture/<bank>.bin. A bank whose capture image is absent is
+# simply skipped -- the build stays valid, that code just falls back to the
+# Tier-3 interpreter (e.g. local multiplayer drops from ~60 to ~40 FPS
+# without the two ARM7 MP banks).
+set(MPH_RUNTIME_BANKS
+    "mph_arm9_fmv_runtime;32"
+    "mph_arm9_mp_runtime;32"
+    "mph_arm7_mp_wram_runtime;4"
+    "mph_arm7_mp_mainram_runtime;4")
+set(MPH_RUNTIME_BANK_SOURCES)
+set(MPH_RUNTIME_BANK_STAMPS)
+set(MPH_RUNTIME_ARM9_SOURCES)
+set(MPH_RUNTIME_ARM7_SOURCES)
+foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
+    list(GET _bank_spec 0 _bank)
+    list(GET _bank_spec 1 _bank_shards)
+    set(_bank_config "${CMAKE_CURRENT_SOURCE_DIR}/config/${_bank}.toml")
+    set(_bank_image "${MPH_GENERATED_DIR}/capture/${_bank}.bin")
+    if(NOT EXISTS "${_bank_config}" OR NOT EXISTS "${_bank_image}")
+        message(STATUS
+            "MPH runtime bank ${_bank} disabled: config or capture image "
+            "is not present")
+        continue()
+    endif()
+    set(_bank_sources)
+    math(EXPR _bank_last_shard "${_bank_shards} - 1")
+    foreach(shard RANGE 0 ${_bank_last_shard})
         if(shard LESS 10)
             set(shard_name "0${shard}")
         else()
             set(shard_name "${shard}")
         endif()
-        list(APPEND MPH_FMV_RUNTIME_SOURCES
-            "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime_${shard_name}.c")
+        list(APPEND _bank_sources
+            "${MPH_RECOMP_DIR}/${_bank}_${shard_name}.c")
     endforeach()
-    list(APPEND MPH_FMV_RUNTIME_SOURCES
-        "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime_dispatch.c")
-    set(MPH_FMV_RUNTIME_STAMP
-        "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime.stamp")
+    list(APPEND _bank_sources "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
+    set(_bank_stamp "${MPH_RECOMP_DIR}/${_bank}.stamp")
     add_custom_command(
-        OUTPUT "${MPH_FMV_RUNTIME_STAMP}"
-        BYPRODUCTS ${MPH_FMV_RUNTIME_SOURCES}
-            "${MPH_RECOMP_DIR}/mph_arm9_fmv_runtime.h"
+        OUTPUT "${_bank_stamp}"
+        BYPRODUCTS ${_bank_sources} "${MPH_RECOMP_DIR}/${_bank}.h"
         COMMAND $<TARGET_FILE:nds_recompile>
-                --config "${MPH_FMV_RUNTIME_CONFIG}"
-                --bin "${MPH_FMV_RUNTIME_IMAGE}"
+                --config "${_bank_config}"
+                --bin "${_bank_image}"
                 --out "${MPH_RECOMP_DIR}"
-                --bank mph_arm9_fmv_runtime
-                --shards 32
+                --bank "${_bank}"
+                --shards ${_bank_shards}
                 --stable-address-shards
                 --max-function-bytes 512
                 --validate-live-bytes
-        COMMAND ${CMAKE_COMMAND} -E touch "${MPH_FMV_RUNTIME_STAMP}"
-        DEPENDS nds_recompile "${MPH_FMV_RUNTIME_CONFIG}"
-            "${MPH_FMV_RUNTIME_IMAGE}"
-        COMMENT "Recompiling content-validated AMHE0 ARM9 FMV runtime code")
-else()
-    message(STATUS
-        "MPH FMV runtime bank disabled: capture image is not present")
-endif()
+        COMMAND ${CMAKE_COMMAND} -E touch "${_bank_stamp}"
+        DEPENDS nds_recompile "${_bank_config}" "${_bank_image}"
+        COMMENT "Recompiling content-validated AMHE0 runtime bank ${_bank}")
+    list(APPEND MPH_RUNTIME_BANK_SOURCES ${_bank_sources})
+    list(APPEND MPH_RUNTIME_BANK_STAMPS "${_bank_stamp}")
+    if(_bank MATCHES "_arm9_")
+        list(APPEND MPH_RUNTIME_ARM9_SOURCES ${_bank_sources})
+    else()
+        list(APPEND MPH_RUNTIME_ARM7_SOURCES ${_bank_sources})
+    endif()
+endforeach()
 
 add_custom_target(mph_generate_banks
     DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}"
-        ${MPH_FMV_RUNTIME_STAMP})
+        ${MPH_RUNTIME_BANK_STAMPS})
 add_library(mph_recompiled_banks STATIC
-    ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES} ${MPH_FMV_RUNTIME_SOURCES})
+    ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES} ${MPH_RUNTIME_BANK_SOURCES})
 add_dependencies(mph_recompiled_banks mph_generate_banks)
 ndsrecomp_limit_generated_compiles(mph_recompiled_banks)
 ndsrecomp_limit_link(mph_recompiled_banks)
-set_source_files_properties(${MPH_ARM9_SOURCES} ${MPH_FMV_RUNTIME_SOURCES}
+set_source_files_properties(${MPH_ARM9_SOURCES} ${MPH_RUNTIME_ARM9_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=0")
-set_source_files_properties(${MPH_ARM7_SOURCES}
+set_source_files_properties(${MPH_ARM7_SOURCES} ${MPH_RUNTIME_ARM7_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=1")
 target_include_directories(mph_recompiled_banks PRIVATE
     "${MPH_RECOMP_DIR}"

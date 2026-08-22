@@ -91,6 +91,20 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
     Static-only and optimized runners have identical event, instruction, and
     cycle counts and zero differing pixels at VBlanks 2400, 3000, 3600, 4200,
     and 4800.
+19. Same-machine local wireless (Multi-Card) was profiled at ~40 FPS in an
+    active two-instance match while offline bot matches held 60. Exact-mode
+    scheduler profiling attributed 8.6-10.5 ms/frame to the ARM7 phase at
+    only ~50k ARM7 instructions/frame: the wireless session copies the ARM7
+    driver into ARM7 WRAM (`0x037F8000`) and the top of main RAM
+    (`0x027Exxxx`), plus MP-phase ARM9 ITCM/main-RAM code, all of which fell
+    to the Tier-3 interpreter (~230k interpreted dispatches/s in-match).
+    Three content-validated runtime banks captured from a live match
+    (`mph_arm9_mp_runtime`, `mph_arm7_mp_wram_runtime`,
+    `mph_arm7_mp_mainram_runtime`; generalized promotion via
+    `tools/promote_runtime_coverage.py`) cut in-match Tier-3 to ~11k hits/s
+    and hold a sustained 59.7-59.9 FPS on both instances with zero
+    reply-wait timeouts. Hit sites were byte-identical between the host and
+    the guest, so one capture image serves both roles.
 
 ## Bring-up gates
 
@@ -105,7 +119,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - [x] Compare the same attract checkpoints against the ndsref oracle
 - [x] Compile and register AMHE0 main ARM9/ARM7 banks by ROM capability
 - [ ] Capture remaining runtime ARM7 code and ARM9 overlay generations (the
-      opening-FMV ARM9 generation is complete)
+      opening-FMV ARM9 generation and the local-wireless MP session's
+      ARM7 WRAM/main-RAM + ARM9 generations are complete)
 - [x] Generalize cartridge save type/size beyond SM64DS's 8 KiB EEPROM
 - [x] Add deterministic Prime Hunters navigation and gameplay-entry scenario
 - [ ] Add sustained traversal, combat, pause, death, and reload scenarios

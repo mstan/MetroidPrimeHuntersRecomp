@@ -215,3 +215,13 @@ history, and bring-up details live in [`docs/BRINGUP.md`](docs/BRINGUP.md).
 The original code in this repository is MIT licensed. Metroid Prime Hunters,
 Nintendo DS firmware/BIOS images, ROMs, saves, and all derived game data remain
 the property of their respective copyright holders and are not distributed.
+
+---
+
+<p align="center">
+  <sub><b>R.A.I.D. — Retro AI Development</b> · a Discord for AI-assisted retro reverse-engineering, decomp &amp; recomp</sub>
+</p>
+
+<p align="center">
+  <a href="https://discord.gg/Ad9BwSzctP"><img src=".github/raid-discord.png" alt="Join the Retro AI Development (R.A.I.D.) Discord" width="200"></a>
+</p>

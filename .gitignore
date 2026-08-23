@@ -10,6 +10,7 @@
 /build/
 /build-*/
 /release-stage/
+/release-linux/
 /launcher/recomp-ui/build*/
 /saves/
 /captures/

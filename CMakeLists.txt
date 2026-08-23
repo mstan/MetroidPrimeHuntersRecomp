@@ -114,22 +114,23 @@ add_custom_command(
 # Content-validated runtime banks: code the guest copies into RAM at run
 # time (ITCM mirrors, the local-wireless ARM7 driver, ...), captured live,
 # promoted via tools/promote_runtime_coverage.py, and validated against live
-# guest bytes before dispatch. Each entry is "<bank>;<shards>"; the bank's
+# guest bytes before dispatch. Each entry is "<bank>:<shards>"; the bank's
 # config lives at config/<bank>.toml and its (git-ignored) capture image at
 # generated/capture/<bank>.bin. A bank whose capture image is absent is
 # simply skipped -- the build stays valid, that code just falls back to the
 # Tier-3 interpreter (e.g. local multiplayer drops from ~60 to ~40 FPS
 # without the two ARM7 MP banks).
 set(MPH_RUNTIME_BANKS
-    "mph_arm9_fmv_runtime;32"
-    "mph_arm9_mp_runtime;32"
-    "mph_arm7_mp_wram_runtime;4"
-    "mph_arm7_mp_mainram_runtime;4")
+    "mph_arm9_fmv_runtime:32"
+    "mph_arm9_mp_runtime:32"
+    "mph_arm7_mp_wram_runtime:4"
+    "mph_arm7_mp_mainram_runtime:4")
 set(MPH_RUNTIME_BANK_SOURCES)
 set(MPH_RUNTIME_BANK_STAMPS)
 set(MPH_RUNTIME_ARM9_SOURCES)
 set(MPH_RUNTIME_ARM7_SOURCES)
 foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
+    string(REPLACE ":" ";" _bank_spec "${_bank_spec}")
     list(GET _bank_spec 0 _bank)
     list(GET _bank_spec 1 _bank_shards)
     set(_bank_config "${CMAKE_CURRENT_SOURCE_DIR}/config/${_bank}.toml")

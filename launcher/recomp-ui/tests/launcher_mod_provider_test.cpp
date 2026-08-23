@@ -13,6 +13,19 @@ bool require(bool condition, const char* label) {
 }  // namespace
 
 int main() {
+    if (!require(std::strcmp(runner_screen_layout_arg(0), "stacked") == 0,
+                 "stacked layout arg")) return 88;
+    if (!require(std::strcmp(runner_screen_layout_arg(1), "separate") == 0,
+                 "separate layout arg")) return 89;
+    if (!require(std::strcmp(runner_fullscreen_arg(0), "off") == 0,
+                 "fullscreen off arg")) return 90;
+    if (!require(std::strcmp(runner_fullscreen_arg(1), "borderless") == 0,
+                 "fullscreen borderless arg")) return 91;
+    if (!require(std::strcmp(runner_fullscreen_arg(2), "exclusive") == 0,
+                 "fullscreen exclusive arg")) return 92;
+    if (!require(std::strcmp(runner_fullscreen_arg(99), "off") == 0,
+                 "fullscreen invalid clamps to off")) return 93;
+
     {
         const std::filesystem::path root =
             std::filesystem::temp_directory_path() /

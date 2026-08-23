@@ -1236,8 +1236,20 @@ void show_launch_error(const char* message) {
 #endif
 }
 
+const char* runner_screen_layout_arg(int display_layout) {
+    return display_layout == 1 ? "separate" : "stacked";
+}
+
+const char* runner_fullscreen_arg(int fullscreen) {
+    switch (fullscreen) {
+        case 1: return "borderless";
+        case 2: return "exclusive";
+        default: return "off";
+    }
+}
+
 bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
-                   int display_layout, bool adaptive,
+                   int display_layout, int fullscreen, bool adaptive,
                    const ModState& mods,
                    int supersampling, int antialiasing,
                    const char* expected_sha1) {
@@ -1327,10 +1339,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         quote(runner.wstring()) + L" " + quote(bios.wstring()) +
         L" --interactive --rom " + quote(rom_wide) +
         L" --config " + quote(config.wstring()) +
-        L" --screen-layout " +
-        (adaptive || mods.prime_controls || display_layout == 1
-            ? L"separate"
-            : L"stacked") +
+        L" --screen-layout " + widen(runner_screen_layout_arg(display_layout)) +
+        L" --fullscreen " + widen(runner_fullscreen_arg(fullscreen)) +
         L" --adaptive-widescreen " +
         (adaptive ? L"top" : L"none") +
         // Inert unless the HD mod is on, so the faithful native output stays
@@ -1406,8 +1416,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--rom", rom);
     append_arg(args, "--config", config.string());
     append_arg(args, "--screen-layout",
-               adaptive || mods.prime_controls || display_layout == 1
-                   ? "separate" : "stacked");
+               runner_screen_layout_arg(display_layout));
+    append_arg(args, "--fullscreen", runner_fullscreen_arg(fullscreen));
     append_arg(args, "--adaptive-widescreen", adaptive ? "top" : "none");
     append_arg(args, "--internal-resolution",
                std::to_string(mods.hd_rendering
@@ -1630,6 +1640,7 @@ int main(int argc, char** argv) {
         save_mod_state(mod_state);
     }
     return launch_runner(exe, selected_rom, settings.display_layout,
+                         settings.fullscreen,
                          mod_state.adaptive_widescreen,
                          mod_state,
                          settings.supersampling,

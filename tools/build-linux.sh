@@ -4,6 +4,10 @@
 # Packages the native Linux recomp-ui launcher together with the title runner.
 # Put a legally dumped Metroid Prime Hunters .nds and an optional bios/ folder
 # beside the AppImage; launcher state remains outside the read-only AppImage.
+#
+# Sibling checkouts are auto-detected by default. Override them with
+# NDSRECOMP_ROOT / RECOMP_UI_ROOT or the matching CLI options when building in
+# a container with explicit mounts.
 set -euo pipefail
 
 APP_NAME="MetroidPrimeHuntersRecomp"
@@ -14,10 +18,13 @@ LAUNCHER_NAME="mph-recomp-ui"
 VERSION="0.1.0"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
+BUILD_FLAVOR="release"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-FRAMEWORK_ROOT="$(cd "$REPO/../ndsrecomp" && pwd)"
-RECOMP_UI_ROOT="$(cd "$REPO/../recomp-ui" && pwd)"
+FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
+RECOMP_UI_ROOT="${RECOMP_UI_ROOT:-$REPO/../recomp-ui}"
+FRAMEWORK_ROOT="$(cd "$FRAMEWORK_ROOT" && pwd)"
+RECOMP_UI_ROOT="$(cd "$RECOMP_UI_ROOT" && pwd)"
 OUT="$REPO/release-linux"
 
 while [ $# -gt 0 ]; do
@@ -25,6 +32,9 @@ while [ $# -gt 0 ]; do
     --version) VERSION="$2"; shift 2;;
     --jobs) JOBS="$2"; shift 2;;
     --out) OUT="$2"; shift 2;;
+    --ndsrecomp-root) FRAMEWORK_ROOT="$(cd "$2" && pwd)"; shift 2;;
+    --recomp-ui-root) RECOMP_UI_ROOT="$(cd "$2" && pwd)"; shift 2;;
+    --build-flavor) BUILD_FLAVOR="$2"; shift 2;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
       sed -n '2,14p' "$0"
@@ -34,9 +44,9 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-GAME_BUILD="$REPO/build-linux-release"
-RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-release"
-LAUNCHER_BUILD="$REPO/launcher/recomp-ui/build-linux-release"
+GAME_BUILD="$REPO/build-linux-$BUILD_FLAVOR"
+RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-$BUILD_FLAVOR"
+LAUNCHER_BUILD="$REPO/launcher/recomp-ui/build-linux-$BUILD_FLAVOR"
 TITLE_BANK_DIR="$REPO/generated/recomp"
 
 cd "$REPO"
@@ -77,14 +87,28 @@ cmake -S "$REPO/launcher/recomp-ui" -B "$LAUNCHER_BUILD" -G "Unix Makefiles" \
 echo "      build Linux launcher"
 cmake --build "$LAUNCHER_BUILD" --target "$LAUNCHER_NAME" -j"$JOBS"
 
+BIN="$RUNNER_BUILD/$RUNNER_NAME"
+LAUNCHER_BIN="$LAUNCHER_BUILD/$LAUNCHER_NAME"
+
+print_glibc_floor() {
+  local elf="$1"
+  local floor
+  floor="$(strings "$elf" | grep -ao 'GLIBC_[0-9][0-9.]*' | sort -Vu | tail -1 || true)"
+  if [ -n "$floor" ]; then
+    echo "      glibc requirement $(basename "$elf"): $floor"
+  else
+    echo "      glibc requirement $(basename "$elf"): none detected"
+  fi
+}
+print_glibc_floor "$BIN"
+print_glibc_floor "$LAUNCHER_BIN"
+
 if [ "$DO_PACKAGE" = "0" ]; then
   echo "done: $RUNNER_BUILD/$RUNNER_NAME"
   echo "done: $LAUNCHER_BUILD/$LAUNCHER_NAME"
   exit 0
 fi
 
-BIN="$RUNNER_BUILD/$RUNNER_NAME"
-LAUNCHER_BIN="$LAUNCHER_BUILD/$LAUNCHER_NAME"
 test -f "$BIN" || { echo "ERROR: runner not built: $BIN" >&2; exit 1; }
 test -f "$LAUNCHER_BIN" || {
   echo "ERROR: launcher not built: $LAUNCHER_BIN" >&2

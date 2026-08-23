@@ -18,6 +18,7 @@ param(
   [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
+  [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompUiRoot = 'F:\Projects\recomp-ui'
 )
 
@@ -28,7 +29,11 @@ if (-not (Test-Path -LiteralPath $cmakePath)) {
   throw "CMake not found: $cmakePath"
 }
 
-$frameworkRoot = [IO.Path]::GetFullPath((Join-Path $root '..\ndsrecomp'))
+if ([IO.Path]::IsPathRooted($NdsrecompRoot)) {
+  $frameworkRoot = [IO.Path]::GetFullPath($NdsrecompRoot)
+} else {
+  $frameworkRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+}
 $gameBuild = [IO.Path]::GetFullPath((Join-Path $root $GameBuildDir))
 $runnerBuild = [IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))
 $launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
@@ -55,6 +60,7 @@ try {
 
   & $cmakePath -G $Generator -S "$root\launcher\recomp-ui" -B $launcherBuild `
     -DCMAKE_BUILD_TYPE=Release `
+    -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }

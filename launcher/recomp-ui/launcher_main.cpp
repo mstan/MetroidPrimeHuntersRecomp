@@ -6,6 +6,7 @@
 #include <windows.h>
 #else
 #include <spawn.h>
+#include <sys/wait.h>
 #include <unistd.h>
 extern char **environ;
 #endif
@@ -16,6 +17,7 @@ extern char **environ;
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -990,6 +992,21 @@ int check_dump(const std::filesystem::path& dir, const NdsDump& dump) {
     return gba::sha1(data.data(), data.size()).hex() == dump.sha1 ? 1 : 2;
 }
 
+// 0 = rom missing, 1 = verified, 2 = present but wrong hash.
+int check_rom(const std::filesystem::path& path, const char* expected_sha1) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file.is_open()) return 0;
+    const std::streamoff size = file.tellg();
+    if (size <= 0) return 2;
+    std::vector<uint8_t> data(static_cast<std::size_t>(size));
+    file.seekg(0);
+    if (!file.read(reinterpret_cast<char*>(data.data()),
+                   static_cast<std::streamsize>(data.size()))) {
+        return 2;
+    }
+    return gba::sha1(data.data(), data.size()).hex() == expected_sha1 ? 1 : 2;
+}
+
 int nds_bios_verify(const char* bios_path, RecompLauncherCBiosVerify* out) {
     if (!out) return 0;
     std::memset(out, 0, sizeof(*out));
@@ -1186,11 +1203,66 @@ void append_binding_args(std::vector<std::string>& args,
 
 #endif
 
+void show_launch_error(const char* message) {
+#ifdef _WIN32
+    MessageBoxW(nullptr, widen(message).c_str(),
+                L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
+#else
+    auto try_dialog = [](const char* program,
+                         std::initializer_list<const char*> args) {
+        std::vector<char*> argv;
+        argv.reserve(args.size() + 2);
+        argv.push_back(const_cast<char*>(program));
+        for (const char* arg : args)
+            argv.push_back(const_cast<char*>(arg));
+        argv.push_back(nullptr);
+
+        pid_t pid = 0;
+        if (posix_spawnp(&pid, program, nullptr, nullptr, argv.data(),
+                         environ) != 0) {
+            return false;
+        }
+        int status = 0;
+        waitpid(pid, &status, 0);
+        return true;
+    };
+
+    if (try_dialog("zenity", {"--error", "--text", message}) ||
+        try_dialog("kdialog", {"--error", message}) ||
+        try_dialog("xmessage", {message})) {
+        return;
+    }
+    std::fprintf(stderr, "%s\n", message);
+#endif
+}
+
 bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                    int display_layout, bool adaptive,
                    const ModState& mods,
-                   int supersampling, int antialiasing) {
-    if (!rom || !rom[0]) return false;
+                   int supersampling, int antialiasing,
+                   const char* expected_sha1) {
+    if (!rom || !rom[0]) {
+        show_launch_error(
+            "No ROM was selected. Please provide a legally obtained Metroid "
+            "Prime Hunters USA revision 0 ROM.");
+        return false;
+    }
+
+    const int rom_status = check_rom(std::filesystem::path(rom),
+                                     expected_sha1);
+    if (rom_status == 0) {
+        show_launch_error(
+            "The selected ROM could not be found or opened.\n\n"
+            "Please verify that the file exists.");
+        return false;
+    }
+    if (rom_status == 2) {
+        show_launch_error(
+            "The selected ROM does not match the supported USA revision 0 "
+            "dump (AMHE0).\n\n"
+            "The selected ROM has an unexpected SHA-1.");
+        return false;
+    }
 
     std::filesystem::path data_dir = game_dir;
 #ifndef _WIN32
@@ -1238,7 +1310,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         }
         if (!conventional_dumps) {
             no_dumps_mode = true;
-        // The bios folder still hosts the persisted per-install identity.
+            // The bios folder still hosts the persisted per-install identity.
             std::error_code error;
             std::filesystem::create_directories(bios, error);
         }
@@ -1561,6 +1633,7 @@ int main(int argc, char** argv) {
                          mod_state.adaptive_widescreen,
                          mod_state,
                          settings.supersampling,
-                         settings.antialiasing) ? 0 : 3;
+                         settings.antialiasing,
+                         sha1[0]) ? 0 : 3;
 }
 #endif

@@ -13,6 +13,19 @@ bool require(bool condition, const char* label) {
 }  // namespace
 
 int main() {
+    if (!require(std::strcmp(runner_screen_layout_arg(0), "stacked") == 0,
+                 "stacked layout arg")) return 88;
+    if (!require(std::strcmp(runner_screen_layout_arg(1), "separate") == 0,
+                 "separate layout arg")) return 89;
+    if (!require(std::strcmp(runner_fullscreen_arg(0), "off") == 0,
+                 "fullscreen off arg")) return 90;
+    if (!require(std::strcmp(runner_fullscreen_arg(1), "borderless") == 0,
+                 "fullscreen borderless arg")) return 91;
+    if (!require(std::strcmp(runner_fullscreen_arg(2), "exclusive") == 0,
+                 "fullscreen exclusive arg")) return 92;
+    if (!require(std::strcmp(runner_fullscreen_arg(99), "off") == 0,
+                 "fullscreen invalid clamps to off")) return 93;
+
     {
         const std::filesystem::path root =
             std::filesystem::temp_directory_path() /
@@ -392,6 +405,51 @@ int main() {
         if (!require(hd_loaded.texture_upscale == 4,
                      "hd texture upscale round trip")) return 72;
         std::filesystem::remove(hd_saved.settings_path);
+    }
+
+    // Issue #14: window layout and fullscreen are title launch arguments, so
+    // they must survive a launcher restart just like ROM/BIOS/mod settings.
+    {
+        const std::filesystem::path settings_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_window_settings.ini";
+
+        ModState saved{};
+        saved.settings_path = settings_path;
+        saved.display_layout = 0;
+        saved.fullscreen = 2;
+        if (!require(save_mod_state(saved), "window settings save"))
+            return 94;
+
+        ModState loaded{};
+        loaded.settings_path = settings_path;
+        load_mod_state(loaded);
+        if (!require(loaded.display_layout == 0,
+                     "display layout round trip")) return 95;
+        if (!require(loaded.fullscreen == 2,
+                     "fullscreen round trip")) return 96;
+        if (!require(std::strcmp(runner_screen_layout_arg(
+                         loaded.display_layout), "stacked") == 0,
+                     "persisted stacked launch arg")) return 97;
+        if (!require(std::strcmp(runner_fullscreen_arg(
+                         loaded.fullscreen), "exclusive") == 0,
+                     "persisted fullscreen launch arg")) return 98;
+
+        {
+            std::ofstream file(settings_path, std::ios::trunc);
+            file << "settings_version=3\n"
+                    "display_layout=99\n"
+                    "fullscreen=-1\n";
+        }
+        ModState invalid{};
+        invalid.settings_path = settings_path;
+        load_mod_state(invalid);
+        if (!require(invalid.display_layout == 1,
+                     "invalid display layout keeps default")) return 99;
+        if (!require(invalid.fullscreen == 0,
+                     "invalid fullscreen keeps default")) return 100;
+
+        std::filesystem::remove(settings_path);
     }
 
     // beads-lqa.3: the chosen ROM must survive a relaunch. It used to be

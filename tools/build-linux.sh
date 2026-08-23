@@ -69,10 +69,10 @@ fi
 
 BIN="$RUNNER_BUILD/$RUNNER_NAME"
 test -f "$BIN" || { echo "ERROR: runner not built: $BIN" >&2; exit 1; }
-strings "$BIN" | grep -q mph_arm9_fmv_runtime || {
+if ! (set +o pipefail; strings "$BIN" | grep -q mph_arm9_fmv_runtime); then
   echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
   exit 1
-}
+fi
 
 LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
 LINUXDEPLOY_SHA=421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e

@@ -20,39 +20,40 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.4.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.0-alpha)**.
+**[v0.4.1-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.1-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.0.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.1.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-x86_64-v0.4.0.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-v0.4.1-x86_64.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
-New in v0.4.0: an opt-in **HD Rendering** mod on the Mods page. It raises the
-3D engine above one sample per DS pixel (up to 4x) and filters decoded
-textures, so the widescreen image gains detail rather than just area. The 2D
-layers stay native, exactly as the hardware draws them. It is off by default;
-enable it under Mods and pick the internal resolution and texture upscaling
-that suit your GPU.
+New in v0.4.1: Nintendo WFC reconnects now work within the same launch, and
+same-machine local Multi-Card multiplayer has the runtime-bank coverage needed
+to sustain full speed in validated two-instance matches. The v0.4.0 HD
+Rendering mod is still available on the Mods page: it raises the 3D engine
+above one sample per DS pixel (up to 4x) and filters decoded textures, while
+the 2D layers stay native. It is off by default; enable it under Mods and pick
+the internal resolution and texture upscaling that suit your GPU.
 
 ## Quick Start
 
 Windows:
 
-1. Download and fully extract the `v0.4.0-alpha` Windows ZIP.
+1. Download and fully extract the `v0.4.1-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.4.0-alpha` AppImage.
+1. Download the `v0.4.1-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
@@ -88,6 +89,10 @@ If your ROM does not match, the launcher/runner should reject it.
 - Supports mouse-driven touchscreen input.
 - Can authenticate through Wiimmfi and reach a Friends and Rivals lobby in
   validated flows.
+- Can reconnect to Nintendo WFC more than once in one launch in the validated
+  reconnect probe.
+- Supports same-machine local Multi-Card play in validated two-instance
+  sessions.
 
 ## Known Limits
 
@@ -101,9 +106,8 @@ If your ROM does not match, the launcher/runner should reject it.
   instances on one machine, but playing against someone on a different machine
   is unvalidated, and no match is guaranteed to connect, stay connected, or
   avoid desync. See "Online Play" below.
-- **Only one Nintendo WFC connection per launch.** The first connection works;
-  if you disconnect and try to reconnect without restarting, the game reports
-  error 52200. Quit and relaunch between online sessions.
+- Local wireless play is experimental and has only been validated between two
+  instances on one machine.
 - Save behavior and settings are still part of early release testing. Keep
   backups of anything you care about.
 
@@ -175,14 +179,10 @@ console. If you move or delete one without the other, the game will report that
 the WFC ID from the Nintendo DS and the Game Card do not match. Keep them
 together, or back them up together.
 
-**Known limitation — one connection per launch.** Connecting to Nintendo WFC
-works the first time after you start the application. If you disconnect and
-then try to connect again in the same session, the game reports error 52200.
-Quit and relaunch to go online again. This is a known bug, not a problem with
-your network or your profile.
-
-Beyond that, online play remains experimental and may still disconnect or
-desync.
+The v0.4.1 patch fixes the previous one-connection-per-launch failure: the
+validated reconnect probe reaches Nintendo WFC three times in one run without
+error 52200. Online play remains experimental beyond that and may still
+disconnect or desync.
 
 The Wi-Fi implementation is built on
 [melonDS](https://github.com/melonDS-emu/melonDS)'s Wi-Fi work in the shared

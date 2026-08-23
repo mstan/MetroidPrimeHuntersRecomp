@@ -20,40 +20,41 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.4.1-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.1-alpha)**.
+**[v0.4.2-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.2-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.1.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.2.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-v0.4.1-x86_64.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-v0.4.2-x86_64.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
-New in v0.4.1: Nintendo WFC reconnects now work within the same launch, and
-same-machine local Multi-Card multiplayer has the runtime-bank coverage needed
-to sustain full speed in validated two-instance matches. The v0.4.0 HD
-Rendering mod is still available on the Mods page: it raises the 3D engine
-above one sample per DS pixel (up to 4x) and filters decoded textures, while
-the 2D layers stay native. It is off by default; enable it under Mods and pick
-the internal resolution and texture upscaling that suit your GPU.
+New in v0.4.2: the developer Tab turbo shortcut is disabled in public builds
+by default so it no longer conflicts with MPH's default virtual stylus binding.
+The v0.4.1 Nintendo WFC reconnect and same-machine local Multi-Card runtime-bank
+fixes remain included. The v0.4.0 HD Rendering mod is still available on the
+Mods page: it raises the 3D engine above one sample per DS pixel (up to 4x) and
+filters decoded textures, while the 2D layers stay native. It is off by default;
+enable it under Mods and pick the internal resolution and texture upscaling that
+suit your GPU.
 
 ## Quick Start
 
 Windows:
 
-1. Download and fully extract the `v0.4.1-alpha` Windows ZIP.
+1. Download and fully extract the `v0.4.2-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.4.1-alpha` AppImage.
+1. Download the `v0.4.2-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
@@ -179,10 +180,11 @@ console. If you move or delete one without the other, the game will report that
 the WFC ID from the Nintendo DS and the Game Card do not match. Keep them
 together, or back them up together.
 
-The v0.4.1 patch fixes the previous one-connection-per-launch failure: the
-validated reconnect probe reaches Nintendo WFC three times in one run without
-error 52200. Online play remains experimental beyond that and may still
-disconnect or desync.
+The v0.4.2 patch disables the public default Tab turbo shortcut, which could
+conflict with MPH's virtual stylus binding when focus moved between the two DS
+screen windows. The v0.4.1 reconnect fix remains included: the validated
+reconnect probe reaches Nintendo WFC three times in one run without error 52200.
+Online play remains experimental beyond that and may still disconnect or desync.
 
 The Wi-Fi implementation is built on
 [melonDS](https://github.com/melonDS-emu/melonDS)'s Wi-Fi work in the shared

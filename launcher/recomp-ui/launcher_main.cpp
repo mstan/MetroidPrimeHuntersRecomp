@@ -32,6 +32,8 @@ struct ModState {
     bool hd_rendering = false;
     int internal_resolution = 2;
     int texture_upscale = 2;
+    int display_layout = 1;
+    int fullscreen = 0;
     bool mouse_aim = true;
     int mouse_sensitivity = 30;
     bool mouse_invert_y = false;
@@ -416,6 +418,16 @@ void load_mod_state(ModState& state) {
             if (end && *end == 0 &&
                 (parsed == 1 || parsed == 2 || parsed == 4))
                 state.texture_upscale = static_cast<int>(parsed);
+        } else if (key == "display_layout") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 0 && parsed <= 1)
+                state.display_layout = static_cast<int>(parsed);
+        } else if (key == "fullscreen") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 0 && parsed <= 2)
+                state.fullscreen = static_cast<int>(parsed);
         } else if (key == "mouse_aim") {
             state.mouse_aim = value != "false";
         } else if (key == "mouse_sensitivity") {
@@ -507,6 +519,8 @@ bool save_mod_state(ModState& state) {
              << (state.hd_rendering ? "true" : "false") << '\n'
              << "internal_resolution=" << state.internal_resolution << '\n'
              << "texture_upscale=" << state.texture_upscale << '\n'
+             << "display_layout=" << state.display_layout << '\n'
+             << "fullscreen=" << state.fullscreen << '\n'
              << "mouse_aim=" << (state.prime_controls ? "true" : "false")
              << '\n'
              << "mouse_sensitivity=" << state.mouse_sensitivity << '\n'
@@ -1534,6 +1548,8 @@ int main(int argc, char** argv) {
     mod_state.settings_path = mod_settings_path();
     mod_state.default_bios_dir = data_dir / "bios";
     load_mod_state(mod_state);
+    settings.display_layout = mod_state.display_layout;
+    settings.fullscreen = mod_state.fullscreen;
     RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);
     copy_text(settings.bios_path, mod_state.bios_path.c_str());
     copy_text(settings.player_name, mod_state.player_name.c_str());
@@ -1615,6 +1631,10 @@ int main(int argc, char** argv) {
     // callback ever firing for the ROM, so treat what we are about to launch
     // as the thing to remember.
     if (selected_rom[0]) mod_state.rom_path = selected_rom;
+    // Same for window mode: the shared launcher returns final UI values in
+    // settings, but these are title-owned launch arguments.
+    mod_state.display_layout = settings.display_layout;
+    mod_state.fullscreen = settings.fullscreen;
     // Same for the ONLINE card's player name. An invalid entry is surfaced
     // and dropped rather than silently reshaped or allowed to block launch.
     {

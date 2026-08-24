@@ -20,44 +20,45 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.4.4-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.4-alpha)**.
+**[v0.4.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.6-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.4.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.6.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-v0.4.4-x86_64.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-v0.4.6-x86_64.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
-New in v0.4.4: the Linux AppImage is now built on an Ubuntu 22.04 baseline for
-better Steam Deck / older-glibc compatibility. It also keeps the v0.4.3
-launcher fullscreen/layout forwarding, compute-renderer fixes for native-HD
-presentation, high-resolution vertex coordinates, and Intel OpenGL
-uniform-update crash guard. The v0.4.2 Tab turbo fix and the v0.4.1 Nintendo
-WFC reconnect and same-machine local Multi-Card runtime-bank fixes remain
-included. The v0.4.0 HD Rendering mod is still available on the Mods page: it
-raises the 3D engine above one sample per DS pixel (up to 4x) and filters
-decoded textures, while the 2D layers stay native. It is off by default; enable
-it under Mods and pick the internal resolution and texture upscaling that suit
+New in v0.4.6: Prime Controls mouse/keyboard input is no longer split between
+the top and bottom windows in Separate layout. Focusing either game window now
+keeps mouse aiming and keyboard controls usable together. It also keeps the
+v0.4.5 Linux AppImage ROM picker fallback, the v0.4.4 Steam Deck / older-glibc
+AppImage baseline, the v0.4.3 launcher fullscreen/layout forwarding and HD
+renderer fixes, the v0.4.2 public Tab turbo default-off fix, and the v0.4.1
+Nintendo WFC reconnect and same-machine local Multi-Card runtime-bank fixes.
+The v0.4.0 HD Rendering mod is still available on the Mods page: it raises the
+3D engine above one sample per DS pixel (up to 4x) and filters decoded
+textures, while the 2D layers stay native. It is off by default; enable it
+under Mods and pick the internal resolution and texture upscaling that suit
 your GPU.
 
 ## Quick Start
 
 Windows:
 
-1. Download and fully extract the `v0.4.4-alpha` Windows ZIP.
+1. Download and fully extract the `v0.4.6-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.4.4-alpha` AppImage.
+1. Download the `v0.4.6-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
@@ -183,7 +184,7 @@ console. If you move or delete one without the other, the game will report that
 the WFC ID from the Nintendo DS and the Game Card do not match. Keep them
 together, or back them up together.
 
-The v0.4.4 patch keeps the v0.4.2 public Tab turbo default disabled, and also
+The v0.4.6 patch keeps the v0.4.2 public Tab turbo default disabled, and also
 includes launcher fullscreen/layout argument forwarding plus several compute
 renderer HD/Intel compatibility paths from v0.4.3. The v0.4.1 reconnect fix
 remains included: the validated reconnect probe reaches Nintendo WFC three

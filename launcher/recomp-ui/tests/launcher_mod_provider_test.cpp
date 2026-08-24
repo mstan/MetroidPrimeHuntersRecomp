@@ -355,6 +355,78 @@ int main() {
         std::filesystem::remove(saved.settings_path);
     }
 
+    // Full Mods-page persistence sweep: all feature toggles, all scalar
+    // options, and every keyboard/mouse + gamepad binding row.
+    {
+        ModState saved{};
+        saved.settings_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_all_mod_settings.ini";
+        saved.adaptive_widescreen = false;
+        saved.hd_rendering = true;
+        saved.internal_resolution = 4;
+        saved.texture_upscale = 4;
+        saved.prime_controls = false;
+        saved.mouse_sensitivity = 200;
+        saved.mouse_invert_y = true;
+        saved.virtual_stylus_sensitivity = 300;
+        saved.pad_aim_sensitivity = 150;
+
+        for (size_t i = 0; i < kBindingOptions.size(); ++i) {
+            const BindingChoice& choice =
+                kBindingChoices[(i % (kBindingChoices.size() - 1)) + 1];
+            saved.*(kBindingOptions[i].member) = choice.value;
+        }
+        for (size_t i = 0; i < kPadBindingOptions.size(); ++i) {
+            const BindingChoice& choice =
+                kPadChoices[(i % (kPadChoices.size() - 1)) + 1];
+            saved.*(kPadBindingOptions[i].member) = choice.value;
+        }
+
+        if (!require(save_mod_state(saved), "all mod settings save"))
+            return 128;
+        ModState loaded{};
+        loaded.settings_path = saved.settings_path;
+        load_mod_state(loaded);
+        if (!require(!loaded.adaptive_widescreen,
+                     "adaptive widescreen round trip")) return 129;
+        if (!require(loaded.hd_rendering,
+                     "hd rendering feature round trip")) return 130;
+        if (!require(loaded.internal_resolution == 4,
+                     "all-mod internal resolution round trip")) return 131;
+        if (!require(loaded.texture_upscale == 4,
+                     "all-mod texture upscale round trip")) return 132;
+        if (!require(!loaded.prime_controls,
+                     "prime controls feature round trip")) return 133;
+        if (!require(!loaded.mouse_aim,
+                     "mouse aim mirrors prime controls on load")) return 134;
+        if (!require(loaded.mouse_sensitivity == 200,
+                     "aim sensitivity round trip")) return 135;
+        if (!require(loaded.mouse_invert_y,
+                     "invert y round trip")) return 136;
+        if (!require(loaded.virtual_stylus_sensitivity == 300,
+                     "virtual stylus sensitivity round trip")) return 137;
+        if (!require(loaded.pad_aim_sensitivity == 150,
+                     "pad aim sensitivity round trip")) return 138;
+
+        for (size_t i = 0; i < kBindingOptions.size(); ++i) {
+            if (!require(loaded.*(kBindingOptions[i].member) ==
+                             saved.*(kBindingOptions[i].member),
+                         kBindingOptions[i].id)) {
+                return 139;
+            }
+        }
+        for (size_t i = 0; i < kPadBindingOptions.size(); ++i) {
+            if (!require(loaded.*(kPadBindingOptions[i].member) ==
+                             saved.*(kPadBindingOptions[i].member),
+                         kPadBindingOptions[i].id)) {
+                return 140;
+            }
+        }
+
+        std::filesystem::remove(saved.settings_path);
+    }
+
     // HD rendering: off by default, so a player who never opens the Mods
     // page gets the faithful native output.
     {
@@ -407,47 +479,139 @@ int main() {
         std::filesystem::remove(hd_saved.settings_path);
     }
 
-    // Issue #14: window layout and fullscreen are title launch arguments, so
-    // they must survive a launcher restart just like ROM/BIOS/mod settings.
+    // Issue #14 follow-up: every setting MPH exposes through the shared
+    // launcher must survive a launcher restart, not just the two launch
+    // arguments that were originally fixed.
     {
         const std::filesystem::path settings_path =
             std::filesystem::temp_directory_path() /
-            "mph_mod_provider_window_settings.ini";
+            "mph_mod_provider_launcher_settings.ini";
 
         ModState saved{};
         saved.settings_path = settings_path;
+        saved.window_scale = 5;
         saved.display_layout = 0;
         saved.fullscreen = 2;
-        if (!require(save_mod_state(saved), "window settings save"))
+        saved.supersampling = 4;
+        saved.antialiasing = 8;
+        saved.volume = 35;
+        saved.player_src = 1;
+        saved.player_gamepad_guid = "030000005e0400008e02000014010000";
+        if (!require(save_mod_state(saved), "launcher settings save"))
             return 94;
 
         ModState loaded{};
         loaded.settings_path = settings_path;
         load_mod_state(loaded);
+        if (!require(loaded.window_scale == 5,
+                     "window scale round trip")) return 101;
         if (!require(loaded.display_layout == 0,
                      "display layout round trip")) return 95;
         if (!require(loaded.fullscreen == 2,
                      "fullscreen round trip")) return 96;
+        if (!require(loaded.supersampling == 4,
+                     "supersampling round trip")) return 102;
+        if (!require(loaded.antialiasing == 8,
+                     "antialiasing round trip")) return 103;
+        if (!require(loaded.volume == 35,
+                     "volume round trip")) return 104;
+        if (!require(loaded.player_src == 1,
+                     "player source round trip")) return 105;
+        if (!require(loaded.player_gamepad_guid ==
+                         "030000005e0400008e02000014010000",
+                     "player gamepad guid round trip")) return 106;
+
+        RecompLauncherCSettings applied{};
+        applied.window_scale = 3;
+        applied.display_layout = 1;
+        applied.fullscreen = 0;
+        applied.supersampling = 1;
+        applied.antialiasing = 0;
+        applied.volume = 100;
+        applied.player_src[0] = 2;
+        apply_saved_launcher_settings(loaded, &applied);
+        if (!require(applied.window_scale == 5,
+                     "saved window scale applied")) return 107;
+        if (!require(applied.display_layout == 0,
+                     "saved display layout applied")) return 108;
+        if (!require(applied.fullscreen == 2,
+                     "saved fullscreen applied")) return 109;
+        if (!require(applied.supersampling == 4,
+                     "saved supersampling applied")) return 110;
+        if (!require(applied.antialiasing == 8,
+                     "saved antialiasing applied")) return 111;
+        if (!require(applied.volume == 35,
+                     "saved volume applied")) return 112;
+        if (!require(applied.player_src[0] == 1,
+                     "saved player source applied")) return 113;
+        if (!require(std::strcmp(
+                         applied.player_gamepad_guid[0],
+                         "030000005e0400008e02000014010000") == 0,
+                     "saved player gamepad guid applied")) return 114;
+
+        applied.window_scale = 2;
+        applied.display_layout = 1;
+        applied.fullscreen = 1;
+        applied.supersampling = 3;
+        applied.antialiasing = 4;
+        applied.volume = 80;
+        applied.player_src[0] = 2;
+        copy_text(applied.player_gamepad_guid[0],
+                  "050000004c050000e60c000000010000");
+        capture_launcher_settings(&loaded, applied);
+        if (!require(loaded.window_scale == 2,
+                     "changed window scale captured")) return 115;
+        if (!require(loaded.display_layout == 1,
+                     "changed display layout captured")) return 116;
+        if (!require(loaded.fullscreen == 1,
+                     "changed fullscreen captured")) return 117;
+        if (!require(loaded.supersampling == 3,
+                     "changed supersampling captured")) return 118;
+        if (!require(loaded.antialiasing == 4,
+                     "changed antialiasing captured")) return 119;
+        if (!require(loaded.volume == 80,
+                     "changed volume captured")) return 120;
+        if (!require(loaded.player_src == 2,
+                     "changed player source captured")) return 121;
+        if (!require(loaded.player_gamepad_guid ==
+                         "050000004c050000e60c000000010000",
+                     "changed player gamepad guid captured")) return 122;
+
         if (!require(std::strcmp(runner_screen_layout_arg(
-                         loaded.display_layout), "stacked") == 0,
-                     "persisted stacked launch arg")) return 97;
+                         loaded.display_layout), "separate") == 0,
+                     "captured separate launch arg")) return 97;
         if (!require(std::strcmp(runner_fullscreen_arg(
-                         loaded.fullscreen), "exclusive") == 0,
-                     "persisted fullscreen launch arg")) return 98;
+                         loaded.fullscreen), "borderless") == 0,
+                     "captured fullscreen launch arg")) return 98;
 
         {
             std::ofstream file(settings_path, std::ios::trunc);
-            file << "settings_version=3\n"
+            file << "settings_version=4\n"
+                    "window_scale=0\n"
                     "display_layout=99\n"
-                    "fullscreen=-1\n";
+                    "fullscreen=-1\n"
+                    "supersampling=9\n"
+                    "antialiasing=6\n"
+                    "volume=101\n"
+                    "player_src=3\n";
         }
         ModState invalid{};
         invalid.settings_path = settings_path;
         load_mod_state(invalid);
+        if (!require(invalid.window_scale == 3,
+                     "invalid window scale keeps default")) return 123;
         if (!require(invalid.display_layout == 1,
                      "invalid display layout keeps default")) return 99;
         if (!require(invalid.fullscreen == 0,
                      "invalid fullscreen keeps default")) return 100;
+        if (!require(invalid.supersampling == 1,
+                     "invalid supersampling keeps default")) return 124;
+        if (!require(invalid.antialiasing == 0,
+                     "invalid antialiasing keeps default")) return 125;
+        if (!require(invalid.volume == 100,
+                     "invalid volume keeps default")) return 126;
+        if (!require(invalid.player_src == 2,
+                     "invalid player source keeps default")) return 127;
 
         std::filesystem::remove(settings_path);
     }

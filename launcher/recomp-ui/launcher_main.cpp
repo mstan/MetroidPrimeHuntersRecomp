@@ -32,8 +32,14 @@ struct ModState {
     bool hd_rendering = false;
     int internal_resolution = 2;
     int texture_upscale = 2;
+    int window_scale = 3;
     int display_layout = 1;
     int fullscreen = 0;
+    int supersampling = 1;
+    int antialiasing = 0;
+    int volume = 100;
+    int player_src = 2;
+    std::string player_gamepad_guid;
     bool mouse_aim = true;
     int mouse_sensitivity = 30;
     bool mouse_invert_y = false;
@@ -418,6 +424,11 @@ void load_mod_state(ModState& state) {
             if (end && *end == 0 &&
                 (parsed == 1 || parsed == 2 || parsed == 4))
                 state.texture_upscale = static_cast<int>(parsed);
+        } else if (key == "window_scale") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 1 && parsed <= 6)
+                state.window_scale = static_cast<int>(parsed);
         } else if (key == "display_layout") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -428,6 +439,29 @@ void load_mod_state(ModState& state) {
             const long parsed = std::strtol(value.c_str(), &end, 10);
             if (end && *end == 0 && parsed >= 0 && parsed <= 2)
                 state.fullscreen = static_cast<int>(parsed);
+        } else if (key == "supersampling") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 1 && parsed <= 4)
+                state.supersampling = static_cast<int>(parsed);
+        } else if (key == "antialiasing") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 &&
+                (parsed == 0 || parsed == 2 || parsed == 4 || parsed == 8))
+                state.antialiasing = static_cast<int>(parsed);
+        } else if (key == "volume") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 0 && parsed <= 100)
+                state.volume = static_cast<int>(parsed);
+        } else if (key == "player_src") {
+            char* end = nullptr;
+            const long parsed = std::strtol(value.c_str(), &end, 10);
+            if (end && *end == 0 && parsed >= 0 && parsed <= 2)
+                state.player_src = static_cast<int>(parsed);
+        } else if (key == "player_gamepad_guid") {
+            state.player_gamepad_guid = value;
         } else if (key == "mouse_aim") {
             state.mouse_aim = value != "false";
         } else if (key == "mouse_sensitivity") {
@@ -512,15 +546,21 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=3\n"
+        file << "settings_version=4\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "hd_rendering="
              << (state.hd_rendering ? "true" : "false") << '\n'
              << "internal_resolution=" << state.internal_resolution << '\n'
              << "texture_upscale=" << state.texture_upscale << '\n'
+             << "window_scale=" << state.window_scale << '\n'
              << "display_layout=" << state.display_layout << '\n'
              << "fullscreen=" << state.fullscreen << '\n'
+             << "supersampling=" << state.supersampling << '\n'
+             << "antialiasing=" << state.antialiasing << '\n'
+             << "volume=" << state.volume << '\n'
+             << "player_src=" << state.player_src << '\n'
+             << "player_gamepad_guid=" << state.player_gamepad_guid << '\n'
              << "mouse_aim=" << (state.prime_controls ? "true" : "false")
              << '\n'
              << "mouse_sensitivity=" << state.mouse_sensitivity << '\n'
@@ -1506,6 +1546,33 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
 #endif
 }
 
+void apply_saved_launcher_settings(
+    const ModState& state, RecompLauncherCSettings* settings) {
+    if (!settings) return;
+    settings->window_scale = state.window_scale;
+    settings->display_layout = state.display_layout;
+    settings->fullscreen = state.fullscreen;
+    settings->supersampling = state.supersampling;
+    settings->antialiasing = state.antialiasing;
+    settings->volume = state.volume;
+    settings->player_src[0] = state.player_src;
+    copy_text(settings->player_gamepad_guid[0],
+              state.player_gamepad_guid.c_str());
+}
+
+void capture_launcher_settings(
+    ModState* state, const RecompLauncherCSettings& settings) {
+    if (!state) return;
+    state->window_scale = settings.window_scale;
+    state->display_layout = settings.display_layout;
+    state->fullscreen = settings.fullscreen;
+    state->supersampling = settings.supersampling;
+    state->antialiasing = settings.antialiasing;
+    state->volume = settings.volume;
+    state->player_src = settings.player_src[0];
+    state->player_gamepad_guid = settings.player_gamepad_guid[0];
+}
+
 }  // namespace
 
 #ifndef MPH_RECOMP_UI_NO_MAIN
@@ -1548,8 +1615,7 @@ int main(int argc, char** argv) {
     mod_state.settings_path = mod_settings_path();
     mod_state.default_bios_dir = data_dir / "bios";
     load_mod_state(mod_state);
-    settings.display_layout = mod_state.display_layout;
-    settings.fullscreen = mod_state.fullscreen;
+    apply_saved_launcher_settings(mod_state, &settings);
     RecompLauncherCModProvider mod_provider = make_mod_provider(&mod_state);
     copy_text(settings.bios_path, mod_state.bios_path.c_str());
     copy_text(settings.player_name, mod_state.player_name.c_str());
@@ -1631,10 +1697,9 @@ int main(int argc, char** argv) {
     // callback ever firing for the ROM, so treat what we are about to launch
     // as the thing to remember.
     if (selected_rom[0]) mod_state.rom_path = selected_rom;
-    // Same for window mode: the shared launcher returns final UI values in
-    // settings, but these are title-owned launch arguments.
-    mod_state.display_layout = settings.display_layout;
-    mod_state.fullscreen = settings.fullscreen;
+    // Same for launcher-owned settings: the shared UI returns final values in
+    // settings, but MPH owns this settings file and the runner launch args.
+    capture_launcher_settings(&mod_state, settings);
     // Same for the ONLINE card's player name. An invalid entry is surfaced
     // and dropped rather than silently reshaped or allowed to block launch.
     {

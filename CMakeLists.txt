@@ -192,7 +192,8 @@ set_source_files_properties(${MPH_ARM7_SOURCES} ${MPH_RUNTIME_ARM7_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=1")
 target_include_directories(mph_recompiled_banks PRIVATE
     "${MPH_RECOMP_DIR}"
-    "${NDSRECOMP_ROOT}/recompiler/armv4t")
+    "${NDSRECOMP_ROOT}/recompiler/armv4t"
+    "${NDSRECOMP_ROOT}/external/arm-recomp-core/common")
 if(NOT MSVC)
     target_compile_options(mph_recompiled_banks PRIVATE -w -O0 -g0)
 endif()

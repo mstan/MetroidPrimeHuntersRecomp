@@ -4,7 +4,9 @@ Patch release after `v0.4.3-alpha`.
 
 ## Included
 
-- Builds against ndsrecomp main plus the MPH v0.4.3 HD/compute renderer fixes.
+- Builds against ndsrecomp main plus the MPH HD/compute renderer fixes.
+- Keeps tutorial and transmission overlays on the HD 3D presenter when their
+  OBJ-window masks disable color effects but leave BG0/3D visible.
 - Builds the Linux AppImage in an Ubuntu 22.04 container, lowering the packaged
   glibc requirement for Steam Deck / older Linux distributions.
 - Keeps the v0.4.3 launcher Fullscreen and Stacked/Separate window setting

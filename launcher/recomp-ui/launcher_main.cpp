@@ -393,6 +393,21 @@ std::filesystem::path mod_settings_path() {
            "MetroidPrimeHuntersRecomp-mods.ini";
 }
 
+std::filesystem::path first_adjacent_rom(const std::filesystem::path& dir) {
+    std::error_code error;
+    std::filesystem::directory_iterator it(dir, error);
+    const std::filesystem::directory_iterator end;
+    for (; !error && it != end; it.increment(error)) {
+        if (!it->is_regular_file(error)) continue;
+        const std::string ext = it->path().extension().string();
+        if (ext == ".nds" || ext == ".NDS" || ext == ".srl" ||
+            ext == ".SRL") {
+            return it->path();
+        }
+    }
+    return {};
+}
+
 void load_mod_state(ModState& state) {
     std::ifstream file(state.settings_path);
     std::string line;
@@ -1674,8 +1689,14 @@ int main(int argc, char** argv) {
     // stale selection the user cannot launch.
     std::filesystem::path default_rom =
         data_dir / "Metroid Prime Hunters.nds";
+    std::error_code rom_error;
+    if (!std::filesystem::is_regular_file(default_rom, rom_error)) {
+        const std::filesystem::path adjacent = first_adjacent_rom(data_dir);
+        if (!adjacent.empty())
+            default_rom = adjacent;
+    }
     if (!mod_state.rom_path.empty()) {
-        std::error_code rom_error;
+        rom_error.clear();
         const std::filesystem::path remembered(mod_state.rom_path);
         if (std::filesystem::is_regular_file(remembered, rom_error))
             default_rom = remembered;

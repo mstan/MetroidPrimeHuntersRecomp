@@ -184,6 +184,17 @@ export SDL_JOYSTICK_HIDAPI_STEAM=1
 export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
 SELF="${APPIMAGE:-$0}"
 RUNDIR="$(dirname "$(readlink -f "$SELF")")"
+export RECOMP_APPIMAGE_PATH="$SELF"
+export RECOMP_UI_BUILTIN_FILE_PICKER=1
+ROM=""
+for ext in nds NDS srl SRL; do
+  for f in "$RUNDIR"/*."$ext"; do
+    [ -e "$f" ] && ROM="$f" && break 2
+  done
+done
+if [ -n "$ROM" ]; then
+  export RECOMP_DISC_HINT="$ROM"
+fi
 mkdir -p "$RUNDIR/bios" 2>/dev/null || true
 if [ ! -f "$RUNDIR/bios/README.txt" ] && [ -f "$HERE/usr/bin/bios/README.txt" ]; then
   cp "$HERE/usr/bin/bios/README.txt" "$RUNDIR/bios/README.txt" 2>/dev/null || true

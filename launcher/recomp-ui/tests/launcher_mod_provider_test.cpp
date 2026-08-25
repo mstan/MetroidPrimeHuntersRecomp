@@ -89,6 +89,58 @@ int main() {
     if (!require(feature_count == 4, "feature_count == 4")) return 4;
 
     RecompLauncherCModFeature feature{};
+    if (!require(provider.feature_get(provider.ctx, 0, &feature),
+                 "feature_get adaptive widescreen")) {
+        return 3;
+    }
+    if (!require(std::strcmp(feature.id, "adaptive-widescreen") == 0,
+                 "adaptive feature id")) {
+        return 4;
+    }
+    if (!require(feature.option_count == 1,
+                 "adaptive renderer option count")) {
+        return 4;
+    }
+
+    RecompLauncherCModOption option{};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
+            0, &option), "renderer type option get")) {
+        return 4;
+    }
+    if (!require(std::strcmp(option.id, "renderer-type") == 0,
+                 "renderer type option id")) return 4;
+    if (!require(std::strcmp(option.value, "auto") == 0,
+                 "renderer type default value")) return 4;
+    if (!require(option.choice_count == 3,
+                 "renderer type choice count")) return 4;
+
+    RecompLauncherCModChoice renderer_choice{};
+    if (!require(provider.feature_choice_get(
+            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
+            "renderer-type", 2, &renderer_choice),
+            "renderer type software choice")) {
+        return 4;
+    }
+    if (!require(std::strcmp(renderer_choice.value, "soft") == 0,
+                 "renderer type software value")) return 4;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
+            "renderer-type", "soft"),
+            "set renderer type soft")) {
+        return 4;
+    }
+    if (!require(std::strcmp(runner_renderer_policy_arg(state), "soft") == 0,
+                 "renderer type runner value")) return 4;
+    if (!require(!provider.feature_set_option(
+            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
+            "renderer-type", "vulkan"),
+            "reject invalid renderer type")) {
+        return 4;
+    }
+    state.renderer_type = "auto";
+
+    feature = {};
     if (!require(provider.feature_get(provider.ctx, 1, &feature),
                  "feature_get prime controls")) {
         return 3;
@@ -128,7 +180,7 @@ int main() {
     }
     if (!require(feature.enabled == 0, "diagnostics disabled")) return 7;
 
-    RecompLauncherCModOption option{};
+    option = {};
     if (!require(provider.feature_option_get(
             provider.ctx, "mph-prime-controls", "prime-controls", 0,
             &option), "aim sensitivity option get")) {
@@ -411,6 +463,7 @@ int main() {
         saved.texture_upscale = 4;
         saved.prime_controls = false;
         saved.diagnostics = false;
+        saved.renderer_type = "soft";
         saved.mouse_sensitivity = 200;
         saved.mouse_invert_y = true;
         saved.cross_window_mouse_capture = true;
@@ -445,6 +498,11 @@ int main() {
                      "prime controls feature round trip")) return 133;
         if (!require(!loaded.diagnostics,
                      "diagnostics feature round trip")) return 133;
+        if (!require(loaded.renderer_type == "soft",
+                     "renderer type round trip")) return 133;
+        if (!require(std::strcmp(runner_renderer_policy_arg(loaded),
+                                 "soft") == 0,
+                     "renderer type launch env round trip")) return 133;
         if (!require(!loaded.mouse_aim,
                      "mouse aim mirrors prime controls on load")) return 134;
         if (!require(loaded.mouse_sensitivity == 200,
@@ -642,7 +700,8 @@ int main() {
                     "supersampling=9\n"
                     "antialiasing=6\n"
                     "volume=101\n"
-                    "player_src=3\n";
+                    "player_src=3\n"
+                    "renderer_type=vulkan\n";
         }
         ModState invalid{};
         invalid.settings_path = settings_path;
@@ -661,6 +720,8 @@ int main() {
                      "invalid volume keeps default")) return 126;
         if (!require(invalid.player_src == 2,
                      "invalid player source keeps default")) return 127;
+        if (!require(invalid.renderer_type == "auto",
+                     "invalid renderer keeps default")) return 127;
 
         std::filesystem::remove(settings_path);
     }

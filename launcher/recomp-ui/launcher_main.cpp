@@ -46,6 +46,7 @@ struct ModState {
     bool cross_window_mouse_capture = false;
     bool prime_controls = true;
     bool diagnostics = true;
+    std::string renderer_type = "auto";
     int virtual_stylus_sensitivity = 20;
     int pad_aim_sensitivity = 100;
     std::string move_forward = "W";
@@ -141,6 +142,17 @@ constexpr std::array<HdChoice, 3> kTextureUpscaleChoices{{
     {1, "Off"},
     {2, "2x"},
     {4, "4x"},
+}};
+
+struct RendererChoice {
+    const char* value;
+    const char* label;
+};
+
+constexpr std::array<RendererChoice, 3> kRendererChoices{{
+    {"auto", "Auto"},
+    {"compute", "Compute"},
+    {"soft", "Software"},
 }};
 
 struct SensitivityChoice {
@@ -395,6 +407,65 @@ std::filesystem::path mod_settings_path() {
            "MetroidPrimeHuntersRecomp-mods.ini";
 }
 
+bool is_renderer_choice(const char* value) {
+    if (!value) return false;
+    for (const RendererChoice& choice : kRendererChoices) {
+        if (std::strcmp(choice.value, value) == 0) return true;
+    }
+    return false;
+}
+
+const char* runner_renderer_policy_arg(const ModState& state) {
+    return is_renderer_choice(state.renderer_type.c_str())
+        ? state.renderer_type.c_str()
+        : "auto";
+}
+
+std::wstring widen(const char* source);
+
+struct ScopedRendererEnv {
+#ifdef _WIN32
+    std::wstring previous;
+    bool had_previous = false;
+
+    explicit ScopedRendererEnv(const char* value) {
+        wchar_t buffer[64]{};
+        constexpr DWORD capacity =
+            static_cast<DWORD>(sizeof(buffer) / sizeof(buffer[0]));
+        const DWORD len = GetEnvironmentVariableW(
+            L"NDS_3D_RENDERER", buffer, capacity);
+        had_previous = len > 0 && len < capacity;
+        if (had_previous) previous = buffer;
+        SetEnvironmentVariableW(L"NDS_3D_RENDERER",
+                                widen(value ? value : "auto").c_str());
+    }
+
+    ~ScopedRendererEnv() {
+        SetEnvironmentVariableW(
+            L"NDS_3D_RENDERER",
+            had_previous ? previous.c_str() : nullptr);
+    }
+#else
+    std::string previous;
+    bool had_previous = false;
+
+    explicit ScopedRendererEnv(const char* value) {
+        if (const char* existing = std::getenv("NDS_3D_RENDERER")) {
+            previous = existing;
+            had_previous = true;
+        }
+        setenv("NDS_3D_RENDERER", value ? value : "auto", 1);
+    }
+
+    ~ScopedRendererEnv() {
+        if (had_previous)
+            setenv("NDS_3D_RENDERER", previous.c_str(), 1);
+        else
+            unsetenv("NDS_3D_RENDERER");
+    }
+#endif
+};
+
 std::filesystem::path first_adjacent_rom(const std::filesystem::path& dir) {
     std::error_code error;
     std::filesystem::directory_iterator it(dir, error);
@@ -495,6 +566,9 @@ void load_mod_state(ModState& state) {
             state.prime_controls = value != "false";
         } else if (key == "diagnostics") {
             state.diagnostics = value != "false";
+        } else if (key == "renderer_type") {
+            if (is_renderer_choice(value.c_str()))
+                state.renderer_type = value;
         } else if (key == "rom_path") {
             // Kept verbatim. Existence is checked at use, not here: a dump on
             // removable media that is absent this launch should not erase the
@@ -567,7 +641,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=6\n"
+        file << "settings_version=7\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "hd_rendering="
@@ -594,6 +668,8 @@ bool save_mod_state(ModState& state) {
              << (state.prime_controls ? "true" : "false") << '\n'
              << "diagnostics="
              << (state.diagnostics ? "true" : "false") << '\n'
+             << "renderer_type=" << runner_renderer_policy_arg(state)
+             << '\n'
              << "virtual_stylus_sensitivity="
              << state.virtual_stylus_sensitivity << '\n'
              << "pad_aim_sensitivity=" << state.pad_aim_sensitivity << '\n'
@@ -656,6 +732,7 @@ int mod_feature_get(void* context, int index,
         copy_text(output->status,
                   state->adaptive_widescreen ? "Enabled" : "Disabled");
         output->enabled = state->adaptive_widescreen ? 1 : 0;
+        output->option_count = 1;
     } else if (index == 2) {
         copy_text(output->id, "hd-rendering");
         copy_text(output->package_id, "mph-hd-rendering");
@@ -761,6 +838,23 @@ int mod_feature_option_get(void* context, const char* package_id,
                            RecompLauncherCModOption* output) {
     if (!context || !package_id || !feature_id || !output || index < 0)
         return 0;
+    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
+        std::strcmp(feature_id, "adaptive-widescreen") == 0) {
+        if (index != 0) return 0;
+        const auto* state = static_cast<const ModState*>(context);
+        std::memset(output, 0, sizeof(*output));
+        copy_text(output->id, "renderer-type");
+        copy_text(output->label, "Renderer type");
+        copy_text(output->description,
+                  "Selects the 3D renderer used for comparison and "
+                  "diagnostics. Auto keeps the default path.");
+        copy_text(output->group, "Renderer");
+        copy_text(output->value, runner_renderer_policy_arg(*state));
+        copy_text(output->default_value, "auto");
+        output->type = RECOMP_MOD_OPTION_CHOICE;
+        output->choice_count = static_cast<int>(kRendererChoices.size());
+        return 1;
+    }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         if (index > 1) return 0;
@@ -896,6 +990,16 @@ int mod_feature_choice_get(void*, const char* package_id,
                            int index, RecompLauncherCModChoice* output) {
     if (!package_id || !feature_id || !option_id || !output || index < 0)
         return 0;
+    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
+        std::strcmp(feature_id, "adaptive-widescreen") == 0 &&
+        std::strcmp(option_id, "renderer-type") == 0) {
+        if (index >= static_cast<int>(kRendererChoices.size())) return 0;
+        std::memset(output, 0, sizeof(*output));
+        const RendererChoice& choice = kRendererChoices[index];
+        copy_text(output->value, choice.value);
+        copy_text(output->label, choice.label);
+        return 1;
+    }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         if (std::strcmp(option_id, "internal-resolution") == 0) {
@@ -971,6 +1075,16 @@ int mod_feature_set_option(void* context, const char* package_id,
                            const char* value) {
     if (!context || !package_id || !feature_id || !option_id || !value)
         return 0;
+    auto* adaptive_state = static_cast<ModState*>(context);
+    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
+        std::strcmp(feature_id, "adaptive-widescreen") == 0) {
+        if (std::strcmp(option_id, "renderer-type") != 0 ||
+            !is_renderer_choice(value)) {
+            return 0;
+        }
+        adaptive_state->renderer_type = value;
+        return 1;
+    }
     auto* hd_state = static_cast<ModState*>(context);
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
@@ -1520,6 +1634,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_binding_args(command, mods);
     append_live_overlay_dev_args(command, game_dir);
 
+    ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
@@ -1597,6 +1712,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         argv.push_back(arg.data());
     argv.push_back(nullptr);
 
+    ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
     posix_spawn_file_actions_t actions;
     if (posix_spawn_file_actions_init(&actions) != 0)
         return false;

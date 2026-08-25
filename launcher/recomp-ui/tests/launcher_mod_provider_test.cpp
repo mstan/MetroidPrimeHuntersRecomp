@@ -53,6 +53,9 @@ int main() {
                      "generated firmware state path")) return 85;
         if (!require(retail.filename() == "firmware-retail.bin",
                      "retail firmware state path")) return 86;
+        if (!require(diagnostics_dir_path(root / "release") ==
+                         root / "release" / "diagnostics",
+                     "diagnostics path is release-adjacent")) return 150;
         std::filesystem::create_directories(root);
         std::vector<unsigned char> bytes(128u * 1024u, 0xFFu);
         const unsigned char mac[6] = {0x00, 0x09, 0xBF, 0x12, 0x34, 0x56};

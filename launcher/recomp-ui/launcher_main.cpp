@@ -362,7 +362,12 @@ std::string read_identity_mac(const std::filesystem::path& bios_dir) {
 std::filesystem::path firmware_state_path(
     const std::filesystem::path& settings_path, bool generated) {
     return settings_path.parent_path() /
-        (generated ? "firmware-generated.bin" : "firmware-retail.bin");
+           (generated ? "firmware-generated.bin" : "firmware-retail.bin");
+}
+
+std::filesystem::path diagnostics_dir_path(
+    const std::filesystem::path& game_dir) {
+    return game_dir / "diagnostics";
 }
 
 std::string read_firmware_state_mac(const std::filesystem::path& path) {
@@ -1549,7 +1554,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     const std::filesystem::path firmware_state = firmware_state_path(
         mods.settings_path, no_dumps_mode);
     const std::filesystem::path diagnostics_dir =
-        mods.settings_path.parent_path() / "diagnostics";
+        diagnostics_dir_path(game_dir);
 
 #ifdef _WIN32
     const std::wstring rom_wide = widen(rom);

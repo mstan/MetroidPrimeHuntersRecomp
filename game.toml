@@ -38,6 +38,14 @@ adaptive_hud_center_width = 128
 # edges in the widened 3D surface. Center those simple frames while preserving
 # adaptive widescreen during normal gameplay.
 adaptive_center_max_polygons = 64
+# Adventure mode computes per-room sub-frusta, portal screen bboxes, and
+# entity sphere culling from native 4:3 constants, which hard-clips adjacent
+# rooms at the native viewport edge and culls entities inside the widened
+# band. This arms the title-owned guest patches that rebuild those frusta at
+# the adaptive width; the runner activates them per frame only while the
+# adventure overlay's guarded words are resident, so multiplayer and menus
+# keep native behavior.
+adaptive_guest_culling = true
 
 [system]
 # Exercise the authentic BIOS/firmware/card path and automatically launch the

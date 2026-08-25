@@ -31,13 +31,13 @@ int main() {
                  "renderer compute settings index")) return 142;
     if (!require(renderer_type_to_settings_index("soft") == 2,
                  "renderer software settings index")) return 143;
-    if (!require(renderer_type_to_settings_index("vulkan") == 0,
+    if (!require(renderer_type_to_settings_index("vulkan") == 1,
                  "invalid renderer settings index defaults")) return 144;
     if (!require(std::strcmp(settings_index_to_renderer_type(1),
                              "compute") == 0,
                  "settings index compute renderer")) return 145;
     if (!require(std::strcmp(settings_index_to_renderer_type(99),
-                             "auto") == 0,
+                             "compute") == 0,
                  "invalid settings index renderer defaults")) return 146;
 
     {
@@ -712,7 +712,7 @@ int main() {
                      "invalid volume keeps default")) return 126;
         if (!require(invalid.player_src == 2,
                      "invalid player source keeps default")) return 127;
-        if (!require(invalid.renderer_type == "auto",
+        if (!require(invalid.renderer_type == "compute",
                      "invalid renderer keeps default")) return 127;
 
         std::filesystem::remove(settings_path);

@@ -46,7 +46,7 @@ struct ModState {
     bool cross_window_mouse_capture = false;
     bool prime_controls = true;
     bool diagnostics = true;
-    std::string renderer_type = "auto";
+    std::string renderer_type = "compute";
     int virtual_stylus_sensitivity = 20;
     int pad_aim_sensitivity = 100;
     std::string move_forward = "W";
@@ -151,9 +151,11 @@ struct RendererChoice {
 
 constexpr std::array<RendererChoice, 3> kRendererChoices{{
     {"auto", "Auto"},
-    {"compute", "Compute"},
+    {"compute", "OpenGL"},
     {"soft", "Software"},
 }};
+
+constexpr const char* kDefaultRendererType = "compute";
 
 struct SensitivityChoice {
     int percent;
@@ -416,17 +418,17 @@ bool is_renderer_choice(const char* value) {
 }
 
 int renderer_type_to_settings_index(const char* value) {
-    if (!value) return 0;
+    if (!value) value = kDefaultRendererType;
     for (size_t i = 0; i < kRendererChoices.size(); ++i) {
         if (std::strcmp(kRendererChoices[i].value, value) == 0)
             return static_cast<int>(i);
     }
-    return 0;
+    return renderer_type_to_settings_index(kDefaultRendererType);
 }
 
 const char* settings_index_to_renderer_type(int index) {
     if (index < 0 || index >= static_cast<int>(kRendererChoices.size()))
-        return kRendererChoices[0].value;
+        return kDefaultRendererType;
     return kRendererChoices[static_cast<size_t>(index)].value;
 }
 
@@ -636,6 +638,8 @@ void load_mod_state(ModState& state) {
             state.virtual_stylus_sensitivity = 20;
         }
     }
+    if (settings_version < 8 && state.renderer_type == "auto")
+        state.renderer_type = kDefaultRendererType;
     state.mouse_aim = state.prime_controls;
 }
 
@@ -656,7 +660,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=7\n"
+        file << "settings_version=8\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "hd_rendering="
@@ -1769,7 +1773,7 @@ int main(int argc, char** argv) {
     settings.display_layout = 1;
     settings.supersampling = 1;
     settings.antialiasing = 0;
-    settings.renderer = 0;
+    settings.renderer = renderer_type_to_settings_index(kDefaultRendererType);
 
     static const char* const sha1[] = {
         "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
@@ -1780,7 +1784,7 @@ int main(int argc, char** argv) {
     };
     static const char* const renderer_labels[] = {
         "Auto",
-        "Compute",
+        "OpenGL",
         "Software",
     };
     const std::filesystem::path exe = std::filesystem::weakly_canonical(

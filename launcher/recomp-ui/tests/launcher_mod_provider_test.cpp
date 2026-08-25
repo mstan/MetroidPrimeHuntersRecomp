@@ -25,6 +25,20 @@ int main() {
                  "fullscreen exclusive arg")) return 92;
     if (!require(std::strcmp(runner_fullscreen_arg(99), "off") == 0,
                  "fullscreen invalid clamps to off")) return 93;
+    if (!require(renderer_type_to_settings_index("auto") == 0,
+                 "renderer auto settings index")) return 141;
+    if (!require(renderer_type_to_settings_index("compute") == 1,
+                 "renderer compute settings index")) return 142;
+    if (!require(renderer_type_to_settings_index("soft") == 2,
+                 "renderer software settings index")) return 143;
+    if (!require(renderer_type_to_settings_index("vulkan") == 0,
+                 "invalid renderer settings index defaults")) return 144;
+    if (!require(std::strcmp(settings_index_to_renderer_type(1),
+                             "compute") == 0,
+                 "settings index compute renderer")) return 145;
+    if (!require(std::strcmp(settings_index_to_renderer_type(99),
+                             "auto") == 0,
+                 "invalid settings index renderer defaults")) return 146;
 
     {
         const std::filesystem::path root =
@@ -97,48 +111,16 @@ int main() {
                  "adaptive feature id")) {
         return 4;
     }
-    if (!require(feature.option_count == 1,
-                 "adaptive renderer option count")) {
+    if (!require(feature.option_count == 0,
+                 "adaptive has no renderer option")) {
         return 4;
     }
-
-    RecompLauncherCModOption option{};
-    if (!require(provider.feature_option_get(
-            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
-            0, &option), "renderer type option get")) {
-        return 4;
-    }
-    if (!require(std::strcmp(option.id, "renderer-type") == 0,
-                 "renderer type option id")) return 4;
-    if (!require(std::strcmp(option.value, "auto") == 0,
-                 "renderer type default value")) return 4;
-    if (!require(option.choice_count == 3,
-                 "renderer type choice count")) return 4;
-
-    RecompLauncherCModChoice renderer_choice{};
-    if (!require(provider.feature_choice_get(
-            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
-            "renderer-type", 2, &renderer_choice),
-            "renderer type software choice")) {
-        return 4;
-    }
-    if (!require(std::strcmp(renderer_choice.value, "soft") == 0,
-                 "renderer type software value")) return 4;
-    if (!require(provider.feature_set_option(
-            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
-            "renderer-type", "soft"),
-            "set renderer type soft")) {
-        return 4;
-    }
-    if (!require(std::strcmp(runner_renderer_policy_arg(state), "soft") == 0,
-                 "renderer type runner value")) return 4;
     if (!require(!provider.feature_set_option(
             provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
-            "renderer-type", "vulkan"),
-            "reject invalid renderer type")) {
+            "renderer-type", "soft"),
+            "adaptive rejects renderer type option")) {
         return 4;
     }
-    state.renderer_type = "auto";
 
     feature = {};
     if (!require(provider.feature_get(provider.ctx, 1, &feature),
@@ -180,6 +162,7 @@ int main() {
     }
     if (!require(feature.enabled == 0, "diagnostics disabled")) return 7;
 
+    RecompLauncherCModOption option{};
     option = {};
     if (!require(provider.feature_option_get(
             provider.ctx, "mph-prime-controls", "prime-controls", 0,
@@ -601,6 +584,7 @@ int main() {
         saved.fullscreen = 2;
         saved.supersampling = 4;
         saved.antialiasing = 8;
+        saved.renderer_type = "compute";
         saved.volume = 35;
         saved.player_src = 1;
         saved.player_gamepad_guid = "030000005e0400008e02000014010000";
@@ -620,6 +604,8 @@ int main() {
                      "supersampling round trip")) return 102;
         if (!require(loaded.antialiasing == 8,
                      "antialiasing round trip")) return 103;
+        if (!require(loaded.renderer_type == "compute",
+                     "renderer type launcher round trip")) return 147;
         if (!require(loaded.volume == 35,
                      "volume round trip")) return 104;
         if (!require(loaded.player_src == 1,
@@ -634,6 +620,7 @@ int main() {
         applied.fullscreen = 0;
         applied.supersampling = 1;
         applied.antialiasing = 0;
+        applied.renderer = 0;
         applied.volume = 100;
         applied.player_src[0] = 2;
         apply_saved_launcher_settings(loaded, &applied);
@@ -647,6 +634,8 @@ int main() {
                      "saved supersampling applied")) return 110;
         if (!require(applied.antialiasing == 8,
                      "saved antialiasing applied")) return 111;
+        if (!require(applied.renderer == 1,
+                     "saved renderer applied")) return 148;
         if (!require(applied.volume == 35,
                      "saved volume applied")) return 112;
         if (!require(applied.player_src[0] == 1,
@@ -661,6 +650,7 @@ int main() {
         applied.fullscreen = 1;
         applied.supersampling = 3;
         applied.antialiasing = 4;
+        applied.renderer = 2;
         applied.volume = 80;
         applied.player_src[0] = 2;
         copy_text(applied.player_gamepad_guid[0],
@@ -676,6 +666,8 @@ int main() {
                      "changed supersampling captured")) return 118;
         if (!require(loaded.antialiasing == 4,
                      "changed antialiasing captured")) return 119;
+        if (!require(loaded.renderer_type == "soft",
+                     "changed renderer captured")) return 149;
         if (!require(loaded.volume == 80,
                      "changed volume captured")) return 120;
         if (!require(loaded.player_src == 2,

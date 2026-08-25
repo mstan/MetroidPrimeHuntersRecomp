@@ -415,6 +415,21 @@ bool is_renderer_choice(const char* value) {
     return false;
 }
 
+int renderer_type_to_settings_index(const char* value) {
+    if (!value) return 0;
+    for (size_t i = 0; i < kRendererChoices.size(); ++i) {
+        if (std::strcmp(kRendererChoices[i].value, value) == 0)
+            return static_cast<int>(i);
+    }
+    return 0;
+}
+
+const char* settings_index_to_renderer_type(int index) {
+    if (index < 0 || index >= static_cast<int>(kRendererChoices.size()))
+        return kRendererChoices[0].value;
+    return kRendererChoices[static_cast<size_t>(index)].value;
+}
+
 const char* runner_renderer_policy_arg(const ModState& state) {
     return is_renderer_choice(state.renderer_type.c_str())
         ? state.renderer_type.c_str()
@@ -732,7 +747,6 @@ int mod_feature_get(void* context, int index,
         copy_text(output->status,
                   state->adaptive_widescreen ? "Enabled" : "Disabled");
         output->enabled = state->adaptive_widescreen ? 1 : 0;
-        output->option_count = 1;
     } else if (index == 2) {
         copy_text(output->id, "hd-rendering");
         copy_text(output->package_id, "mph-hd-rendering");
@@ -838,23 +852,6 @@ int mod_feature_option_get(void* context, const char* package_id,
                            RecompLauncherCModOption* output) {
     if (!context || !package_id || !feature_id || !output || index < 0)
         return 0;
-    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
-        std::strcmp(feature_id, "adaptive-widescreen") == 0) {
-        if (index != 0) return 0;
-        const auto* state = static_cast<const ModState*>(context);
-        std::memset(output, 0, sizeof(*output));
-        copy_text(output->id, "renderer-type");
-        copy_text(output->label, "Renderer type");
-        copy_text(output->description,
-                  "Selects the 3D renderer used for comparison and "
-                  "diagnostics. Auto keeps the default path.");
-        copy_text(output->group, "Renderer");
-        copy_text(output->value, runner_renderer_policy_arg(*state));
-        copy_text(output->default_value, "auto");
-        output->type = RECOMP_MOD_OPTION_CHOICE;
-        output->choice_count = static_cast<int>(kRendererChoices.size());
-        return 1;
-    }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         if (index > 1) return 0;
@@ -990,16 +987,6 @@ int mod_feature_choice_get(void*, const char* package_id,
                            int index, RecompLauncherCModChoice* output) {
     if (!package_id || !feature_id || !option_id || !output || index < 0)
         return 0;
-    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
-        std::strcmp(feature_id, "adaptive-widescreen") == 0 &&
-        std::strcmp(option_id, "renderer-type") == 0) {
-        if (index >= static_cast<int>(kRendererChoices.size())) return 0;
-        std::memset(output, 0, sizeof(*output));
-        const RendererChoice& choice = kRendererChoices[index];
-        copy_text(output->value, choice.value);
-        copy_text(output->label, choice.label);
-        return 1;
-    }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         if (std::strcmp(option_id, "internal-resolution") == 0) {
@@ -1075,16 +1062,6 @@ int mod_feature_set_option(void* context, const char* package_id,
                            const char* value) {
     if (!context || !package_id || !feature_id || !option_id || !value)
         return 0;
-    auto* adaptive_state = static_cast<ModState*>(context);
-    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
-        std::strcmp(feature_id, "adaptive-widescreen") == 0) {
-        if (std::strcmp(option_id, "renderer-type") != 0 ||
-            !is_renderer_choice(value)) {
-            return 0;
-        }
-        adaptive_state->renderer_type = value;
-        return 1;
-    }
     auto* hd_state = static_cast<ModState*>(context);
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
@@ -1750,6 +1727,8 @@ void apply_saved_launcher_settings(
     settings->fullscreen = state.fullscreen;
     settings->supersampling = state.supersampling;
     settings->antialiasing = state.antialiasing;
+    settings->renderer =
+        renderer_type_to_settings_index(state.renderer_type.c_str());
     settings->volume = state.volume;
     settings->player_src[0] = state.player_src;
     copy_text(settings->player_gamepad_guid[0],
@@ -1764,6 +1743,7 @@ void capture_launcher_settings(
     state->fullscreen = settings.fullscreen;
     state->supersampling = settings.supersampling;
     state->antialiasing = settings.antialiasing;
+    state->renderer_type = settings_index_to_renderer_type(settings.renderer);
     state->volume = settings.volume;
     state->player_src = settings.player_src[0];
     state->player_gamepad_guid = settings.player_gamepad_guid[0];
@@ -1789,6 +1769,7 @@ int main(int argc, char** argv) {
     settings.display_layout = 1;
     settings.supersampling = 1;
     settings.antialiasing = 0;
+    settings.renderer = 0;
 
     static const char* const sha1[] = {
         "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
@@ -1796,6 +1777,11 @@ int main(int argc, char** argv) {
     static const char* const display_layouts[] = {
         "Stacked window",
         "Separate windows",
+    };
+    static const char* const renderer_labels[] = {
+        "Auto",
+        "Compute",
+        "Software",
     };
     const std::filesystem::path exe = std::filesystem::weakly_canonical(
         std::filesystem::absolute(argv[0])).parent_path();
@@ -1855,6 +1841,9 @@ int main(int argc, char** argv) {
     game.known_sha1_hex = sha1;
     game.num_known_sha1 = std::size(sha1);
     game.widescreen_supported = 0;
+    game.has_renderer = 1;
+    game.renderer_labels = renderer_labels;
+    game.num_renderers = std::size(renderer_labels);
     game.lock_device = 0;
     game.hide_rebind = 0;
     game.display_layout_labels = display_layouts;

@@ -22,17 +22,13 @@ antialiasing = 0
 adaptive_widescreen = "top"
 adaptive_capability = "top"
 adaptive_width = 448
-# MPH still has widened projection/culling edge cases where offscreen 3D
-# content can wrap into the side regions. Keep the adaptive host window, but
-# present a centered native-width top screen until the wide 3D path is audited.
-adaptive_center_native = true
 # SM64DS needs a cylindrical-sky repair heuristic. Prime Hunters does not opt
 # into that title-specific treatment; uncovered geometry remains visible
 # during the MPH projection/culling audit.
 adaptive_skybox_fill = false
 # Gameplay enables three transparent text-tile planes for the visor and HUD.
-# This remains available for the later wide-3D audit, but the center-native
-# fallback above currently returns before this HUD anchor path is used.
+# Anchor their authored left/center/right bands over the widened 3D world
+# instead of falling back to a pillarboxed native composite.
 adaptive_hud_anchor = true
 # MPH's centered location banner and energy assembly are wider than the
 # framework's conservative 64-pixel default. Preserve source X=64..191 as one

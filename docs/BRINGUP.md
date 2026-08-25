@@ -149,9 +149,8 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
 - Widescreen is a title-owned capability. Separate windows are safe as a host
   layout, but field-of-view, culling, HUD anchors, movies, and touch routing
   require Prime Hunters-specific proof.
-- MphRead's recreation uses a 78-degree camera FOV and derives projection and
-  frustum planes from the live output aspect ratio. That is a useful semantic
-  reference, but it does not prove which AMHE0 guest structures and GX command
-  sites must be patched. The host adaptive viewport is enabled as an explicit
-  bring-up baseline, but it is not considered visually complete until those
-  title-side behaviors pass sustained gameplay review.
+- MphRead's recreation is a useful semantic reference for AMHE0 file formats,
+  room/entity/collision data, visibility behavior, and rendering intent. It is
+  not a DS GPU pixel oracle. The detailed boundary between title-specific MPH
+  work and reusable ndsrecomp work is recorded in
+  [`docs/MPHREAD_REFERENCE_AUDIT.md`](MPHREAD_REFERENCE_AUDIT.md).

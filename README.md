@@ -229,8 +229,11 @@ emulated access point, and network backend foundation.
   foundation used by the shared ndsrecomp runner.
 - [melonPrimeDS](https://github.com/makinori/melonPrimeDS): reference for the
   Prime-style keyboard/mouse controls and touchscreen-helper behavior.
-- [MphRead](https://github.com/NoneGiven/MphRead): Metroid Prime Hunters file
-  format and behavior reference.
+- [MphRead](https://github.com/NoneGiven/MphRead) by NoneGiven: MIT-licensed
+  Metroid Prime Hunters file-format, room/entity/collision, and behavior
+  reference. See [`docs/MPHREAD_REFERENCE_AUDIT.md`](docs/MPHREAD_REFERENCE_AUDIT.md)
+  for how this project uses it as a semantic reference without treating it as a
+  DS GPU pixel oracle.
 
 See the ndsrecomp
 [`THIRD_PARTY_ATTRIBUTION.md`](https://github.com/mstan/ndsrecomp/blob/main/THIRD_PARTY_ATTRIBUTION.md)

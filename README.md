@@ -25,24 +25,25 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.4.10-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.10-alpha)**.
+**[v0.4.11-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.11-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.10.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.11.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-v0.4.10-x86_64.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-v0.4.11-x86_64.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
-New in v0.4.10: player-submitted coverage from multiplayer/performance testing
-has been promoted into the compiled banks to reduce interpreter fallback in
-more routes. Alpha diagnostics remain default-on, so affected testers can send
-back coverage, performance, and dispatch-miss logs from the same build.
+New in v0.4.11: the v0.4.10 player-submitted multiplayer/performance coverage
+is still promoted into compiled banks, and the build now pins ndsrecomp's MPH
+adventure culling and spawn-boundary fixes. Alpha diagnostics remain default-on,
+so affected testers can send back coverage, performance, and dispatch-miss logs
+from the same build.
 
 Also new since v0.4.9: some low-polygon map/overworld/tutorial transition
 views are centered to avoid showing split widened side content, while normal
@@ -69,14 +70,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.4.10-alpha` Windows ZIP.
+1. Download and fully extract the `v0.4.11-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.4.10-alpha` AppImage.
+1. Download the `v0.4.11-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

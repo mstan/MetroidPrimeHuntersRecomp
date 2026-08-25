@@ -25,21 +25,25 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.4.8-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.8-alpha)**.
+**[v0.4.9-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.9-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.8.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.9.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-v0.4.8-x86_64.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-v0.4.9-x86_64.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
-New in v0.4.8: alpha diagnostics are now controlled by a default-on
+New in v0.4.9: some low-polygon map/overworld/tutorial transition views are
+centered to avoid showing split widened side content, while normal gameplay
+keeps adaptive widescreen.
+
+Also new since v0.4.8: alpha diagnostics are controlled by a default-on
 `Diagnostics` option on the Mods page. When enabled, the launcher keeps
 coverage, performance, and dispatch-miss logs together in its `diagnostics`
 folder so testers can attach them to bug reports. Disable `Diagnostics` if you
@@ -60,14 +64,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.4.8-alpha` Windows ZIP.
+1. Download and fully extract the `v0.4.9-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.4.8-alpha` AppImage.
+1. Download the `v0.4.9-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
@@ -192,7 +196,7 @@ console. If you move or delete one without the other, the game will report that
 the WFC ID from the Nintendo DS and the Game Card do not match. Keep them
 together, or back them up together.
 
-The v0.4.8 patch keeps the v0.4.2 public Tab turbo default disabled, and also
+The v0.4.9 patch keeps the v0.4.2 public Tab turbo default disabled, and also
 includes launcher fullscreen/layout argument forwarding plus several compute
 renderer HD/Intel compatibility paths from v0.4.3. The v0.4.1 reconnect fix
 remains included: the validated reconnect probe reaches Nintendo WFC three

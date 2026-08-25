@@ -1403,3 +1403,15 @@ kind = "runtime_observed"
 addr = 0x0211D690
 mode = "arm"
 kind = "runtime_observed"
+
+[[entry_point]]
+addr = 0x01FF8000
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3050, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x01FF8EA4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 30457, from user coverage ingest d371366

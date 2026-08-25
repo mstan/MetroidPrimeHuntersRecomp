@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.20)
-project(MetroidPrimeHuntersRecomp VERSION 0.4.9 LANGUAGES C CXX)
+project(MetroidPrimeHuntersRecomp VERSION 0.4.10 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -111,6 +111,67 @@ add_custom_command(
     DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
     COMMENT "Discovering and recompiling the AMHE0 ARM7 initial closure")
 
+set(MPH_OVERLAY_BANKS
+    "mph_arm9_ov000:32:000"
+    "mph_arm9_ov001:4:001"
+    "mph_arm9_ov002:32:002"
+    "mph_arm9_ov003:4:003"
+    "mph_arm9_ov004:32:004"
+    "mph_arm9_ov008:4:008"
+    "mph_arm9_ov009:16:009"
+    "mph_arm9_ov010:16:010"
+    "mph_arm9_ov011:4:011"
+    "mph_arm9_ov015:8:015")
+set(MPH_OVERLAY_BANK_SOURCES)
+set(MPH_OVERLAY_BANK_STAMPS)
+foreach(_bank_spec IN LISTS MPH_OVERLAY_BANKS)
+    string(REPLACE ":" ";" _bank_spec "${_bank_spec}")
+    list(GET _bank_spec 0 _bank)
+    list(GET _bank_spec 1 _bank_shards)
+    list(GET _bank_spec 2 _overlay_id)
+    set(_bank_config "${CMAKE_CURRENT_SOURCE_DIR}/config/${_bank}.toml")
+    set(_bank_image
+        "${MPH_INPUT_DIR}/overlays/arm9_overlay_${_overlay_id}.bin")
+    if(NOT EXISTS "${_bank_config}")
+        message(STATUS "MPH overlay bank ${_bank} disabled: config missing")
+        continue()
+    endif()
+    set(_bank_sources)
+    if(_bank_shards EQUAL 1)
+        list(APPEND _bank_sources "${MPH_RECOMP_DIR}/${_bank}.c")
+    else()
+        math(EXPR _bank_last_shard "${_bank_shards} - 1")
+        foreach(shard RANGE 0 ${_bank_last_shard})
+            if(shard LESS 10)
+                set(shard_name "0${shard}")
+            else()
+                set(shard_name "${shard}")
+            endif()
+            list(APPEND _bank_sources
+                "${MPH_RECOMP_DIR}/${_bank}_${shard_name}.c")
+        endforeach()
+    endif()
+    list(APPEND _bank_sources "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
+    set(_bank_stamp "${MPH_RECOMP_DIR}/${_bank}.stamp")
+    add_custom_command(
+        OUTPUT "${_bank_stamp}"
+        BYPRODUCTS ${_bank_sources} "${MPH_RECOMP_DIR}/${_bank}.h"
+        COMMAND $<TARGET_FILE:nds_recompile>
+                --config "${_bank_config}"
+                --bin "${_bank_image}"
+                --out "${MPH_RECOMP_DIR}"
+                --bank "${_bank}"
+                --shards ${_bank_shards}
+                --stable-address-shards
+                --max-function-bytes 512
+                --validate-live-bytes
+        COMMAND ${CMAKE_COMMAND} -E touch "${_bank_stamp}"
+        DEPENDS nds_recompile mph_prepare "${_bank_config}"
+        COMMENT "Recompiling content-validated AMHE0 overlay bank ${_bank}")
+    list(APPEND MPH_OVERLAY_BANK_SOURCES ${_bank_sources})
+    list(APPEND MPH_OVERLAY_BANK_STAMPS "${_bank_stamp}")
+endforeach()
+
 # Content-validated runtime banks: code the guest copies into RAM at run
 # time (ITCM mirrors, the local-wireless ARM7 driver, ...), captured live,
 # promoted via tools/promote_runtime_coverage.py, and validated against live
@@ -121,10 +182,16 @@ add_custom_command(
 # Tier-3 interpreter (e.g. local multiplayer drops from ~60 to ~40 FPS
 # without the two ARM7 MP banks).
 set(MPH_RUNTIME_BANKS
-    "mph_arm9_fmv_runtime:32"
-    "mph_arm9_mp_runtime:32"
+    "mph_arm9_fmv_runtime:64"
+    "mph_arm9_mp_runtime:96"
     "mph_arm7_mp_wram_runtime:4"
     "mph_arm7_mp_mainram_runtime:4")
+file(GLOB MPH_INGESTED_RUNTIME_BANK_CONFIGS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/config/coverage_arm*.toml")
+foreach(_bank_config IN LISTS MPH_INGESTED_RUNTIME_BANK_CONFIGS)
+    get_filename_component(_bank "${_bank_config}" NAME_WE)
+    list(APPEND MPH_RUNTIME_BANKS "${_bank}:2")
+endforeach()
 set(MPH_RUNTIME_BANK_SOURCES)
 set(MPH_RUNTIME_BANK_STAMPS)
 set(MPH_RUNTIME_ARM9_SOURCES)
@@ -142,16 +209,20 @@ foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
         continue()
     endif()
     set(_bank_sources)
-    math(EXPR _bank_last_shard "${_bank_shards} - 1")
-    foreach(shard RANGE 0 ${_bank_last_shard})
-        if(shard LESS 10)
-            set(shard_name "0${shard}")
-        else()
-            set(shard_name "${shard}")
-        endif()
-        list(APPEND _bank_sources
-            "${MPH_RECOMP_DIR}/${_bank}_${shard_name}.c")
-    endforeach()
+    if(_bank_shards EQUAL 1)
+        list(APPEND _bank_sources "${MPH_RECOMP_DIR}/${_bank}.c")
+    else()
+        math(EXPR _bank_last_shard "${_bank_shards} - 1")
+        foreach(shard RANGE 0 ${_bank_last_shard})
+            if(shard LESS 10)
+                set(shard_name "0${shard}")
+            else()
+                set(shard_name "${shard}")
+            endif()
+            list(APPEND _bank_sources
+                "${MPH_RECOMP_DIR}/${_bank}_${shard_name}.c")
+        endforeach()
+    endif()
     list(APPEND _bank_sources "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
     set(_bank_stamp "${MPH_RECOMP_DIR}/${_bank}.stamp")
     add_custom_command(
@@ -180,13 +251,15 @@ endforeach()
 
 add_custom_target(mph_generate_banks
     DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}"
-        ${MPH_RUNTIME_BANK_STAMPS})
+        ${MPH_OVERLAY_BANK_STAMPS} ${MPH_RUNTIME_BANK_STAMPS})
 add_library(mph_recompiled_banks STATIC
-    ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES} ${MPH_RUNTIME_BANK_SOURCES})
+    ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES} ${MPH_OVERLAY_BANK_SOURCES}
+    ${MPH_RUNTIME_BANK_SOURCES})
 add_dependencies(mph_recompiled_banks mph_generate_banks)
 ndsrecomp_limit_generated_compiles(mph_recompiled_banks)
 ndsrecomp_limit_link(mph_recompiled_banks)
-set_source_files_properties(${MPH_ARM9_SOURCES} ${MPH_RUNTIME_ARM9_SOURCES}
+set_source_files_properties(${MPH_ARM9_SOURCES} ${MPH_OVERLAY_BANK_SOURCES}
+    ${MPH_RUNTIME_ARM9_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=0")
 set_source_files_properties(${MPH_ARM7_SOURCES} ${MPH_RUNTIME_ARM7_SOURCES}
     PROPERTIES COMPILE_DEFINITIONS "NDS_STATIC_CPU=1")

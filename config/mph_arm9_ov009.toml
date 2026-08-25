@@ -2696,3 +2696,417 @@ addr = 0x0214B7A4
 mode = "arm"
 kind = "runtime_observed"
 # hits = 16
+
+[[entry_point]]
+addr = 0x02137030
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021372CC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 351, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213844C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 6, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213857C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138710
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138838
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138858
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138888
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138E3C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138E44
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138E64
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02138F4C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02139118
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213975C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02139768
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213A044
+mode = "arm"
+kind = "runtime_observed"
+# hits = 585, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213A10C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B074
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B33C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B37C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B380
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B384
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B388
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213B75C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213C044
+mode = "arm"
+kind = "runtime_observed"
+# hits = 4, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213CA54
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213CA9C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 4, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213E4A4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213E5D8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 20128, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213E63C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 20128, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213E944
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213EDC8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 13, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213EE54
+mode = "arm"
+kind = "runtime_observed"
+# hits = 13, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213F680
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213F960
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213F9DC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 14, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0213FA04
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214015C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 28, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214019C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 619, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02140CA0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02140D04
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02140D24
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02140DB4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 13, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02141044
+mode = "arm"
+kind = "runtime_observed"
+# hits = 12, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214145C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 268, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021416F4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 40269, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02141800
+mode = "arm"
+kind = "runtime_observed"
+# hits = 40269, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02142640
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021426B4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021426C8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021428F4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02144E2C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02145258
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02145CD4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021465F8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02146648
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02146690
+mode = "arm"
+kind = "runtime_observed"
+# hits = 7, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021466C4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 6, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021466C8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x021467B0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02149EE4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A0A8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A3E4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A56C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 51, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A590
+mode = "arm"
+kind = "runtime_observed"
+# hits = 23, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A5B4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 15, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A6EC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 9, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A710
+mode = "arm"
+kind = "runtime_observed"
+# hits = 16, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x0214A7CC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 9, from user coverage ingest d371366

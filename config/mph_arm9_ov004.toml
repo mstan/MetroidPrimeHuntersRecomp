@@ -554,3 +554,9 @@ addr = 0x0217B580
 mode = "arm"
 kind = "runtime_observed"
 # hits = 3
+
+[[entry_point]]
+addr = 0x0217B598
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366

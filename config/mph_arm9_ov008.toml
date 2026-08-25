@@ -188,3 +188,15 @@ addr = 0x02131DE0
 mode = "arm"
 kind = "runtime_observed"
 # hits = 20
+
+[[entry_point]]
+addr = 0x02131A24
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366
+
+[[entry_point]]
+addr = 0x02131F18
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1, from user coverage ingest d371366

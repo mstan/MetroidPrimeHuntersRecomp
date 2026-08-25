@@ -45,6 +45,7 @@ struct ModState {
     bool mouse_invert_y = false;
     bool cross_window_mouse_capture = false;
     bool prime_controls = true;
+    bool diagnostics = true;
     int virtual_stylus_sensitivity = 20;
     int pad_aim_sensitivity = 100;
     std::string move_forward = "W";
@@ -492,6 +493,8 @@ void load_mod_state(ModState& state) {
             state.cross_window_mouse_capture = value == "true";
         } else if (key == "prime_controls") {
             state.prime_controls = value != "false";
+        } else if (key == "diagnostics") {
+            state.diagnostics = value != "false";
         } else if (key == "rom_path") {
             // Kept verbatim. Existence is checked at use, not here: a dump on
             // removable media that is absent this launch should not erase the
@@ -564,7 +567,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=5\n"
+        file << "settings_version=6\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "hd_rendering="
@@ -589,6 +592,8 @@ bool save_mod_state(ModState& state) {
              << '\n'
              << "prime_controls="
              << (state.prime_controls ? "true" : "false") << '\n'
+             << "diagnostics="
+             << (state.diagnostics ? "true" : "false") << '\n'
              << "virtual_stylus_sensitivity="
              << state.virtual_stylus_sensitivity << '\n'
              << "pad_aim_sensitivity=" << state.pad_aim_sensitivity << '\n'
@@ -626,15 +631,14 @@ bool save_mod_state(ModState& state) {
 
 // The online identity is NOT a mod: it lives on the dashboard's ONLINE
 // card (GameInfo.has_player_name + the NDS profile's "identity" panel),
-// directly under the controller card. Only the two real gameplay mods
-// remain here.
+// directly under the controller card.
 int mod_feature_count(void*) {
-    return 3;
+    return 4;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 2) return 0;
+    if (!context || !output || index < 0 || index > 3) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
     if (index == 0) {
@@ -673,6 +677,21 @@ int mod_feature_get(void* context, int index,
                   state->hd_rendering ? "Enabled" : "Disabled");
         output->enabled = state->hd_rendering ? 1 : 0;
         output->option_count = 2;
+    } else if (index == 3) {
+        copy_text(output->id, "diagnostics");
+        copy_text(output->package_id, "mph-diagnostics");
+        copy_text(output->package_version, "0.1.0");
+        copy_text(output->package_name, "MPH Diagnostics");
+        copy_text(output->name, "Diagnostics");
+        copy_text(output->author, "ndsrecomp");
+        copy_text(
+            output->description,
+            "Writes performance, coverage, and dispatch-miss diagnostics "
+            "that can be attached to bug reports.");
+        copy_text(output->group, "Testing");
+        copy_text(output->status,
+                  state->diagnostics ? "Enabled" : "Disabled");
+        output->enabled = state->diagnostics ? 1 : 0;
     } else {
         copy_text(output->id, "prime-controls");
         copy_text(output->package_id, "mph-prime-controls");
@@ -719,6 +738,11 @@ int mod_feature_enable(void* context, const char* package_id,
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         state->hd_rendering = enabled != 0;
+        return 1;
+    }
+    if (std::strcmp(package_id, "mph-diagnostics") == 0 &&
+        std::strcmp(feature_id, "diagnostics") == 0) {
+        state->diagnostics = enabled != 0;
         return 1;
     }
     return 0;
@@ -1429,6 +1453,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
 
     const std::filesystem::path firmware_state = firmware_state_path(
         mods.settings_path, no_dumps_mode);
+    const std::filesystem::path diagnostics_dir =
+        mods.settings_path.parent_path() / "diagnostics";
 
 #ifdef _WIN32
     const std::wstring rom_wide = widen(rom);
@@ -1477,6 +1503,9 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         L" --network on --wfc on --wfc-provider wiimmfi";
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
+    append_arg(command, L"--diagnostics",
+               mods.diagnostics ? L"on" : L"off");
+    append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
     // beads-yjp.16: the firmware console nickname. Passed only when the
     // player both configured a name and left the identity feature on;
     // otherwise the runner leaves the firmware's own name alone (a retail
@@ -1549,6 +1578,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--wfc", "on");
     append_arg(args, "--wfc-provider", "wiimmfi");
     append_arg(args, "--firmware-state-path", firmware_state.string());
+    append_arg(args, "--diagnostics", mods.diagnostics ? "on" : "off");
+    append_arg(args, "--diagnostics-dir", diagnostics_dir.string());
 
     if (valid_player_name(mods.player_name))
         append_arg(args, "--player-name", mods.player_name);

@@ -82,11 +82,11 @@ int main() {
 
     if (!require(provider.feature_count != nullptr, "feature_count callback"))
         return 3;
-    // Three gameplay mods; the online identity is a dashboard card, not a
-    // mod. Index 1 stays prime controls so the assertions below are
-    // unaffected by HD rendering being added at index 2.
+    // Gameplay mods plus diagnostics; the online identity is a dashboard
+    // card, not a mod. Index 1 stays prime controls so the assertions below
+    // are unaffected by HD rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 3, "feature_count == 3")) return 4;
+    if (!require(feature_count == 4, "feature_count == 4")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 1, &feature),
@@ -104,6 +104,29 @@ int main() {
     }
     if (!require(feature.enabled == 1, "feature enabled default")) return 6;
     if (!require(feature.option_count == 51, "feature option count")) return 7;
+
+    feature = {};
+    if (!require(provider.feature_get(provider.ctx, 3, &feature),
+                 "feature_get diagnostics")) {
+        return 7;
+    }
+    if (!require(std::strcmp(feature.id, "diagnostics") == 0,
+                 "diagnostics feature id")) return 7;
+    if (!require(std::strcmp(feature.package_id, "mph-diagnostics") == 0,
+                 "diagnostics package id")) return 7;
+    if (!require(feature.enabled == 1, "diagnostics default enabled"))
+        return 7;
+    if (!require(provider.feature_enable(
+            provider.ctx, "mph-diagnostics", "diagnostics", 0),
+            "disable diagnostics")) {
+        return 7;
+    }
+    feature = {};
+    if (!require(provider.feature_get(provider.ctx, 3, &feature),
+                 "feature_get diagnostics disabled")) {
+        return 7;
+    }
+    if (!require(feature.enabled == 0, "diagnostics disabled")) return 7;
 
     RecompLauncherCModOption option{};
     if (!require(provider.feature_option_get(
@@ -324,9 +347,9 @@ int main() {
 
     // The online identity is NOT a mod feature: it lives on the dashboard
     // ONLINE card (GameInfo.has_player_name + the NDS "identity" panel).
-    // Exactly the three gameplay mods remain; index 3 must not resolve.
-    if (!require(!provider.feature_get(provider.ctx, 3, &feature),
-                 "exactly three mod features (identity is not a mod)")) {
+    // Four Mods-page features remain; index 4 must not resolve.
+    if (!require(!provider.feature_get(provider.ctx, 4, &feature),
+                 "exactly four mod features (identity is not a mod)")) {
         return 37;
     }
 
@@ -387,6 +410,7 @@ int main() {
         saved.internal_resolution = 4;
         saved.texture_upscale = 4;
         saved.prime_controls = false;
+        saved.diagnostics = false;
         saved.mouse_sensitivity = 200;
         saved.mouse_invert_y = true;
         saved.cross_window_mouse_capture = true;
@@ -419,6 +443,8 @@ int main() {
                      "all-mod texture upscale round trip")) return 132;
         if (!require(!loaded.prime_controls,
                      "prime controls feature round trip")) return 133;
+        if (!require(!loaded.diagnostics,
+                     "diagnostics feature round trip")) return 133;
         if (!require(!loaded.mouse_aim,
                      "mouse aim mirrors prime controls on load")) return 134;
         if (!require(loaded.mouse_sensitivity == 200,

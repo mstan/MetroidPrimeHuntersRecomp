@@ -5,6 +5,11 @@
 > It is not a finished port. Expect rough edges, crashes, hangs, rendering or
 > audio issues, input quirks, networking failures, and possible desyncs. Testing,
 > issues, and PRs are welcome.
+>
+> **Early access multiplayer support.** Wiimmfi multiplayer is tentative, but
+> early testing has successfully reached an in-game match between two different
+> players. Treat online play as experimental while broader stability and desync
+> behavior are still being tested.
 
 MetroidPrimeHuntersRecomp runs the USA revision-0 release of **Metroid Prime
 Hunters** as a native recompilation target. You provide your own legally
@@ -109,10 +114,9 @@ If your ROM does not match, the launcher/runner should reject it.
   validated from start to finish.
 - Widescreen is still being audited. Some scenes, effects, HUD placement,
   movies, fades, or screen-routing behavior may be wrong.
-- Online play is experimental. A full Wiimmfi match has been played between two
-  instances on one machine, but playing against someone on a different machine
-  is unvalidated, and no match is guaranteed to connect, stay connected, or
-  avoid desync. See "Online Play" below.
+- Online play is experimental. Early Wiimmfi testing has successfully reached
+  an in-game match between two different players, but no match is guaranteed to
+  connect, stay connected, or avoid desync. See "Online Play" below.
 - Local wireless play is experimental and has only been validated between two
   instances on one machine.
 - Save behavior and settings are still part of early release testing. Keep

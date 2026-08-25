@@ -103,7 +103,7 @@ int main() {
         return 5;
     }
     if (!require(feature.enabled == 1, "feature enabled default")) return 6;
-    if (!require(feature.option_count == 50, "feature option count")) return 7;
+    if (!require(feature.option_count == 51, "feature option count")) return 7;
 
     RecompLauncherCModOption option{};
     if (!require(provider.feature_option_get(
@@ -133,7 +133,27 @@ int main() {
 
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 3,
+            provider.ctx, "mph-prime-controls", "prime-controls", 2,
+            &option), "cross-window mouse capture option get")) {
+        return 14;
+    }
+    if (!require(std::strcmp(option.id,
+                             "cross-window-mouse-capture") == 0,
+                 "cross-window mouse capture option id")) return 14;
+    if (!require(std::strcmp(option.value, "false") == 0,
+                 "cross-window mouse capture default value")) return 14;
+    if (!require(option.type == RECOMP_MOD_OPTION_BOOLEAN,
+                 "cross-window mouse capture boolean type")) return 14;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "cross-window-mouse-capture", "true"),
+            "set cross-window mouse capture")) {
+        return 14;
+    }
+
+    option = {};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-prime-controls", "prime-controls", 4,
             &option), "pad aim sensitivity option get")) {
         return 14;
     }
@@ -157,7 +177,7 @@ int main() {
 
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 4,
+            provider.ctx, "mph-prime-controls", "prime-controls", 5,
             &option), "move-forward option get")) {
         return 14;
     }
@@ -174,7 +194,7 @@ int main() {
 
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 2,
+            provider.ctx, "mph-prime-controls", "prime-controls", 3,
             &option), "virtual stylus sensitivity option get default")) {
         return 20;
     }
@@ -199,7 +219,7 @@ int main() {
     }
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 4,
+            provider.ctx, "mph-prime-controls", "prime-controls", 5,
             &option), "move-forward option get after set")) {
         return 23;
     }
@@ -213,18 +233,18 @@ int main() {
     }
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 4,
+            provider.ctx, "mph-prime-controls", "prime-controls", 5,
             &option), "move-forward option get after reject")) {
         return 26;
     }
     if (!require(std::strcmp(option.value, "Right Shift") == 0,
                  "move-forward unchanged after reject")) return 27;
 
-    // Gamepad rows follow the keyboard rows: index 27 = pad-move-forward,
-    // 34 = pad-scan-visor (defaults None and Pad R3 respectively).
+    // Gamepad rows follow the keyboard rows: index 28 = pad-move-forward,
+    // 35 = pad-scan-visor (defaults None and Pad R3 respectively).
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 27,
+            provider.ctx, "mph-prime-controls", "prime-controls", 28,
             &option), "pad-move-forward option get")) {
         return 28;
     }
@@ -236,7 +256,7 @@ int main() {
                  "pad option choice count")) return 28;
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 34,
+            provider.ctx, "mph-prime-controls", "prime-controls", 35,
             &option), "pad-scan-visor option get")) {
         return 28;
     }
@@ -295,7 +315,7 @@ int main() {
     }
     option = {};
     if (!require(provider.feature_option_get(
-            provider.ctx, "mph-prime-controls", "prime-controls", 2,
+            provider.ctx, "mph-prime-controls", "prime-controls", 3,
             &option), "virtual stylus sensitivity option get")) {
         return 35;
     }
@@ -369,6 +389,7 @@ int main() {
         saved.prime_controls = false;
         saved.mouse_sensitivity = 200;
         saved.mouse_invert_y = true;
+        saved.cross_window_mouse_capture = true;
         saved.virtual_stylus_sensitivity = 300;
         saved.pad_aim_sensitivity = 150;
 
@@ -404,6 +425,8 @@ int main() {
                      "aim sensitivity round trip")) return 135;
         if (!require(loaded.mouse_invert_y,
                      "invert y round trip")) return 136;
+        if (!require(loaded.cross_window_mouse_capture,
+                     "cross-window mouse capture round trip")) return 136;
         if (!require(loaded.virtual_stylus_sensitivity == 300,
                      "virtual stylus sensitivity round trip")) return 137;
         if (!require(loaded.pad_aim_sensitivity == 150,

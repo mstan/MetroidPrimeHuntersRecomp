@@ -43,6 +43,7 @@ struct ModState {
     bool mouse_aim = true;
     int mouse_sensitivity = 30;
     bool mouse_invert_y = false;
+    bool cross_window_mouse_capture = false;
     bool prime_controls = true;
     int virtual_stylus_sensitivity = 20;
     int pad_aim_sensitivity = 100;
@@ -487,6 +488,8 @@ void load_mod_state(ModState& state) {
                 state.mouse_sensitivity = static_cast<int>(parsed);
         } else if (key == "mouse_invert_y") {
             state.mouse_invert_y = value == "true";
+        } else if (key == "cross_window_mouse_capture") {
+            state.cross_window_mouse_capture = value == "true";
         } else if (key == "prime_controls") {
             state.prime_controls = value != "false";
         } else if (key == "rom_path") {
@@ -561,7 +564,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=4\n"
+        file << "settings_version=5\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "hd_rendering="
@@ -581,6 +584,9 @@ bool save_mod_state(ModState& state) {
              << "mouse_sensitivity=" << state.mouse_sensitivity << '\n'
              << "mouse_invert_y="
              << (state.mouse_invert_y ? "true" : "false") << '\n'
+             << "cross_window_mouse_capture="
+             << (state.cross_window_mouse_capture ? "true" : "false")
+             << '\n'
              << "prime_controls="
              << (state.prime_controls ? "true" : "false") << '\n'
              << "virtual_stylus_sensitivity="
@@ -688,7 +694,7 @@ int mod_feature_get(void* context, int index,
                       : "Disabled");
         output->enabled = state->prime_controls ? 1 : 0;
         output->option_count =
-            4 + static_cast<int>(kBindingOptions.size()) +
+            5 + static_cast<int>(kBindingOptions.size()) +
             static_cast<int>(kPadBindingOptions.size());
         output->camera_controls = 1;
     }
@@ -768,7 +774,7 @@ int mod_feature_option_get(void* context, const char* package_id,
     }
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
-        index >= 4 + static_cast<int>(kBindingOptions.size()) +
+        index >= 5 + static_cast<int>(kBindingOptions.size()) +
                      static_cast<int>(kPadBindingOptions.size())) {
         return 0;
     }
@@ -800,6 +806,19 @@ int mod_feature_option_get(void* context, const char* package_id,
         return 1;
     }
     if (index == 2) {
+        copy_text(output->id, "cross-window-mouse-capture");
+        copy_text(output->label, "Mouse aim on both windows");
+        copy_text(output->description,
+                  "Allow Prime Controls mouse aim capture to stay active "
+                  "when either DS screen window is focused.");
+        copy_text(output->group, "Mouse aim");
+        copy_text(output->value,
+                  state->cross_window_mouse_capture ? "true" : "false");
+        copy_text(output->default_value, "false");
+        output->type = RECOMP_MOD_OPTION_BOOLEAN;
+        return 1;
+    }
+    if (index == 3) {
         copy_text(output->id, "virtual-stylus-sensitivity");
         copy_text(output->label, "Virtual stylus sensitivity");
         copy_text(output->description,
@@ -813,7 +832,7 @@ int mod_feature_option_get(void* context, const char* package_id,
         output->choice_count = static_cast<int>(kSensitivityChoices.size());
         return 1;
     }
-    if (index == 3) {
+    if (index == 4) {
         copy_text(output->id, "pad-aim-sensitivity");
         copy_text(output->label, "Pad aim sensitivity");
         copy_text(output->description,
@@ -827,11 +846,11 @@ int mod_feature_option_get(void* context, const char* package_id,
         return 1;
     }
     const bool pad_row =
-        index >= 4 + static_cast<int>(kBindingOptions.size());
+        index >= 5 + static_cast<int>(kBindingOptions.size());
     const BindingOption& option = pad_row
         ? kPadBindingOptions[static_cast<size_t>(
-              index - 4 - static_cast<int>(kBindingOptions.size()))]
-        : kBindingOptions[static_cast<size_t>(index - 4)];
+              index - 5 - static_cast<int>(kBindingOptions.size()))]
+        : kBindingOptions[static_cast<size_t>(index - 5)];
     copy_text(output->id, option.id);
     copy_text(output->label, option.label);
     copy_text(output->description,
@@ -895,7 +914,10 @@ int mod_feature_choice_get(void*, const char* package_id,
         copy_text(output->label, choice.label);
         return 1;
     }
-    if (std::strcmp(option_id, "invert-y") == 0) return 0;
+    if (std::strcmp(option_id, "invert-y") == 0 ||
+        std::strcmp(option_id, "cross-window-mouse-capture") == 0) {
+        return 0;
+    }
     for (const BindingOption& option : kPadBindingOptions) {
         if (std::strcmp(option_id, option.id) != 0) continue;
         if (index >= static_cast<int>(kPadChoices.size())) return 0;
@@ -973,6 +995,14 @@ int mod_feature_set_option(void* context, const char* package_id,
         if (std::strcmp(value, "true") == 0) state->mouse_invert_y = true;
         else if (std::strcmp(value, "false") == 0)
             state->mouse_invert_y = false;
+        else return 0;
+        return 1;
+    }
+    if (std::strcmp(option_id, "cross-window-mouse-capture") == 0) {
+        if (std::strcmp(value, "true") == 0)
+            state->cross_window_mouse_capture = true;
+        else if (std::strcmp(value, "false") == 0)
+            state->cross_window_mouse_capture = false;
         else return 0;
         return 1;
     }
@@ -1429,6 +1459,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         L" --relative-mouse-fire-key l" +
         L" --mph-prime-controls " +
         (mods.prime_controls ? L"on" : L"off") +
+        L" --mph-prime-unified-window-focus " +
+        (mods.cross_window_mouse_capture ? L"on" : L"off") +
         L" --mph-virtual-stylus-sensitivity " +
         std::to_wstring(mods.virtual_stylus_sensitivity) +
         L" --mph-pad-aim-sensitivity " +
@@ -1505,6 +1537,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--relative-mouse-fire-key", "l");
     append_arg(args, "--mph-prime-controls",
                mods.prime_controls ? "on" : "off");
+    append_arg(args, "--mph-prime-unified-window-focus",
+               mods.cross_window_mouse_capture ? "on" : "off");
     append_arg(args, "--mph-virtual-stylus-sensitivity",
                std::to_string(mods.virtual_stylus_sensitivity));
     append_arg(args, "--mph-pad-aim-sensitivity",

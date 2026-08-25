@@ -34,6 +34,10 @@ adaptive_hud_anchor = true
 # framework's conservative 64-pixel default. Preserve source X=64..191 as one
 # centered unit so text and bars never cross an anchor seam.
 adaptive_hud_center_width = 128
+# Low-polygon tutorial/cinematic prompt frames can expose unaudited projection
+# edges in the widened 3D surface. Center those simple frames while preserving
+# adaptive widescreen during normal gameplay.
+adaptive_center_max_polygons = 64
 
 [system]
 # Exercise the authentic BIOS/firmware/card path and automatically launch the

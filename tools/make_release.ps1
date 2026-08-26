@@ -41,7 +41,12 @@ foreach ($required in @($runner, $launcher, $assets)) {
 # this check used to be a single grep for "mph_arm9_fmv_runtime", which
 # passes even when every other bank is absent. Assert the FULL inventory
 # declared by CMakeLists.txt instead; the FMV check is kept inside it.
+# Dot-sourcing runs the verifier's param() block in THIS scope, which
+# clobbers $runner/$root-adjacent names with empty strings (PowerShell
+# variables are case-insensitive). Re-derive the paths afterwards.
 . (Join-Path $PSScriptRoot 'verify_bank_inventory.ps1')
+$root = Split-Path -Parent $PSScriptRoot
+$runner = Join-Path ([IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))) 'nds_runner.exe'
 $bankInventory = Test-MphBankInventory -Runner $runner -RepoRoot $root
 
 $projectText = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw

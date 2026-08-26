@@ -24,6 +24,12 @@ NAME="MetroidPrimeHuntersRecomp-linux-x86_64-v$VERSION.AppImage"
 BIN="$BUILD/nds_runner"
 [ -f "$BIN" ] || { echo "runner not built: $BIN" >&2; exit 1; }
 
+# A runner missing generated banks is functional but slow, and nothing in
+# the binary announces the omission -- v0.4.12/v0.4.13/v0.5.0 all shipped
+# without the 63 ingested coverage banks. Assert the FULL declared inventory
+# before wrapping anything.
+bash "$SCRIPT_DIR/verify_bank_inventory.sh" "$BIN" --repo "$ROOT"
+
 if [ ! -f "$RUNTIME" ]; then
   echo "=== fetch AppImage type2 runtime ==="
   curl -sL -o "$RUNTIME" \
@@ -39,6 +45,9 @@ mkdir -p "$APP/usr/bin" "$APP/usr/lib" \
   "$APP/usr/share/icons/hicolor/256x256/apps"
 
 cp "$BIN" "$APP/usr/bin/nds_runner"
+# Audit trail: the verified bank inventory of the exact runner being shipped.
+bash "$SCRIPT_DIR/verify_bank_inventory.sh" "$APP/usr/bin/nds_runner" \
+  --repo "$ROOT" --manifest "$APP/usr/bin/bank-manifest.txt" --quiet
 cp "$ROOT/game.toml" "$APP/usr/bin/"
 cp "$ROOT/README.md" "$APP/usr/bin/" 2>/dev/null || true
 

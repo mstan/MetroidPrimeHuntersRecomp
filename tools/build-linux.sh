@@ -114,10 +114,10 @@ test -f "$LAUNCHER_BIN" || {
   echo "ERROR: launcher not built: $LAUNCHER_BIN" >&2
   exit 1
 }
-grep -a -q mph_arm9_fmv_runtime "$BIN" || {
-  echo "ERROR: runner does not contain the MPH FMV runtime bank." >&2
-  exit 1
-}
+# Assert the FULL declared bank inventory, not just the FMV bank: a runner
+# missing the ingested coverage banks still contains "mph_arm9_fmv_runtime",
+# which is how v0.4.12/v0.4.13/v0.5.0 shipped without 63 of them.
+bash "$REPO/tools/verify_bank_inventory.sh" "$BIN" --repo "$REPO"
 
 LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
 LINUXDEPLOY_SHA=421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e
@@ -152,6 +152,10 @@ cp "$REPO/game.toml" "$APPDIR/usr/bin/game.toml"
 cp "$REPO/README.md" "$APPDIR/usr/bin/README.md"
 cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
 cp "$REPO/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
+
+# Audit trail: the verified bank inventory of the exact runner being shipped.
+bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
+  --repo "$REPO" --manifest "$APPDIR/usr/bin/bank-manifest.txt" --quiet
 
 python3 - "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" <<'PY'
 import struct, sys, zlib

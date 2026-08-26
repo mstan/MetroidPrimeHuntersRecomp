@@ -1,10 +1,11 @@
 <#
 Package a completed Metroid Prime Hunters Recomp Windows release.
 
-The ZIP contains the portable recomp-ui launcher, the title runner with the
-content-validated FMV runtime bank compiled in, launcher assets, game config,
-documentation, and MinGW/SDL dependencies. ROMs, BIOS/firmware, saves, raw
-captures, and generated source are never staged.
+The ZIP contains the portable recomp-ui launcher, the title runner with EVERY
+content-validated bank compiled in (verified against CMakeLists.txt by
+tools/verify_bank_inventory.ps1 and recorded in bank-manifest.txt), launcher
+assets, game config, documentation, and MinGW/SDL dependencies. ROMs,
+BIOS/firmware, saves, raw captures, and generated source are never staged.
 
 Build the runner and launcher first, then run:
 
@@ -33,12 +34,15 @@ foreach ($required in @($runner, $launcher, $assets)) {
   }
 }
 
-# A static-only runner is functional but drops the opening movies to roughly
-# half speed. Refuse to package one by checking the compiled bank identity.
-$runnerText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($runner))
-if (-not $runnerText.Contains('mph_arm9_fmv_runtime')) {
-  throw 'Runner does not contain the MPH FMV runtime bank.'
-}
+# A runner missing generated banks is functional but slow: the FMV bank
+# alone is worth ~2x on the opening movies, the ARM7 MP banks ~60 vs ~40 FPS
+# in local multiplayer, and the ingested coverage banks cover the rest.
+# v0.4.12/v0.4.13/v0.5.0 all shipped without the 63 coverage banks because
+# this check used to be a single grep for "mph_arm9_fmv_runtime", which
+# passes even when every other bank is absent. Assert the FULL inventory
+# declared by CMakeLists.txt instead; the FMV check is kept inside it.
+. (Join-Path $PSScriptRoot 'verify_bank_inventory.ps1')
+$bankInventory = Test-MphBankInventory -Runner $runner -RepoRoot $root
 
 $projectText = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw
 if ($projectText -notmatch
@@ -79,6 +83,11 @@ Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root 'packaging\BIOS_README.txt') `
   -Destination (Join-Path $stage 'bios\README.txt')
+
+# Audit trail: the verified bank inventory of the exact runner being shipped.
+Test-MphBankInventory -Runner (Join-Path $stage 'nds_runner.exe') `
+  -RepoRoot $root -ManifestPath (Join-Path $stage 'bank-manifest.txt') `
+  -Quiet | Out-Null
 
 $runtimeDlls = @(
   'SDL2.dll',

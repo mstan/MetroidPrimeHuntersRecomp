@@ -47,3 +47,7 @@ ghidra/*.ghpr
 # Runtime artifacts from playing (coverage manifests, local bios/identity)
 *-coverage-*-part*.json
 bios/
+
+# Performance measurement artifacts (tools/measure_mph_scenario.py)
+/perf-results/
+/tools/windows_rip_sampler.exe

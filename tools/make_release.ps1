@@ -22,7 +22,16 @@ param(
   # relative to the repo root; $RecompilerBuildDir is relative to that.
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompilerBuildDir = 'recompiler\build',
-  [switch]$SkipOverlayToolchain
+  [switch]$SkipOverlayToolchain,
+  # Developer-built native shard cache produced by
+  # tools\build_release_shard_cache.ps1. Relative paths are resolved against
+  # the repo root.
+  [string]$ShardCacheDir = 'release-shard-cache',
+  [string]$Gcc = 'C:\msys64\mingw64\bin\gcc.exe',
+  [string]$PythonExe = '',
+  # Ship without a prebuilt shard cache. Off by default: a cache-less package
+  # makes every player's first visit to every area run interpreted.
+  [switch]$AllowNoShardCache
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,6 +59,11 @@ foreach ($required in @($runner, $launcher, $assets)) {
 # clobbers $runner/$root-adjacent names with empty strings (PowerShell
 # variables are case-insensitive). Re-derive the paths afterwards.
 . (Join-Path $PSScriptRoot 'verify_bank_inventory.ps1')
+# Shard toolchain surface + provider identity. Defined once and shared with
+# tools\build_release_shard_cache.ps1 so the builder and the packager cannot
+# disagree about what a shipped shard was built against. (No param() block in
+# there, so this dot-source is safe.)
+. (Join-Path $PSScriptRoot 'overlay_shard_common.ps1')
 $root = Split-Path -Parent $PSScriptRoot
 $runner = Join-Path ([IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))) 'nds_runner.exe'
 $bankInventory = Test-MphBankInventory -Runner $runner -RepoRoot $root
@@ -186,22 +200,170 @@ if (-not $SkipOverlayToolchain) {
   # core, and nothing else beyond the C library. The other headers in
   # recompiler\armv4t are relative-path shims into the submodule and would
   # break if flattened, so they are deliberately NOT staged.
-  $toolInc = Join-Path $toolchain 'include'
-  New-Item -ItemType Directory -Path $toolInc -Force | Out-Null
-  $headers = @(
-    (Join-Path $ndsRoot 'recompiler\armv4t\runtime_arm.h'),
-    (Join-Path $ndsRoot 'external\arm-recomp-core\common\runtime_arm_types.h')
-  )
-  foreach ($h in $headers) {
-    if (-not (Test-Path -LiteralPath $h)) {
-      throw "Overlay toolchain header missing: $h (is the arm-recomp-core submodule checked out?)"
-    }
-    Copy-Item -LiteralPath $h -Destination $toolInc
-  }
+  # The list lives in tools\overlay_shard_common.ps1 because the prebuilt gcc
+  # cache must be BUILT against the same flattened set: compile_live_shards.py
+  # hashes every *.h it is handed into the provider identity, so a header set
+  # that differs by one file is a different identity and the shipped cache
+  # would filter down to nothing.
+  $toolInc = New-OverlayToolchainIncludeDir -NdsRoot $ndsRoot `
+    -Destination (Join-Path $toolchain 'include')
 
   $tcMB = '{0:N1}' -f ((Get-ChildItem -LiteralPath $toolchain -Recurse -File |
     Measure-Object Length -Sum).Sum / 1MB)
   Write-Host "Bundled overlay toolchain (embedded python + tcc + recompiler): ~$tcMB MB"
+}
+
+# ---- Developer-built native shard cache -----------------------------------
+# MPH generates its hottest code into RAM, so those pages cannot be compiled
+# into the runner: without a cache they run in the Tier-3 interpreter until the
+# player's own machine has captured and compiled them. This ships the shards a
+# developer already produced by playing the benchmark routes
+# (tools\build_release_shard_cache.ps1), so the covered areas are native from
+# the player's first frame.
+#
+# Only shards whose provider identity matches THESE artifacts are staged. The
+# identity folds the recompiler binary, the runtime ABI headers, the backend
+# and its flags, and it is computed by importing ndsrecomp's own
+# compile_live_shards.py rather than being re-derived here -- the packager
+# drifting from the compiler is precisely how psxrecomp shipped v0.11.2 with a
+# silently empty cache.
+#
+# The staged location is not a free choice: for a shipped install the launcher
+# passes --live-overlay-cache <game dir>\live-shard-cache (see
+# append_live_overlay_args in launcher\recomp-ui\launcher_main.cpp), and the
+# runner scans that directory recursively, keying the backend off the immediate
+# parent directory name (<cache>\gcc\, <cache>\tcc\). So the subtree must be
+# preserved and it must land exactly there; a flat copy, or a copy anywhere
+# else, ships bytes nothing ever loads.
+$shardRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+$shardCompileScript = Join-Path $shardRoot 'tools\compile_live_shards.py'
+$stagedRecompiler = Join-Path $stage 'overlay_toolchain\nds_recompile.exe'
+$stagedInclude = Join-Path $stage 'overlay_toolchain\include'
+if (Test-Path -LiteralPath $stagedRecompiler) {
+  # The exact artifacts being shipped.
+  $identityRecompiler = $stagedRecompiler
+  $identityInclude = $stagedInclude
+} else {
+  # -SkipOverlayToolchain: nothing shipped to hash, so hash the sources the
+  # shipped copies would have been made from (byte-identical either way).
+  $identityRecompiler = [IO.Path]::GetFullPath(
+    (Join-Path $shardRoot (Join-Path $RecompilerBuildDir 'nds_recompile.exe')))
+  $identityInclude = New-OverlayToolchainIncludeDir -NdsRoot $shardRoot `
+    -Destination (Join-Path ([IO.Path]::GetTempPath()) "nds_shard_inc_$PID")
+}
+
+$shardCache = ''
+if ($ShardCacheDir) {
+  $shardCache = if ([IO.Path]::IsPathRooted($ShardCacheDir)) {
+    [IO.Path]::GetFullPath($ShardCacheDir)
+  } else {
+    [IO.Path]::GetFullPath((Join-Path $root $ShardCacheDir))
+  }
+}
+
+if (-not $shardCache -or -not (Test-Path -LiteralPath $shardCache)) {
+  if (-not $AllowNoShardCache) {
+    throw @"
+No prebuilt native shard cache at '$shardCache', so this package would ship
+without one and every player's first visit to every area would run in the
+Tier-3 interpreter.
+
+Build one against the runner and recompiler being shipped:
+
+  powershell -NoProfile -ExecutionPolicy Bypass -File ``
+    tools\build_release_shard_cache.ps1 ``
+      -RunnerBuildDir $RunnerBuildDir ``
+      -NdsrecompRoot $NdsrecompRoot ``
+      -RecompilerBuildDir $RecompilerBuildDir
+
+then re-run this packager, or pass -AllowNoShardCache to ship without one.
+"@
+  }
+  Write-Warning "No native shard cache at '$shardCache' - shipping without one because -AllowNoShardCache was given"
+} else {
+  $shardIdentity = Get-ShardProviderIdentity `
+    -CompileScript $shardCompileScript -Recompiler $identityRecompiler `
+    -IncludeDir $identityInclude -Gcc $Gcc -Python (Get-ShardPython -PythonExe $PythonExe)
+  Write-Host "Release shard provider identity: $shardIdentity (only shards published under it are shipped)"
+
+  $shards = @(Get-ShardsForIdentity -CacheDir $shardCache -Identity $shardIdentity)
+  if ($shards.Count -eq 0) {
+    $present = @(Get-ChildItem -LiteralPath $shardCache -Recurse -File `
+      -Filter '*.dll' -ErrorAction SilentlyContinue).Count
+    $message = @"
+The shard cache at $shardCache has $present DLL(s) but NONE published under
+this build's provider identity $shardIdentity, so the package would ship an
+empty cache.
+
+The identity folds the recompiler binary, the runtime ABI headers, the shard
+backend and its compile flags. The usual causes of that drift are:
+
+  * the cache was built against the in-tree recompiler\armv4t and
+    external\arm-recomp-core\common header directories instead of the two-file
+    flattened set a shipped install carries. Pass --runtime-include pointing at
+    the flattened set (tools\build_release_shard_cache.ps1 does this for you).
+  * the recompiler was rebuilt after the cache was warmed.
+  * a different gcc, -O level or --max-function-bytes was used.
+
+Rebuild it with tools\build_release_shard_cache.ps1 against the artifacts being
+shipped, or pass -AllowNoShardCache to ship without a cache anyway.
+"@
+    if (-not $AllowNoShardCache) { throw $message }
+    Write-Warning $message
+  } else {
+    $shardDst = Join-Path $stage 'live-shard-cache'
+    foreach ($shard in $shards) {
+      $dest = Join-Path (Join-Path $shardDst $shard.Backend) $shard.Name
+      New-Item -ItemType Directory -Path (Split-Path -Parent $dest) -Force |
+        Out-Null
+      Copy-Item -LiteralPath $shard.Path -Destination $dest
+    }
+    $shardBytes = ($shards | Measure-Object Length -Sum).Sum
+    $namespaces = @($shards | Select-Object -ExpandProperty Backend -Unique |
+      Sort-Object)
+    Write-Host ("Bundled native shard cache: {0} shard(s), {1:N1} MB, namespace(s) {2}" -f `
+      $shards.Count, ($shardBytes / 1MB), ($namespaces -join ', '))
+
+    # Audit trail beside bank-manifest.txt: what was shipped, and under which
+    # identity, so a support report can be matched against a build.
+    $manifestLines = @(
+      "Metroid Prime Hunters Recomp $Version - prebuilt native shard cache",
+      "",
+      "provider_identity : $shardIdentity",
+      "backend           : $($namespaces -join ', ')",
+      "source_cache      : $shardCache",
+      "recompiler_hashed : $identityRecompiler",
+      "headers_hashed    : $identityInclude",
+      "staged_at         : live-shard-cache\<backend>\",
+      "shard_count       : $($shards.Count)",
+      ("total_bytes       : {0}" -f $shardBytes),
+      "",
+      "shards:"
+    )
+    foreach ($shard in ($shards | Sort-Object Name)) {
+      $manifestLines += ("  {0}\{1}  cpu={2} page={3} bytes={4}" -f `
+        $shard.Backend, $shard.Name, $shard.Cpu, $shard.Bank, $shard.Length)
+    }
+    Set-Content -LiteralPath (Join-Path $stage 'shard-manifest.txt') `
+      -Value $manifestLines -Encoding UTF8
+
+    # Player-facing explanation, both inside the cache folder and appended to
+    # the staged README so it is findable without opening the folder. Appended
+    # to the STAGED copy only: the repo README is the developer document.
+    $cacheReadme = Join-Path $root 'packaging\NATIVE_CACHE_README.txt'
+    if (-not (Test-Path -LiteralPath $cacheReadme)) {
+      throw "Player cache README missing: $cacheReadme"
+    }
+    Copy-Item -LiteralPath $cacheReadme `
+      -Destination (Join-Path $shardDst 'README.txt')
+    # Array concatenation, not @(a, b, (pipeline)): -join does not flatten a
+    # nested array, it stringifies it as "System.Object[]".
+    $readmeSection = @('', '## Native code cache', '') +
+      @((Get-Content -LiteralPath $cacheReadme -Raw) -split "`r?`n" |
+        Select-Object -Skip 3)
+    Add-Content -LiteralPath (Join-Path $stage 'README.md') `
+      -Value ($readmeSection -join "`n") -Encoding UTF8
+  }
 }
 
 $forbidden = @(Get-ChildItem -LiteralPath $stage -File -Recurse |

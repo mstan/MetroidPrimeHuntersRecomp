@@ -20,6 +20,12 @@
 /coverage/live-overlay-route-*/
 /coverage/seed-probes/
 /live-overlay-cache*/
+# Developer-built native shard cache (tools/build_release_shard_cache.ps1).
+# Derived from the ROM's own runtime-generated code; built per release, never
+# committed.
+/release-shard-cache*/
+# Pinned toolchain downloads make_release.ps1 caches for overlay_toolchain/.
+/tools/_toolchain_cache/
 *.sav
 *.log
 /rom.cfg

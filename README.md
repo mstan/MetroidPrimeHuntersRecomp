@@ -25,23 +25,30 @@ Click the image to watch the gameplay preview on YouTube.
 ## Current Release
 
 Latest release:
-**[v0.4.13-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.4.13-alpha)**.
+**[v0.5.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.5.0-alpha)**.
 
 Downloads:
 
 - Windows:
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.4.13.zip`
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.5.0.zip`
 - Linux:
-  `MetroidPrimeHuntersRecomp-linux-v0.4.13-x86_64.AppImage`
+  `MetroidPrimeHuntersRecomp-linux-v0.5.0-x86_64.AppImage`
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
 still be treated as an alpha test build rather than a polished game release.
 
-New in v0.4.13: Diagnostics now writes to a visible `diagnostics` folder next
-to `MetroidPrimeHuntersRecomp.exe` / the AppImage instead of the hidden
-per-user settings folder.
+New in v0.5.0: Widescreen has been overhauled. The launcher now exposes a
+`Widescreen` display option with `Dynamic` as the default plus fixed
+`4:3`, `5:3`, `2:1`, and `21:9` modes. Fixed modes preserve their selected
+aspect ratio in fullscreen, so they pillarbox or letterbox instead of stretching
+to the monitor. The runner also rejects unsupported fixed widths up front rather
+than closing after launch.
+
+Also new since v0.4.13: Diagnostics now writes to a visible `diagnostics`
+folder next to `MetroidPrimeHuntersRecomp.exe` / the AppImage instead of the
+hidden per-user settings folder.
 
 Also new since v0.4.12: Settings -> Display now exposes the 3D renderer choice as
 Auto, OpenGL, or Software. OpenGL is the default so users do not silently fall
@@ -79,14 +86,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.4.13-alpha` Windows ZIP.
+1. Download and fully extract the `v0.5.0-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.4.13-alpha` AppImage.
+1. Download the `v0.5.0-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
@@ -116,7 +123,8 @@ If your ROM does not match, the launcher/runner should reject it.
 
 - Boots the supported ROM through the ndsrecomp runner.
 - Reaches Metroid Prime Hunters gameplay in tested routes.
-- Includes an adaptive 21:9 upper-screen widescreen option.
+- Includes Dynamic widescreen plus fixed 4:3, 5:3, 2:1, and 21:9 upper-screen
+  display modes.
 - Includes Prime-style keyboard and mouse controls.
 - Includes full remappable gamepad bindings in the launcher.
 - Supports mouse-driven touchscreen input.

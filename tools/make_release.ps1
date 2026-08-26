@@ -1,4 +1,4 @@
-<#
+﻿<#
 Package a completed Metroid Prime Hunters Recomp Windows release.
 
 The ZIP contains the portable recomp-ui launcher, the title runner with EVERY
@@ -18,6 +18,8 @@ param(
   [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
+  [ValidateSet('SDL3', 'SDL2')]
+  [string]$SdlBackend = 'SDL3',
   # Inputs for the bundled live-overlay (tcc) toolchain. $NdsrecompRoot is
   # relative to the repo root; $RecompilerBuildDir is relative to that.
   [string]$NdsrecompRoot = '..\ndsrecomp',
@@ -36,8 +38,20 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$runnerBuild = [IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))
-$launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
+
+# Directory parameters are documented as repo-root-relative, but an absolute
+# path is the natural thing to pass when the runner or framework lives in a
+# sibling worktree. Join-Path does not collapse an absolute second argument
+# (it yields "F:\repo\F:\other"), so GetFullPath then throws
+# "The given path's format is not supported". tools\build_release_shard_cache.ps1
+# already resolves both forms; do the same here so the two scripts agree.
+function Resolve-UnderRoot([string]$value, [string]$base) {
+  if ([IO.Path]::IsPathRooted($value)) { return [IO.Path]::GetFullPath($value) }
+  return [IO.Path]::GetFullPath((Join-Path $base $value))
+}
+
+$runnerBuild = Resolve-UnderRoot $RunnerBuildDir $root
+$launcherBuild = Resolve-UnderRoot $LauncherBuildDir $root
 $runner = Join-Path $runnerBuild 'nds_runner.exe'
 $launcher = Join-Path $launcherBuild 'mph-recomp-ui.exe'
 $assets = Join-Path $launcherBuild 'assets'
@@ -65,7 +79,7 @@ foreach ($required in @($runner, $launcher, $assets)) {
 # there, so this dot-source is safe.)
 . (Join-Path $PSScriptRoot 'overlay_shard_common.ps1')
 $root = Split-Path -Parent $PSScriptRoot
-$runner = Join-Path ([IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))) 'nds_runner.exe'
+$runner = Join-Path (Resolve-UnderRoot $RunnerBuildDir $root) 'nds_runner.exe'
 $bankInventory = Test-MphBankInventory -Runner $runner -RepoRoot $root
 
 $projectText = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw
@@ -114,7 +128,7 @@ Test-MphBankInventory -Runner (Join-Path $stage 'nds_runner.exe') `
   -Quiet | Out-Null
 
 $runtimeDlls = @(
-  'SDL2.dll',
+  "$SdlBackend.dll",
   'libgcc_s_seh-1.dll',
   'libstdc++-6.dll',
   'libwinpthread-1.dll'
@@ -138,7 +152,7 @@ foreach ($name in $runtimeDlls) {
 # Without this the shipped build still runs -- it just leaves every tier-3 page
 # the prebuilt cache misses in the interpreter forever.
 if (-not $SkipOverlayToolchain) {
-  $ndsRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+  $ndsRoot = Resolve-UnderRoot $NdsrecompRoot $root
   $recompiler = [IO.Path]::GetFullPath(
     (Join-Path $ndsRoot (Join-Path $RecompilerBuildDir 'nds_recompile.exe')))
   if (-not (Test-Path -LiteralPath $recompiler)) {
@@ -235,7 +249,7 @@ if (-not $SkipOverlayToolchain) {
 # parent directory name (<cache>\gcc\, <cache>\tcc\). So the subtree must be
 # preserved and it must land exactly there; a flat copy, or a copy anywhere
 # else, ships bytes nothing ever loads.
-$shardRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+$shardRoot = Resolve-UnderRoot $NdsrecompRoot $root
 $shardCompileScript = Join-Path $shardRoot 'tools\compile_live_shards.py'
 $stagedRecompiler = Join-Path $stage 'overlay_toolchain\nds_recompile.exe'
 $stagedInclude = Join-Path $stage 'overlay_toolchain\include'
@@ -426,3 +440,4 @@ try {
 Write-Host "--- $stageName ---"
 Get-ChildItem -LiteralPath $stage | Select-Object Name, Length | Out-Host
 Get-FileHash -LiteralPath $zip -Algorithm SHA256 | Out-Host
+

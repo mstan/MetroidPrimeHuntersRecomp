@@ -19,6 +19,7 @@ VERSION="0.1.0"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 BUILD_FLAVOR="release"
+SDL_BACKEND="${NDS_SDL_BACKEND:-SDL3}"
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
@@ -35,6 +36,7 @@ while [ $# -gt 0 ]; do
     --ndsrecomp-root) FRAMEWORK_ROOT="$(cd "$2" && pwd)"; shift 2;;
     --recomp-ui-root) RECOMP_UI_ROOT="$(cd "$2" && pwd)"; shift 2;;
     --build-flavor) BUILD_FLAVOR="$2"; shift 2;;
+    --sdl-backend) SDL_BACKEND="$2"; shift 2;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
       sed -n '2,14p' "$0"
@@ -43,6 +45,11 @@ while [ $# -gt 0 ]; do
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
+
+case "$SDL_BACKEND" in
+  SDL3|SDL2) ;;
+  *) echo "ERROR: --sdl-backend must be SDL3 or SDL2." >&2; exit 2;;
+esac
 
 GAME_BUILD="$REPO/build-linux-$BUILD_FLAVOR"
 RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-$BUILD_FLAVOR"
@@ -73,6 +80,7 @@ cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
 echo "[3/4] configure runner"
 cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=Release \
+  -DNDS_SDL_BACKEND="$SDL_BACKEND" \
   -DNDS_BOOTSTRAP_FIRMWARE=ON \
   -DNDS_TITLE_BANK_DIR="$TITLE_BANK_DIR" \
   -DNDS_TITLE_ROM_SHA1="$ROM_SHA1"
@@ -83,7 +91,8 @@ echo "      configure Linux launcher"
 cmake -S "$REPO/launcher/recomp-ui" -B "$LAUNCHER_BUILD" -G "Unix Makefiles" \
   -DCMAKE_BUILD_TYPE=Release \
   -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
-  -DRECOMP_UI_ROOT="$RECOMP_UI_ROOT"
+  -DRECOMP_UI_ROOT="$RECOMP_UI_ROOT" \
+  -DMPH_LAUNCHER_SDL_BACKEND="$SDL_BACKEND"
 echo "      build Linux launcher"
 cmake --build "$LAUNCHER_BUILD" --target "$LAUNCHER_NAME" -j"$JOBS"
 
@@ -186,6 +195,7 @@ HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export SDL_JOYSTICK_HIDAPI_STEAM=1
 export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
+export SDL_GAMEPAD_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
 SELF="${APPIMAGE:-$0}"
 RUNDIR="$(dirname "$(readlink -f "$SELF")")"
 export RECOMP_APPIMAGE_PATH="$SELF"

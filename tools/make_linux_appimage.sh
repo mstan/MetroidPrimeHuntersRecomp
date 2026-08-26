@@ -51,7 +51,7 @@ bash "$SCRIPT_DIR/verify_bank_inventory.sh" "$APP/usr/bin/nds_runner" \
 cp "$ROOT/game.toml" "$APP/usr/bin/"
 cp "$ROOT/README.md" "$APP/usr/bin/" 2>/dev/null || true
 
-# Bundle non-core shared libraries (SDL2, libstdc++, libgcc, slirp deps…)
+# Bundle non-core shared libraries (SDL, libstdc++, libgcc, slirp deps…)
 # so the ELF runs without the build distro. glibc itself stays on the host.
 echo "=== bundle shared libraries ==="
 ldd "$BIN" | awk '/=> \// {print $3}' | while read -r lib; do
@@ -73,6 +73,7 @@ HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export SDL_JOYSTICK_HIDAPI_STEAM=1
 export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
+export SDL_GAMEPAD_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
 ANCHOR="$(dirname "$(readlink -f "${APPIMAGE:-$0}")")"
 cd "$ANCHOR" 2>/dev/null || true
 [ "$#" -gt 0 ] && exec "$HERE/usr/bin/nds_runner" "$@"

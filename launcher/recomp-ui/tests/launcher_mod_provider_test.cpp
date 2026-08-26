@@ -904,5 +904,124 @@ int main() {
         std::filesystem::remove(settings_path);
     }
 
+#ifdef _WIN32
+    // Live-overlay gate. The regression this pins: a shipped extract sitting
+    // anywhere near a sibling provider checkout used to be handed that
+    // checkout's cache and compile command, so the bundled shards were never
+    // scanned and every shard the stale provider built was rejected on ABI.
+    {
+        const std::filesystem::path root =
+            std::filesystem::temp_directory_path() /
+            "mph_live_overlay_gate_test";
+        std::filesystem::remove_all(root);
+        const std::filesystem::path game = root / "game";
+        std::filesystem::create_directories(game);
+
+        // A sibling provider tree of exactly the shape the old probe hunted
+        // for. Nothing below may react to its existence.
+        const std::filesystem::path provider =
+            root / "ndsrecomp-live-overlay-provider";
+        std::filesystem::create_directories(provider / "tools");
+        std::filesystem::create_directories(
+            provider / "runner" / "build-live-provider-mph");
+        std::filesystem::create_directories(
+            provider / "recompiler" / "build-live-provider");
+        { std::ofstream f(provider / "tools" / "compile_live_shards.py"); }
+        { std::ofstream f(provider / "recompiler" / "build-live-provider" /
+                          "nds_recompile.exe"); }
+
+        SetEnvironmentVariableW(L"NDS_LIVE_OVERLAY_COMMAND", nullptr);
+        SetEnvironmentVariableW(L"NDS_LIVE_OVERLAY_CACHE", nullptr);
+
+        // No bundled toolchain and no explicit opt-in: a bare runner must not
+        // be pointed at a cache directory it has no way to fill.
+        {
+            std::wstring command;
+            append_live_overlay_args(command, game);
+            if (!require(command.empty(),
+                         "no toolchain and no opt-in emits nothing"))
+                return 160;
+        }
+
+        // Shipped layout: the bundled toolchain wins, the cache sits beside
+        // the game, and NO command is passed -- the runner synthesizes the
+        // bundled one itself from paths beside its own exe.
+        std::filesystem::create_directories(game / "overlay_toolchain");
+        { std::ofstream f(game / "overlay_toolchain" /
+                          "compile_live_shards.py"); }
+        {
+            std::wstring command;
+            append_live_overlay_args(command, game);
+            if (!require(command.find(L"--live-overlay-enable") !=
+                             std::wstring::npos,
+                         "bundled toolchain enables the tier")) return 161;
+            if (!require(command.find(L"--live-overlay-command") ==
+                             std::wstring::npos,
+                         "bundled toolchain passes no command")) return 162;
+            const std::wstring want =
+                L"--live-overlay-cache " +
+                quote((game / "live-shard-cache").wstring());
+            if (!require(command.find(want) != std::wstring::npos,
+                         "bundled cache is beside the game")) return 163;
+            // The stale dev default. Neither the redirect nor the ABI-stamped
+            // name may ever come back.
+            if (!require(command.find(L"live-shard-cache-v4") ==
+                             std::wstring::npos,
+                         "no ABI-stamped cache name")) return 164;
+            if (!require(command.find(L"ndsrecomp-live-overlay-provider") ==
+                             std::wstring::npos,
+                         "sibling provider checkout is ignored")) return 165;
+        }
+
+        // Explicit opt-in overrides both halves independently.
+        SetEnvironmentVariableW(L"NDS_LIVE_OVERLAY_COMMAND",
+                                L"py -3 myprovider.py --max-pages 6");
+        SetEnvironmentVariableW(L"NDS_LIVE_OVERLAY_CACHE",
+                                L"D:\\dev\\my-shards");
+        {
+            std::wstring command;
+            append_live_overlay_args(command, game);
+            if (!require(command.find(
+                             L"--live-overlay-command " +
+                             quote(L"py -3 myprovider.py --max-pages 6")) !=
+                             std::wstring::npos,
+                         "env command opt-in is honoured")) return 166;
+            if (!require(command.find(L"--live-overlay-cache " +
+                                      quote(L"D:\\dev\\my-shards")) !=
+                             std::wstring::npos,
+                         "env cache opt-in is honoured")) return 167;
+        }
+
+        // Opt-in alone qualifies an install that has no bundled toolchain.
+        std::filesystem::remove_all(game / "overlay_toolchain");
+        {
+            std::wstring command;
+            append_live_overlay_args(command, game);
+            if (!require(command.find(L"--live-overlay-enable") !=
+                             std::wstring::npos,
+                         "env opt-in enables without a bundled toolchain"))
+                return 168;
+        }
+
+        // Cache-only opt-in leaves compilation to the runner's own policy.
+        SetEnvironmentVariableW(L"NDS_LIVE_OVERLAY_COMMAND", nullptr);
+        {
+            std::wstring command;
+            append_live_overlay_args(command, game);
+            if (!require(command.find(L"--live-overlay-command") ==
+                             std::wstring::npos,
+                         "cache-only opt-in passes no command")) return 169;
+            if (!require(command.find(L"--live-overlay-cache " +
+                                      quote(L"D:\\dev\\my-shards")) !=
+                             std::wstring::npos,
+                         "cache-only opt-in still repoints the cache"))
+                return 170;
+        }
+
+        SetEnvironmentVariableW(L"NDS_LIVE_OVERLAY_CACHE", nullptr);
+        std::filesystem::remove_all(root);
+    }
+#endif
+
     return 0;
 }

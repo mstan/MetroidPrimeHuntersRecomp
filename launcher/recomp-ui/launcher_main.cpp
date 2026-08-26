@@ -1475,79 +1475,74 @@ void append_binding_args(std::wstring& command, const ModState& mods) {
     }
 }
 
+// Read a process environment variable, or "" when it is unset or empty.
+// Matches how ScopedRendererEnv talks to NDS_3D_RENDERER: the wide API, so a
+// path with non-ANSI characters survives the trip into the child's argv.
+std::wstring env_value(const wchar_t* name) {
+    const DWORD needed = GetEnvironmentVariableW(name, nullptr, 0);
+    if (needed == 0) return {};
+    std::wstring value(needed, L'\0');
+    const DWORD len = GetEnvironmentVariableW(name, value.data(), needed);
+    if (len == 0 || len >= needed) return {};
+    value.resize(len);
+    return value;
+}
+
 // Turn on the live overlay tier and tell the runner where to cache shards.
 //
-// Two installs qualify, and they differ ONLY in who compiles the gap shards:
+// PRECEDENCE, highest first. A shipped layout must always behave like a
+// shipped layout, so the bundled toolchain is what the launcher looks for --
+// never a sibling checkout that happens to exist on the machine:
 //
-//   dev checkout  a sibling ndsrecomp-live-overlay-provider tree plus gcc.
-//                 The full gcc autocompile command is passed explicitly.
-//   shipped build an overlay_toolchain\ staged next to the runner by
-//                 tools\make_release.ps1. No command is passed at all: the
-//                 runner's own backend policy resolves AUTO to the bundled
-//                 tcc toolchain and synthesizes the command from paths it
-//                 discovers beside its own exe, which keeps the launcher from
-//                 having to know the toolchain's internal layout.
+//   1. NDS_LIVE_OVERLAY_COMMAND / NDS_LIVE_OVERLAY_CACHE (explicit opt-in)
+//      A developer who wants their own provider says so, by name, the same
+//      way NDS_3D_RENDERER overrides the renderer pick. Setting only the
+//      command keeps the shipped cache location; setting only the cache
+//      repoints storage and leaves compilation to the runner's own policy.
+//   2. overlay_toolchain\compile_live_shards.py beside the game (shipped)
+//      No command is passed at all: the runner's backend policy resolves AUTO
+//      to the bundled toolchain and synthesizes the command from paths it
+//      discovers beside its own exe (runner main.cpp bundled_tcc_command),
+//      which keeps the launcher from having to know the toolchain's layout.
+//      The cache is game_dir\live-shard-cache -- exactly where make_release
+//      stages the prebuilt gcc shards, so they are scanned on the first poll.
+//
+// This function used to probe for a sibling ndsrecomp-live-overlay-provider
+// tree plus C:\msys64 gcc and check THAT first. On any machine that had such a
+// tree the check hijacked a shipped extract: it redirected the cache to
+// generated\live-shard-cache-v4 (so the bundled shards were never scanned) and
+// pointed --live-overlay-command at a provider that could be any ABI at all.
+// A stale one made every shard it produced get rejected for an ABI mismatch,
+// once per cooldown, forever. Implicit machine-shape detection cannot tell
+// "this developer wants their provider" from "this developer is testing the
+// player build", so it is gone; only an explicit request switches behavior.
 //
 // Anything else stays a no-op, so a bare runner never spins up a cache
 // directory it has no way to fill.
+//
+// Note the cache directory name carries no ABI number. ABI compatibility is
+// decided per shard by the runner (NDS_LIVE_BANK_ABI_VERSION), and a name that
+// encodes a version only goes stale silently.
 void append_live_overlay_args(std::wstring& command,
                               const std::filesystem::path& game_dir) {
     std::error_code error;
-    std::filesystem::path mph_root = game_dir;
-    for (std::filesystem::path cursor = game_dir; !cursor.empty();
-         cursor = cursor.parent_path()) {
-        if (std::filesystem::is_regular_file(
-                cursor / "scenarios" / "multiplayer_battle_bots.json",
-                error)) {
-            mph_root = cursor;
-            break;
-        }
-        if (cursor == cursor.parent_path()) break;
-    }
-
-    const std::filesystem::path workspace = mph_root.parent_path();
-    const std::filesystem::path ndsrecomp_root =
-        workspace / "ndsrecomp-live-overlay-provider";
-    const std::filesystem::path compile_tool =
-        ndsrecomp_root / "tools" / "compile_live_shards.py";
-    const std::filesystem::path runner_build =
-        ndsrecomp_root / "runner" / "build-live-provider-mph";
-    const std::filesystem::path recompiler =
-        ndsrecomp_root / "recompiler" / "build-live-provider" /
-        "nds_recompile.exe";
-    const std::filesystem::path gcc =
-        "C:/msys64/mingw64/bin/gcc.exe";
-    const bool dev_provider =
-        std::filesystem::is_regular_file(compile_tool, error) &&
-        std::filesystem::is_directory(runner_build, error) &&
-        std::filesystem::is_regular_file(recompiler, error) &&
-        std::filesystem::is_regular_file(gcc, error);
+    const std::wstring env_command = env_value(L"NDS_LIVE_OVERLAY_COMMAND");
+    const std::wstring env_cache = env_value(L"NDS_LIVE_OVERLAY_CACHE");
     const bool bundled_toolchain = std::filesystem::is_regular_file(
         game_dir / "overlay_toolchain" / "compile_live_shards.py", error);
-    if (!dev_provider && !bundled_toolchain) return;
+    if (!bundled_toolchain && env_command.empty() && env_cache.empty()) return;
 
-    // The dev cache stays where every existing capture/measurement tool looks
-    // for it. A shipped build keeps its cache beside the game, matching where
-    // the launcher already puts diagnostics and saves.
-    const std::filesystem::path cache =
-        dev_provider ? (mph_root / "generated" / "live-shard-cache-v4")
-                     : (game_dir / "live-shard-cache");
+    const std::wstring cache =
+        env_cache.empty() ? (game_dir / "live-shard-cache").wstring()
+                          : env_cache;
 
     command += L" --live-overlay-enable --live-overlay-auto";
     append_arg(command, L"--live-overlay-activation-delay-ms", L"90000");
     append_arg(command, L"--live-overlay-auto-delay-ms", L"90000");
     append_arg(command, L"--live-overlay-auto-cooldown-ms", L"30000");
-    if (dev_provider) {
-        const std::wstring live_command =
-            L"py -3 " + quote(compile_tool.wstring()) +
-            L" --ndsrecomp-root " + quote(ndsrecomp_root.wstring()) +
-            L" --runner-build " + quote(runner_build.wstring()) +
-            L" --recompiler " + quote(recompiler.wstring()) +
-            L" --max-pages 6 --min-hits 8 --generated-opt=-O2 --gcc " +
-            quote(gcc.wstring());
-        append_arg(command, L"--live-overlay-command", live_command);
-    }
-    append_arg(command, L"--live-overlay-cache", cache.wstring());
+    if (!env_command.empty())
+        append_arg(command, L"--live-overlay-command", env_command);
+    append_arg(command, L"--live-overlay-cache", cache);
 }
 
 #else

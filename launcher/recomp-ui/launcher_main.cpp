@@ -164,10 +164,11 @@ struct WidescreenChoice {
     int width;
 };
 
-constexpr std::array<WidescreenChoice, 4> kWidescreenChoices{{
+constexpr std::array<WidescreenChoice, 5> kWidescreenChoices{{
     {"adaptive", "Dynamic", 0},
-    {"fixed-16-10", "16:10", 308},
-    {"fixed-16-9", "16:9", 342},
+    {"fixed-4-3", "4:3", 256},
+    {"fixed-5-3", "5:3", 320},
+    {"fixed-2-1", "2:1", 384},
     {"fixed-21-9", "21:9", 448},
 }};
 

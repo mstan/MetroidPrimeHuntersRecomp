@@ -142,7 +142,7 @@ int main() {
                  "widescreen mode option id")) return 4;
     if (!require(std::strcmp(widescreen_option.value, "adaptive") == 0,
                  "widescreen mode default value")) return 4;
-    if (!require(widescreen_option.choice_count == 4,
+    if (!require(widescreen_option.choice_count == 5,
                  "widescreen mode choice count")) return 4;
     RecompLauncherCModChoice widescreen_choice{};
     if (!require(provider.feature_choice_get(
@@ -154,17 +154,17 @@ int main() {
     if (!require(provider.feature_choice_get(
             provider.ctx, "mph-widescreen", "widescreen",
             "widescreen-mode", 2, &widescreen_choice),
-            "widescreen 16:9 choice get")) return 4;
-    if (!require(std::strcmp(widescreen_choice.value, "fixed-16-9") == 0,
-                 "widescreen 16:9 choice value")) return 4;
+            "widescreen 5:3 choice get")) return 4;
+    if (!require(std::strcmp(widescreen_choice.value, "fixed-5-3") == 0,
+                 "widescreen 5:3 choice value")) return 4;
     if (!require(provider.feature_set_option(
             provider.ctx, "mph-widescreen", "widescreen",
-            "widescreen-mode", "fixed-16-9"),
+            "widescreen-mode", "fixed-5-3"),
             "widescreen mode set")) return 4;
-    if (!require(state.widescreen_mode == "fixed-16-9",
+    if (!require(state.widescreen_mode == "fixed-5-3",
                  "widescreen mode state set")) return 4;
-    if (!require(runner_widescreen_width_arg(state) == 342,
-                 "widescreen fixed 16:9 launch width")) return 4;
+    if (!require(runner_widescreen_width_arg(state) == 320,
+                 "widescreen fixed 5:3 launch width")) return 4;
     if (!require(provider.feature_enable(
             provider.ctx, "mph-widescreen", "widescreen", 0),
             "disable widescreen")) return 4;
@@ -493,7 +493,7 @@ int main() {
             std::filesystem::temp_directory_path() /
             "mph_mod_provider_all_mod_settings.ini";
         saved.adaptive_widescreen = false;
-        saved.widescreen_mode = "fixed-16-10";
+        saved.widescreen_mode = "fixed-5-3";
         saved.hd_rendering = true;
         saved.internal_resolution = 4;
         saved.texture_upscale = 4;
@@ -524,7 +524,7 @@ int main() {
         load_mod_state(loaded);
         if (!require(!loaded.adaptive_widescreen,
                      "adaptive widescreen round trip")) return 129;
-        if (!require(loaded.widescreen_mode == "fixed-16-10",
+        if (!require(loaded.widescreen_mode == "fixed-5-3",
                      "widescreen mode round trip")) return 129;
         if (!require(loaded.hd_rendering,
                      "hd rendering feature round trip")) return 130;

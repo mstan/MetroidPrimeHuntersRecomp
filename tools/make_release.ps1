@@ -16,7 +16,9 @@ param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
-  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin'
+  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
+  [ValidateSet('SDL3', 'SDL2')]
+  [string]$SdlBackend = 'SDL3'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,7 +83,7 @@ Copy-Item -LiteralPath (Join-Path $root 'packaging\BIOS_README.txt') `
   -Destination (Join-Path $stage 'bios\README.txt')
 
 $runtimeDlls = @(
-  'SDL2.dll',
+  "$SdlBackend.dll",
   'libgcc_s_seh-1.dll',
   'libstdc++-6.dll',
   'libwinpthread-1.dll'

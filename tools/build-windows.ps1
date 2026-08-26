@@ -19,7 +19,9 @@ param(
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$NdsrecompRoot = '..\ndsrecomp',
-  [string]$RecompUiRoot = 'F:\Projects\recomp-ui'
+  [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
+  [ValidateSet('SDL3', 'SDL2')]
+  [string]$SdlBackend = 'SDL3'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,6 +53,7 @@ try {
 
   & $cmakePath -G $Generator -S "$frameworkRoot\runner" -B $runnerBuild `
     -DCMAKE_BUILD_TYPE=Release `
+    "-DNDS_SDL_BACKEND=$SdlBackend" `
     -DNDS_BOOTSTRAP_FIRMWARE=ON `
     "-DNDS_TITLE_BANK_DIR=$titleBankDir" `
     "-DNDS_TITLE_ROM_SHA1=$romSha1"
@@ -62,6 +65,7 @@ try {
     -DCMAKE_BUILD_TYPE=Release `
     -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
+    "-DMPH_LAUNCHER_SDL_BACKEND=$SdlBackend" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
   & $cmakePath --build $launcherBuild -j $Jobs
@@ -72,7 +76,8 @@ try {
     -Version $Version `
     -RunnerBuildDir $RunnerBuildDir `
     -LauncherBuildDir $LauncherBuildDir `
-    -RuntimeBinDir $RuntimeBinDir
+    -RuntimeBinDir $RuntimeBinDir `
+    -SdlBackend $SdlBackend
   if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed.' }
 } finally {
   Pop-Location

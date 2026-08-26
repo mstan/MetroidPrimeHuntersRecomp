@@ -107,23 +107,72 @@ int main() {
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 0, &feature),
-                 "feature_get adaptive widescreen")) {
+                 "feature_get widescreen")) {
         return 3;
     }
-    if (!require(std::strcmp(feature.id, "adaptive-widescreen") == 0,
-                 "adaptive feature id")) {
+    if (!require(std::strcmp(feature.id, "widescreen") == 0,
+                 "widescreen feature id")) {
         return 4;
     }
-    if (!require(feature.option_count == 0,
-                 "adaptive has no renderer option")) {
+    if (!require(std::strcmp(feature.package_id, "mph-widescreen") == 0,
+                 "widescreen package id")) {
+        return 4;
+    }
+    if (!require(std::strcmp(feature.name, "Widescreen") == 0,
+                 "widescreen feature name")) {
+        return 4;
+    }
+    if (!require(feature.option_count == 1,
+                 "widescreen has mode option")) {
         return 4;
     }
     if (!require(!provider.feature_set_option(
-            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen",
+            provider.ctx, "mph-widescreen", "widescreen",
             "renderer-type", "soft"),
-            "adaptive rejects renderer type option")) {
+            "widescreen rejects renderer type option")) {
         return 4;
     }
+    RecompLauncherCModOption widescreen_option{};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-widescreen", "widescreen", 0,
+            &widescreen_option), "widescreen mode option get")) {
+        return 4;
+    }
+    if (!require(std::strcmp(widescreen_option.id, "widescreen-mode") == 0,
+                 "widescreen mode option id")) return 4;
+    if (!require(std::strcmp(widescreen_option.value, "adaptive") == 0,
+                 "widescreen mode default value")) return 4;
+    if (!require(widescreen_option.choice_count == 5,
+                 "widescreen mode choice count")) return 4;
+    RecompLauncherCModChoice widescreen_choice{};
+    if (!require(provider.feature_choice_get(
+            provider.ctx, "mph-widescreen", "widescreen",
+            "widescreen-mode", 0, &widescreen_choice),
+            "widescreen dynamic choice get")) return 4;
+    if (!require(std::strcmp(widescreen_choice.label, "Dynamic") == 0,
+                 "widescreen dynamic choice label")) return 4;
+    if (!require(provider.feature_choice_get(
+            provider.ctx, "mph-widescreen", "widescreen",
+            "widescreen-mode", 2, &widescreen_choice),
+            "widescreen 5:3 choice get")) return 4;
+    if (!require(std::strcmp(widescreen_choice.value, "fixed-5-3") == 0,
+                 "widescreen 5:3 choice value")) return 4;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-widescreen", "widescreen",
+            "widescreen-mode", "fixed-5-3"),
+            "widescreen mode set")) return 4;
+    if (!require(state.widescreen_mode == "fixed-5-3",
+                 "widescreen mode state set")) return 4;
+    if (!require(runner_widescreen_width_arg(state) == 320,
+                 "widescreen fixed 5:3 launch width")) return 4;
+    if (!require(provider.feature_enable(
+            provider.ctx, "mph-widescreen", "widescreen", 0),
+            "disable widescreen")) return 4;
+    if (!require(runner_widescreen_width_arg(state) == 0,
+                 "disabled widescreen has no width")) return 4;
+    if (!require(provider.feature_enable(
+            provider.ctx, "mph-adaptive-widescreen", "adaptive-widescreen", 1),
+            "legacy widescreen package enables")) return 4;
 
     feature = {};
     if (!require(provider.feature_get(provider.ctx, 1, &feature),
@@ -444,6 +493,7 @@ int main() {
             std::filesystem::temp_directory_path() /
             "mph_mod_provider_all_mod_settings.ini";
         saved.adaptive_widescreen = false;
+        saved.widescreen_mode = "fixed-5-3";
         saved.hd_rendering = true;
         saved.internal_resolution = 4;
         saved.texture_upscale = 4;
@@ -474,6 +524,8 @@ int main() {
         load_mod_state(loaded);
         if (!require(!loaded.adaptive_widescreen,
                      "adaptive widescreen round trip")) return 129;
+        if (!require(loaded.widescreen_mode == "fixed-5-3",
+                     "widescreen mode round trip")) return 129;
         if (!require(loaded.hd_rendering,
                      "hd rendering feature round trip")) return 130;
         if (!require(loaded.internal_resolution == 4,

@@ -25,6 +25,7 @@ namespace {
 
 struct ModState {
     bool adaptive_widescreen = true;
+    std::string widescreen_mode = "adaptive";
     // HD rendering. Off by default: it costs GPU time and VRAM, and the
     // faithful native output stays the reference. internal_resolution
     // multiplies 3D sample density; texture_upscale filters each decoded DS
@@ -156,6 +157,20 @@ constexpr std::array<RendererChoice, 3> kRendererChoices{{
 }};
 
 constexpr const char* kDefaultRendererType = "compute";
+
+struct WidescreenChoice {
+    const char* value;
+    const char* label;
+    int width;
+};
+
+constexpr std::array<WidescreenChoice, 5> kWidescreenChoices{{
+    {"adaptive", "Dynamic", 0},
+    {"fixed-4-3", "4:3", 256},
+    {"fixed-5-3", "5:3", 320},
+    {"fixed-2-1", "2:1", 384},
+    {"fixed-21-9", "21:9", 448},
+}};
 
 struct SensitivityChoice {
     int percent;
@@ -443,6 +458,37 @@ const char* runner_renderer_policy_arg(const ModState& state) {
         : "auto";
 }
 
+bool is_widescreen_choice(const char* value) {
+    if (!value) return false;
+    for (const WidescreenChoice& choice : kWidescreenChoices) {
+        if (std::strcmp(choice.value, value) == 0) return true;
+    }
+    return false;
+}
+
+bool is_widescreen_feature(const char* package_id, const char* feature_id) {
+    return ((std::strcmp(package_id, "mph-widescreen") == 0 ||
+             std::strcmp(package_id, "mph-adaptive-widescreen") == 0) &&
+            (std::strcmp(feature_id, "widescreen") == 0 ||
+             std::strcmp(feature_id, "adaptive-widescreen") == 0));
+}
+
+const WidescreenChoice& widescreen_choice(const ModState& state) {
+    for (const WidescreenChoice& choice : kWidescreenChoices) {
+        if (state.widescreen_mode == choice.value) return choice;
+    }
+    return kWidescreenChoices[0];
+}
+
+const char* widescreen_status(const ModState& state) {
+    return state.adaptive_widescreen ? widescreen_choice(state).label
+                                     : "Disabled";
+}
+
+int runner_widescreen_width_arg(const ModState& state) {
+    return state.adaptive_widescreen ? widescreen_choice(state).width : 0;
+}
+
 std::wstring widen(const char* source);
 
 struct ScopedRendererEnv {
@@ -521,6 +567,9 @@ void load_mod_state(ModState& state) {
                 settings_version = static_cast<int>(parsed);
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
+        } else if (key == "widescreen_mode") {
+            if (is_widescreen_choice(value.c_str()))
+                state.widescreen_mode = value;
         } else if (key == "hd_rendering") {
             state.hd_rendering = value == "true";
         } else if (key == "internal_resolution") {
@@ -665,9 +714,10 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=8\n"
+        file << "settings_version=9\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
+             << "widescreen_mode=" << widescreen_choice(state).value << '\n'
              << "hd_rendering="
              << (state.hd_rendering ? "true" : "false") << '\n'
              << "internal_resolution=" << state.internal_resolution << '\n'
@@ -742,20 +792,20 @@ int mod_feature_get(void* context, int index,
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
     if (index == 0) {
-        copy_text(output->id, "adaptive-widescreen");
-        copy_text(output->package_id, "mph-adaptive-widescreen");
+        copy_text(output->id, "widescreen");
+        copy_text(output->package_id, "mph-widescreen");
         copy_text(output->package_version, "0.1.0");
-        copy_text(output->package_name, "MPH Adaptive Widescreen");
-        copy_text(output->name, "Adaptive Widescreen");
+        copy_text(output->package_name, "MPH Widescreen");
+        copy_text(output->name, "Widescreen");
         copy_text(output->author, "ndsrecomp");
         copy_text(
             output->description,
-            "Expands the upper gameplay screen to 21:9 and anchors its HUD "
-            "while keeping the lower touchscreen native and clickable.");
+            "Expands the upper gameplay screen and anchors its HUD while "
+            "keeping the lower touchscreen native and clickable.");
         copy_text(output->group, "Display enhancements");
-        copy_text(output->status,
-                  state->adaptive_widescreen ? "Enabled" : "Disabled");
+        copy_text(output->status, widescreen_status(*state));
         output->enabled = state->adaptive_widescreen ? 1 : 0;
+        output->option_count = 1;
     } else if (index == 2) {
         copy_text(output->id, "hd-rendering");
         copy_text(output->package_id, "mph-hd-rendering");
@@ -824,9 +874,12 @@ int mod_feature_enable(void* context, const char* package_id,
                        const char* feature_id, int enabled) {
     if (!context || !package_id || !feature_id) return 0;
     auto* state = static_cast<ModState*>(context);
-    if (std::strcmp(package_id, "mph-adaptive-widescreen") == 0 &&
-        std::strcmp(feature_id, "adaptive-widescreen") == 0) {
+    if (is_widescreen_feature(package_id, feature_id)) {
         state->adaptive_widescreen = enabled != 0;
+        if (state->adaptive_widescreen &&
+            !is_widescreen_choice(state->widescreen_mode.c_str())) {
+            state->widescreen_mode = "adaptive";
+        }
         return 1;
     }
     if (std::strcmp(package_id, "mph-prime-controls") == 0 &&
@@ -861,6 +914,22 @@ int mod_feature_option_get(void* context, const char* package_id,
                            RecompLauncherCModOption* output) {
     if (!context || !package_id || !feature_id || !output || index < 0)
         return 0;
+    if (is_widescreen_feature(package_id, feature_id)) {
+        if (index != 0) return 0;
+        const auto* state = static_cast<const ModState*>(context);
+        std::memset(output, 0, sizeof(*output));
+        copy_text(output->id, "widescreen-mode");
+        copy_text(output->label, "Mode");
+        copy_text(output->description,
+                  "Dynamic follows the window. Fixed ratios keep the upper "
+                  "screen at a specific aspect ratio.");
+        copy_text(output->group, "Aspect ratio");
+        copy_text(output->value, widescreen_choice(*state).value);
+        copy_text(output->default_value, "adaptive");
+        output->type = RECOMP_MOD_OPTION_CHOICE;
+        output->choice_count = static_cast<int>(kWidescreenChoices.size());
+        return 1;
+    }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         if (index > 1) return 0;
@@ -996,6 +1065,17 @@ int mod_feature_choice_get(void*, const char* package_id,
                            int index, RecompLauncherCModChoice* output) {
     if (!package_id || !feature_id || !option_id || !output || index < 0)
         return 0;
+    if (is_widescreen_feature(package_id, feature_id)) {
+        if (std::strcmp(option_id, "widescreen-mode") != 0 ||
+            index >= static_cast<int>(kWidescreenChoices.size())) {
+            return 0;
+        }
+        std::memset(output, 0, sizeof(*output));
+        const WidescreenChoice& choice = kWidescreenChoices[index];
+        copy_text(output->value, choice.value);
+        copy_text(output->label, choice.label);
+        return 1;
+    }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         if (std::strcmp(option_id, "internal-resolution") == 0) {
@@ -1071,6 +1151,15 @@ int mod_feature_set_option(void* context, const char* package_id,
                            const char* value) {
     if (!context || !package_id || !feature_id || !option_id || !value)
         return 0;
+    if (is_widescreen_feature(package_id, feature_id)) {
+        if (std::strcmp(option_id, "widescreen-mode") != 0 ||
+            !is_widescreen_choice(value)) {
+            return 0;
+        }
+        auto* state = static_cast<ModState*>(context);
+        state->widescreen_mode = value;
+        return 1;
+    }
     auto* hd_state = static_cast<ModState*>(context);
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
@@ -1559,6 +1648,11 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
 #ifdef _WIN32
     const std::wstring rom_wide = widen(rom);
     if (rom_wide.empty()) return false;
+    std::wstring widescreen_width_arg;
+    if (const int width = runner_widescreen_width_arg(mods); width > 0) {
+        widescreen_width_arg =
+            L" --widescreen-width " + std::to_wstring(width);
+    }
 
     std::wstring command =
         quote(runner.wstring()) + L" " + quote(bios.wstring()) +
@@ -1568,6 +1662,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         L" --fullscreen " + widen(runner_fullscreen_arg(fullscreen)) +
         L" --adaptive-widescreen " +
         (adaptive ? L"top" : L"none") +
+        widescreen_width_arg +
         // Inert unless the HD mod is on, so the faithful native output stays
         // the default for anyone who never opens the Mods page.
         L" --internal-resolution " +
@@ -1650,6 +1745,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                runner_screen_layout_arg(display_layout));
     append_arg(args, "--fullscreen", runner_fullscreen_arg(fullscreen));
     append_arg(args, "--adaptive-widescreen", adaptive ? "top" : "none");
+    if (const int width = runner_widescreen_width_arg(mods); width > 0)
+        append_arg(args, "--widescreen-width", std::to_string(width));
     append_arg(args, "--internal-resolution",
                std::to_string(mods.hd_rendering
                                   ? mods.internal_resolution : 1));

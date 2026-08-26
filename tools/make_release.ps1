@@ -17,7 +17,12 @@ param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
-  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin'
+  [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
+  # Inputs for the bundled live-overlay (tcc) toolchain. $NdsrecompRoot is
+  # relative to the repo root; $RecompilerBuildDir is relative to that.
+  [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$RecompilerBuildDir = 'recompiler\build',
+  [switch]$SkipOverlayToolchain
 )
 
 $ErrorActionPreference = 'Stop'
@@ -106,6 +111,97 @@ foreach ($name in $runtimeDlls) {
     throw "Required runtime DLL missing: $source"
   }
   Copy-Item -LiteralPath $source -Destination $stage
+}
+
+# ---- Self-contained live-overlay toolchain (tcc tier) ---------------------
+# A player box has no gcc and no Python, so the runner's backend policy
+# (runner/src/main.cpp) resolves to tcc and builds its autocompile command out
+# of <exe>\overlay_toolchain\. Everything it references must be self-contained:
+# the embedded CPython and the prebuilt tcc already are, and nds_recompile.exe
+# needs its MinGW runtime DLLs beside it (Windows resolves an exe's imports
+# from the exe's OWN directory, not the parent stage dir).
+#
+# Without this the shipped build still runs -- it just leaves every tier-3 page
+# the prebuilt cache misses in the interpreter forever.
+if (-not $SkipOverlayToolchain) {
+  $ndsRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+  $recompiler = [IO.Path]::GetFullPath(
+    (Join-Path $ndsRoot (Join-Path $RecompilerBuildDir 'nds_recompile.exe')))
+  if (-not (Test-Path -LiteralPath $recompiler)) {
+    throw "Overlay toolchain input missing: $recompiler (build the recompiler, or pass -SkipOverlayToolchain)"
+  }
+
+  $toolchain = Join-Path $stage 'overlay_toolchain'
+  New-Item -ItemType Directory -Path $toolchain -Force | Out-Null
+  $dlCache = Join-Path $root 'tools\_toolchain_cache'
+  New-Item -ItemType Directory -Path $dlCache -Force | Out-Null
+
+  # Pinned by version AND content hash. An unpinned toolchain would let the
+  # bytes a player compiles their game with change silently under us.
+  $downloads = @(
+    @{ Name = 'python-3.13.1-embed-amd64.zip'
+       Uri  = 'https://www.python.org/ftp/python/3.13.1/python-3.13.1-embed-amd64.zip'
+       Sha  = '7B7923FF0183A8B8FCA90F6047184B419B108CB437F75FC1C002F9D2F8BCEC16' },
+    @{ Name = 'tcc-0.9.27-win64-bin.zip'
+       Uri  = 'https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip'
+       Sha  = '34A721949A2583FDFF725312DA092FA0F5F1F284B702E6F811C6954714FAABB2' }
+  )
+  foreach ($d in $downloads) {
+    $path = Join-Path $dlCache $d.Name
+    if (-not (Test-Path -LiteralPath $path)) {
+      Invoke-WebRequest -Uri $d.Uri -OutFile $path
+    }
+    $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+    if ($actual -ne $d.Sha) {
+      throw "Toolchain download hash mismatch for $($d.Name): expected $($d.Sha), got $actual"
+    }
+  }
+
+  Expand-Archive -LiteralPath (Join-Path $dlCache 'python-3.13.1-embed-amd64.zip') `
+    -DestinationPath (Join-Path $toolchain 'python') -Force
+
+  # The tcc zip has a single top-level tcc\ dir (tcc.exe + libtcc.dll +
+  # include\ + lib\); tcc finds its own headers relative to tcc.exe, so the
+  # directory ships whole rather than cherry-picked.
+  $tccTmp = Join-Path $dlCache 'tcc_extract'
+  if (Test-Path -LiteralPath $tccTmp) {
+    Remove-Item -LiteralPath $tccTmp -Recurse -Force
+  }
+  Expand-Archive -LiteralPath (Join-Path $dlCache 'tcc-0.9.27-win64-bin.zip') `
+    -DestinationPath $tccTmp -Force
+  Copy-Item -LiteralPath (Join-Path $tccTmp 'tcc') `
+    -Destination (Join-Path $toolchain 'tcc') -Recurse
+
+  Copy-Item -LiteralPath $recompiler -Destination $toolchain
+  foreach ($name in @('libgcc_s_seh-1.dll', 'libstdc++-6.dll',
+                      'libwinpthread-1.dll')) {
+    Copy-Item -LiteralPath (Join-Path $RuntimeBinDir $name) `
+      -Destination $toolchain
+  }
+  Copy-Item -LiteralPath (Join-Path $ndsRoot 'tools\compile_live_shards.py') `
+    -Destination $toolchain
+
+  # Exactly the header closure a generated shard preprocesses: it includes
+  # runtime_arm.h, which includes runtime_arm_types.h out of the shared ARM
+  # core, and nothing else beyond the C library. The other headers in
+  # recompiler\armv4t are relative-path shims into the submodule and would
+  # break if flattened, so they are deliberately NOT staged.
+  $toolInc = Join-Path $toolchain 'include'
+  New-Item -ItemType Directory -Path $toolInc -Force | Out-Null
+  $headers = @(
+    (Join-Path $ndsRoot 'recompiler\armv4t\runtime_arm.h'),
+    (Join-Path $ndsRoot 'external\arm-recomp-core\common\runtime_arm_types.h')
+  )
+  foreach ($h in $headers) {
+    if (-not (Test-Path -LiteralPath $h)) {
+      throw "Overlay toolchain header missing: $h (is the arm-recomp-core submodule checked out?)"
+    }
+    Copy-Item -LiteralPath $h -Destination $toolInc
+  }
+
+  $tcMB = '{0:N1}' -f ((Get-ChildItem -LiteralPath $toolchain -Recurse -File |
+    Measure-Object Length -Sum).Sum / 1MB)
+  Write-Host "Bundled overlay toolchain (embedded python + tcc + recompiler): ~$tcMB MB"
 }
 
 $forbidden = @(Get-ChildItem -LiteralPath $stage -File -Recurse |

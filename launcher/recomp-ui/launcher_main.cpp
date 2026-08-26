@@ -1475,8 +1475,23 @@ void append_binding_args(std::wstring& command, const ModState& mods) {
     }
 }
 
-void append_live_overlay_dev_args(std::wstring& command,
-                                  const std::filesystem::path& game_dir) {
+// Turn on the live overlay tier and tell the runner where to cache shards.
+//
+// Two installs qualify, and they differ ONLY in who compiles the gap shards:
+//
+//   dev checkout  a sibling ndsrecomp-live-overlay-provider tree plus gcc.
+//                 The full gcc autocompile command is passed explicitly.
+//   shipped build an overlay_toolchain\ staged next to the runner by
+//                 tools\make_release.ps1. No command is passed at all: the
+//                 runner's own backend policy resolves AUTO to the bundled
+//                 tcc toolchain and synthesizes the command from paths it
+//                 discovers beside its own exe, which keeps the launcher from
+//                 having to know the toolchain's internal layout.
+//
+// Anything else stays a no-op, so a bare runner never spins up a cache
+// directory it has no way to fill.
+void append_live_overlay_args(std::wstring& command,
+                              const std::filesystem::path& game_dir) {
     std::error_code error;
     std::filesystem::path mph_root = game_dir;
     for (std::filesystem::path cursor = game_dir; !cursor.empty();
@@ -1502,28 +1517,36 @@ void append_live_overlay_dev_args(std::wstring& command,
         "nds_recompile.exe";
     const std::filesystem::path gcc =
         "C:/msys64/mingw64/bin/gcc.exe";
-    if (!std::filesystem::is_regular_file(compile_tool, error) ||
-        !std::filesystem::is_directory(runner_build, error) ||
-        !std::filesystem::is_regular_file(recompiler, error) ||
-        !std::filesystem::is_regular_file(gcc, error)) {
-        return;
-    }
+    const bool dev_provider =
+        std::filesystem::is_regular_file(compile_tool, error) &&
+        std::filesystem::is_directory(runner_build, error) &&
+        std::filesystem::is_regular_file(recompiler, error) &&
+        std::filesystem::is_regular_file(gcc, error);
+    const bool bundled_toolchain = std::filesystem::is_regular_file(
+        game_dir / "overlay_toolchain" / "compile_live_shards.py", error);
+    if (!dev_provider && !bundled_toolchain) return;
 
+    // The dev cache stays where every existing capture/measurement tool looks
+    // for it. A shipped build keeps its cache beside the game, matching where
+    // the launcher already puts diagnostics and saves.
     const std::filesystem::path cache =
-        mph_root / "generated" / "live-shard-cache-v4";
-    const std::wstring live_command =
-        L"py -3 " + quote(compile_tool.wstring()) +
-        L" --ndsrecomp-root " + quote(ndsrecomp_root.wstring()) +
-        L" --runner-build " + quote(runner_build.wstring()) +
-        L" --recompiler " + quote(recompiler.wstring()) +
-        L" --max-pages 6 --min-hits 8 --generated-opt=-O2 --gcc " +
-        quote(gcc.wstring());
+        dev_provider ? (mph_root / "generated" / "live-shard-cache-v4")
+                     : (game_dir / "live-shard-cache");
 
     command += L" --live-overlay-enable --live-overlay-auto";
     append_arg(command, L"--live-overlay-activation-delay-ms", L"90000");
     append_arg(command, L"--live-overlay-auto-delay-ms", L"90000");
     append_arg(command, L"--live-overlay-auto-cooldown-ms", L"30000");
-    append_arg(command, L"--live-overlay-command", live_command);
+    if (dev_provider) {
+        const std::wstring live_command =
+            L"py -3 " + quote(compile_tool.wstring()) +
+            L" --ndsrecomp-root " + quote(ndsrecomp_root.wstring()) +
+            L" --runner-build " + quote(runner_build.wstring()) +
+            L" --recompiler " + quote(recompiler.wstring()) +
+            L" --max-pages 6 --min-hits 8 --generated-opt=-O2 --gcc " +
+            quote(gcc.wstring());
+        append_arg(command, L"--live-overlay-command", live_command);
+    }
     append_arg(command, L"--live-overlay-cache", cache.wstring());
 }
 
@@ -1754,7 +1777,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     if (no_dumps_mode)
         command += L" --freebios --generated-firmware";
     append_binding_args(command, mods);
-    append_live_overlay_dev_args(command, game_dir);
+    append_live_overlay_args(command, game_dir);
 
     ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
     STARTUPINFOW startup{};

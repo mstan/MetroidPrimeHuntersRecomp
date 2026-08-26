@@ -71,8 +71,11 @@ overlay table contains 576 bytes (18 records), not 576 separate overlays.
     seeds expands the ARM9 bank to 7,115 functions; the identical replay cuts
     ARM9 Tier-3 entries from 64,619,845 to 57,525,780 (10.98%) and interpreted
     instructions from 3,866,962,843 to 3,638,379,652 (5.91%). All 13 action
-    checkpoints retain identical event counts and RGB hashes. This does not
-    yet establish a wall-clock speedup while generated code remains `-O0`.
+    checkpoints retain identical event counts and RGB hashes. (Correction
+    2026-08-25: the `-O0` here referred to the MPH project's standalone
+    compile-validation static library only; the runner has always compiled
+    the title bank sources at `-O2` — see
+    `docs/performance_baseline.md`.)
 16. The opening FMV slowdown was isolated with
     `tools/benchmark_mph_fmv.py`. Static-only FMV windows ran at 26-28 FPS:
     presentation stayed below 1 ms/frame while emulation rose to 34-37

@@ -51,3 +51,4 @@ bios/
 # Performance measurement artifacts (tools/measure_mph_scenario.py)
 /perf-results/
 /tools/windows_rip_sampler.exe
+/performance-*.jsonl

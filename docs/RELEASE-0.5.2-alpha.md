@@ -1,7 +1,19 @@
-# Metroid Prime Hunters Recomp v0.5.1-alpha
+# Metroid Prime Hunters Recomp v0.5.2-alpha
 
-Performance-focused re-cut. If you saw lower FPS on v0.4.12 through v0.5.0
+Performance-focused release. If you saw lower FPS on v0.4.12 through v0.5.0
 than on v0.4.11, this release is for you — please retest and report.
+(v0.5.1 was prepared but never published; its changes are included here.)
+
+## New: Frame Interpolation mod (experimental)
+
+For 120 Hz+ displays: an opt-in mod on the Mods page that presents one
+blended frame between finished DS frames, smoothing perceived motion.
+Presentation-only — game logic, timing, input sampling, audio, and
+multiplayer are completely unaffected. Off by default; it also stays inert
+on 60 Hz displays and when the OpenGL direct presenter is active (that path
+needs an offscreen-texture refactor first). Expect slight ghosting on fast
+motion — that's inherent to blending; real motion interpolation would need
+renderer-side motion data. Feedback welcome (issue #32).
 
 ## Fixed: v0.4.12–v0.5.0 shipped without 63 recompiled code banks
 

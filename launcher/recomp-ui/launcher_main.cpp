@@ -33,6 +33,11 @@ struct ModState {
     bool hd_rendering = false;
     int internal_resolution = 2;
     int texture_upscale = 2;
+    // Frame interpolation. Off by default: it is experimental, presentation
+    // only, and it can ghost fast motion, so the untouched 60 Hz frame train
+    // stays the reference. The runner makes it inert on its own on <100 Hz
+    // displays and on the direct OpenGL compute presenter.
+    bool frame_interpolation = false;
     int window_scale = 3;
     int display_layout = 1;
     int fullscreen = 0;
@@ -583,6 +588,12 @@ void load_mod_state(ModState& state) {
             if (end && *end == 0 &&
                 (parsed == 1 || parsed == 2 || parsed == 4))
                 state.texture_upscale = static_cast<int>(parsed);
+        } else if (key == "frame_interpolation") {
+            // Validated both ways: a hand-edited mods.ini with anything
+            // other than true/false keeps the default rather than being
+            // read as an enable.
+            if (value == "true" || value == "false")
+                state.frame_interpolation = value == "true";
         } else if (key == "window_scale") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -722,6 +733,8 @@ bool save_mod_state(ModState& state) {
              << (state.hd_rendering ? "true" : "false") << '\n'
              << "internal_resolution=" << state.internal_resolution << '\n'
              << "texture_upscale=" << state.texture_upscale << '\n'
+             << "frame_interpolation="
+             << (state.frame_interpolation ? "true" : "false") << '\n'
              << "window_scale=" << state.window_scale << '\n'
              << "display_layout=" << state.display_layout << '\n'
              << "fullscreen=" << state.fullscreen << '\n'
@@ -783,12 +796,12 @@ bool save_mod_state(ModState& state) {
 // card (GameInfo.has_player_name + the NDS profile's "identity" panel),
 // directly under the controller card.
 int mod_feature_count(void*) {
-    return 4;
+    return 5;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 3) return 0;
+    if (!context || !output || index < 0 || index > 4) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
     if (index == 0) {
@@ -827,6 +840,24 @@ int mod_feature_get(void* context, int index,
                   state->hd_rendering ? "Enabled" : "Disabled");
         output->enabled = state->hd_rendering ? 1 : 0;
         output->option_count = 2;
+    } else if (index == 4) {
+        copy_text(output->id, "frame-interpolation");
+        copy_text(output->package_id, "mph-frame-interpolation");
+        copy_text(output->package_version, "0.1.0");
+        copy_text(output->package_name, "MPH Frame Interpolation");
+        copy_text(output->name, "Frame Interpolation (experimental)");
+        copy_text(output->author, "ndsrecomp");
+        copy_text(
+            output->description,
+            "Presentation-only smoothing for 120 Hz and faster displays. "
+            "Blends between finished DS frames on the way to the screen; "
+            "game logic, timing, and multiplayer are unaffected. May ghost "
+            "fast motion. No effect on 60 Hz displays or when the OpenGL "
+            "direct presenter is active.");
+        copy_text(output->group, "Display enhancements");
+        copy_text(output->status,
+                  state->frame_interpolation ? "Enabled" : "Disabled");
+        output->enabled = state->frame_interpolation ? 1 : 0;
     } else if (index == 3) {
         copy_text(output->id, "diagnostics");
         copy_text(output->package_id, "mph-diagnostics");
@@ -891,6 +922,11 @@ int mod_feature_enable(void* context, const char* package_id,
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
         state->hd_rendering = enabled != 0;
+        return 1;
+    }
+    if (std::strcmp(package_id, "mph-frame-interpolation") == 0 &&
+        std::strcmp(feature_id, "frame-interpolation") == 0) {
+        state->frame_interpolation = enabled != 0;
         return 1;
     }
     if (std::strcmp(package_id, "mph-diagnostics") == 0 &&
@@ -1669,6 +1705,11 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         std::to_wstring(mods.hd_rendering ? mods.internal_resolution : 1) +
         L" --texture-upscale " +
         std::to_wstring(mods.hd_rendering ? mods.texture_upscale : 1) +
+        // Explicit both ways: a player who never opens the Mods page gets
+        // the untouched 60 Hz frame train, not whatever a stale game.toml
+        // or environment variable happens to say.
+        L" --frame-interpolation " +
+        (mods.frame_interpolation ? L"blend" : L"off") +
         L" --supersampling " + std::to_wstring(supersampling) +
         L" --antialiasing " + std::to_wstring(antialiasing) +
         L" --relative-mouse-touch " +
@@ -1753,6 +1794,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--texture-upscale",
                std::to_string(mods.hd_rendering
                                   ? mods.texture_upscale : 1));
+    append_arg(args, "--frame-interpolation",
+               mods.frame_interpolation ? "blend" : "off");
     append_arg(args, "--supersampling", std::to_string(supersampling));
     append_arg(args, "--antialiasing", std::to_string(antialiasing));
     append_arg(args, "--relative-mouse-touch",

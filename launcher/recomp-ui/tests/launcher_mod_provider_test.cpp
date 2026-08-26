@@ -103,7 +103,7 @@ int main() {
     // card, not a mod. Index 1 stays prime controls so the assertions below
     // are unaffected by HD rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 4, "feature_count == 4")) return 4;
+    if (!require(feature_count == 5, "feature_count == 5")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 0, &feature),
@@ -434,9 +434,9 @@ int main() {
 
     // The online identity is NOT a mod feature: it lives on the dashboard
     // ONLINE card (GameInfo.has_player_name + the NDS "identity" panel).
-    // Four Mods-page features remain; index 4 must not resolve.
-    if (!require(!provider.feature_get(provider.ctx, 4, &feature),
-                 "exactly four mod features (identity is not a mod)")) {
+    // Five Mods-page features remain; index 5 must not resolve.
+    if (!require(!provider.feature_get(provider.ctx, 5, &feature),
+                 "exactly five mod features (identity is not a mod)")) {
         return 37;
     }
 
@@ -498,6 +498,7 @@ int main() {
         saved.internal_resolution = 4;
         saved.texture_upscale = 4;
         saved.prime_controls = false;
+        saved.frame_interpolation = true;
         saved.diagnostics = false;
         saved.renderer_type = "soft";
         saved.mouse_sensitivity = 200;
@@ -534,6 +535,8 @@ int main() {
                      "all-mod texture upscale round trip")) return 132;
         if (!require(!loaded.prime_controls,
                      "prime controls feature round trip")) return 133;
+        if (!require(loaded.frame_interpolation,
+                     "frame interpolation feature round trip")) return 133;
         if (!require(!loaded.diagnostics,
                      "diagnostics feature round trip")) return 133;
         if (!require(loaded.renderer_type == "soft",
@@ -622,6 +625,62 @@ int main() {
         if (!require(hd_loaded.texture_upscale == 4,
                      "hd texture upscale round trip")) return 72;
         std::filesystem::remove(hd_saved.settings_path);
+    }
+
+    // Frame interpolation: off by default, so a player who never opens the
+    // Mods page gets the untouched 60 Hz frame train.
+    {
+        RecompLauncherCModFeature fi{};
+        if (!require(provider.feature_get(provider.ctx, 4, &fi),
+                     "feature_get frame interpolation")) return 73;
+        if (!require(std::strcmp(fi.id, "frame-interpolation") == 0,
+                     "frame interpolation feature id")) return 74;
+        if (!require(
+                std::strcmp(fi.package_id, "mph-frame-interpolation") == 0,
+                "frame interpolation package id")) return 75;
+        if (!require(fi.enabled == 0,
+                     "frame interpolation disabled by default")) return 76;
+        if (!require(fi.option_count == 0,
+                     "frame interpolation is a bare toggle")) return 77;
+
+        if (!require(provider.feature_enable(
+                         provider.ctx, "mph-frame-interpolation",
+                         "frame-interpolation", 1) == 1,
+                     "enable frame interpolation")) return 78;
+        if (!require(provider.feature_get(provider.ctx, 4, &fi),
+                     "feature_get frame interpolation enabled")) return 79;
+        if (!require(fi.enabled == 1, "frame interpolation enabled"))
+            return 80;
+        if (!require(provider.feature_enable(
+                         provider.ctx, "mph-frame-interpolation",
+                         "frame-interpolation", 0) == 1,
+                     "disable frame interpolation")) return 81;
+
+        ModState fi_saved{};
+        fi_saved.settings_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_frame_interpolation_settings.ini";
+        fi_saved.frame_interpolation = true;
+        if (!require(save_mod_state(fi_saved), "frame interpolation save"))
+            return 82;
+        ModState fi_loaded{};
+        fi_loaded.settings_path = fi_saved.settings_path;
+        load_mod_state(fi_loaded);
+        if (!require(fi_loaded.frame_interpolation,
+                     "frame interpolation enable round trip")) return 83;
+
+        // A hand-edited mods.ini with a value that is neither true nor
+        // false must keep the safe default rather than read as an enable.
+        {
+            std::ofstream bad(fi_saved.settings_path, std::ios::trunc);
+            bad << "frame_interpolation=blend\n";
+        }
+        ModState fi_bad{};
+        fi_bad.settings_path = fi_saved.settings_path;
+        load_mod_state(fi_bad);
+        if (!require(!fi_bad.frame_interpolation,
+                     "frame interpolation rejects non-boolean")) return 84;
+        std::filesystem::remove(fi_saved.settings_path);
     }
 
     // Issue #14 follow-up: every setting MPH exposes through the shared

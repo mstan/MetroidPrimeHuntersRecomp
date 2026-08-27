@@ -852,8 +852,10 @@ int mod_feature_get(void* context, int index,
             "Presentation-only smoothing for 120 Hz and faster displays. "
             "Blends between finished DS frames on the way to the screen; "
             "game logic, timing, and multiplayer are unaffected. May ghost "
-            "fast motion. No effect on 60 Hz displays or when the OpenGL "
-            "direct presenter is active.");
+            "fast motion. NOT available in split-screen (separate window) "
+            "mode with the OpenGL renderer, and has no effect on 60 Hz "
+            "displays. Use stacked layout (or the Software renderer) to "
+            "enable it.");
         copy_text(output->group, "Display enhancements");
         copy_text(output->status,
                   state->frame_interpolation ? "Enabled" : "Disabled");

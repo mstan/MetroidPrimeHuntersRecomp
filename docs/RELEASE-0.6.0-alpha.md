@@ -68,11 +68,16 @@ untouched, and the deterministic frame hashes are unchanged from v0.5.2.
 For 120 Hz+ displays: an opt-in mod on the Mods page that presents one
 blended frame between finished DS frames, smoothing perceived motion.
 Presentation-only — game logic, timing, input sampling, audio, and
-multiplayer are completely unaffected. Off by default; it also stays inert
-on 60 Hz displays and when the OpenGL direct presenter is active (that path
-needs an offscreen-texture refactor first). Expect slight ghosting on fast
-motion — that's inherent to blending; real motion interpolation would need
-renderer-side motion data. Feedback welcome (issue #32).
+multiplayer are completely unaffected. Off by default.
+
+**Known limitation: does not work in split-screen (separate window) mode
+with the OpenGL renderer** — that presenter draws the top screen directly
+and needs an offscreen-texture refactor before frames can be blended
+(planned). It also stays inert on 60 Hz displays. To use it today, switch
+to the stacked screen layout, or select the Software renderer. Expect
+slight ghosting on fast motion — that's inherent to blending; real motion
+interpolation would need renderer-side motion data. Feedback welcome
+(issue #32).
 
 The refresh-rate gate now reads SDL3's floating-point refresh rate and
 rounds to whole Hz, so the >= 100 Hz activation threshold behaves exactly

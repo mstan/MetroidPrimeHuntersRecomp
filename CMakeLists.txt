@@ -93,40 +93,11 @@ set(MPH_ARM7_ALIAS_SOURCES)
 set(MPH_ARM7_ALIAS_STAMPS)
 
 set(MPH_ARM9_STAMP "${MPH_RECOMP_DIR}/mph_arm9.stamp")
-add_custom_command(
-    OUTPUT "${MPH_ARM9_STAMP}"
-    BYPRODUCTS ${MPH_ARM9_SOURCES} "${MPH_RECOMP_DIR}/mph_arm9.h"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
-    COMMAND $<TARGET_FILE:nds_recompile>
-            --config "${MPH_INPUT_DIR}/arm9.toml"
-            --bin "${MPH_INPUT_DIR}/arm9.bin"
-            --out "${MPH_RECOMP_DIR}"
-            --bank mph_arm9
-            --shards 16
-            --stable-address-shards
-            --max-function-bytes 512
-            --validate-live-bytes
-    COMMAND ${CMAKE_COMMAND} -E touch "${MPH_ARM9_STAMP}"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
-    COMMENT "Discovering and recompiling the AMHE0 ARM9 main closure")
-
 set(MPH_ARM7_STAMP "${MPH_RECOMP_DIR}/mph_arm7.stamp")
-add_custom_command(
-    OUTPUT "${MPH_ARM7_STAMP}"
-    BYPRODUCTS ${MPH_ARM7_SOURCES} "${MPH_RECOMP_DIR}/mph_arm7.h"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
-    COMMAND $<TARGET_FILE:nds_recompile>
-            --config "${MPH_INPUT_DIR}/arm7.toml"
-            --bin "${MPH_INPUT_DIR}/arm7.bin"
-            --out "${MPH_RECOMP_DIR}"
-            --bank mph_arm7
-            --shards 4
-            --stable-address-shards
-            --max-function-bytes 512
-            --validate-live-bytes
-    COMMAND ${CMAKE_COMMAND} -E touch "${MPH_ARM7_STAMP}"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
-    COMMENT "Discovering and recompiling the AMHE0 ARM7 initial closure")
+# The mph_arm9 / mph_arm7 generation commands live BELOW the runtime-bank
+# loop: their superblock (--coalesce-fallthroughs) pass needs the coverage
+# banks' dispatch tables as preceding rows, and those paths/stamps are
+# collected by that loop.
 
 # The ARM7 module is declared once at its ROM-header base (0x02380000) but the
 # guest relocates and executes it from 0x037F7E50 (ARM7 WRAM window) and
@@ -161,45 +132,14 @@ foreach(_alias_spec IN LISTS MPH_ARM7_ALIAS_BANKS)
     list(APPEND MPH_ARM7_ALIAS_SOURCES ${_alias_sources})
     list(APPEND MPH_ARM7_ALIAS_STAMPS "${MPH_RECOMP_DIR}/${_alias_bank}.stamp")
 endforeach()
+# Snapshot the main-closure-only list before alias sources are appended:
+# the relocated mph_arm7 generation command below claims ONLY these as
+# byproducts (the alias commands own their own files).
+set(MPH_ARM7_MAIN_SOURCES ${MPH_ARM7_SOURCES})
 list(APPEND MPH_ARM7_SOURCES ${MPH_ARM7_ALIAS_SOURCES})
 
-add_custom_command(
-    OUTPUT "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
-    BYPRODUCTS ${MPH_mph_arm7_wram_alias_SOURCES}
-               "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.h"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
-    COMMAND $<TARGET_FILE:nds_recompile>
-            --config "${MPH_INPUT_DIR}/arm7_wram_alias.toml"
-            --bin "${MPH_INPUT_DIR}/arm7.bin"
-            --out "${MPH_RECOMP_DIR}"
-            --bank mph_arm7_wram_alias
-            --shards 2
-            --stable-address-shards
-            --max-function-bytes 512
-            --validate-live-bytes
-    COMMAND ${CMAKE_COMMAND} -E touch
-            "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
-    COMMENT "Recompiling the AMHE0 ARM7 module at its WRAM alias base")
-
-add_custom_command(
-    OUTPUT "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
-    BYPRODUCTS ${MPH_mph_arm7_mainram_alias_SOURCES}
-               "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.h"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
-    COMMAND $<TARGET_FILE:nds_recompile>
-            --config "${MPH_INPUT_DIR}/arm7_mainram_alias.toml"
-            --bin "${MPH_INPUT_DIR}/arm7.bin"
-            --out "${MPH_RECOMP_DIR}"
-            --bank mph_arm7_mainram_alias
-            --shards 2
-            --stable-address-shards
-            --max-function-bytes 512
-            --validate-live-bytes
-    COMMAND ${CMAKE_COMMAND} -E touch
-            "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
-    COMMENT "Recompiling the AMHE0 ARM7 module at its main-RAM alias base")
+# The two ARM7 alias-bank generation commands also live below the
+# runtime-bank loop (same reason: superblock preceding-dispatch inputs).
 
 # A production release build is PERFORMANT and OPTIMIZED: every bank this
 # project declares MUST be compiled in. Releases v0.4.12/v0.4.13/v0.5.0
@@ -337,6 +277,12 @@ set(MPH_RUNTIME_BANK_SOURCES)
 set(MPH_RUNTIME_BANK_STAMPS)
 set(MPH_RUNTIME_ARM9_SOURCES)
 set(MPH_RUNTIME_ARM7_SOURCES)
+# Dispatch tables of the ingested coverage banks, per CPU. These are the
+# banks that sort BEFORE the main closures in the runner's alphabetical
+# *_dispatch.c registration glob, so they are the (only) preceding rows the
+# superblock pass below must respect for mph_arm9 / mph_arm7 / the aliases.
+set(MPH_COVERAGE_ARM9_DISPATCH)
+set(MPH_COVERAGE_ARM7_DISPATCH)
 foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
     string(REPLACE ":" ";" _bank_spec "${_bank_spec}")
     list(GET _bank_spec 0 _bank)
@@ -390,7 +336,128 @@ foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
     else()
         list(APPEND MPH_RUNTIME_ARM7_SOURCES ${_bank_sources})
     endif()
+    if(_bank MATCHES "^coverage_arm9")
+        list(APPEND MPH_COVERAGE_ARM9_DISPATCH
+            "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
+    elseif(_bank MATCHES "^coverage_arm7")
+        list(APPEND MPH_COVERAGE_ARM7_DISPATCH
+            "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
+    elseif(_bank MATCHES "^mph_arm7_mp_")
+        list(APPEND MPH_ARM7_MP_RUNTIME_DISPATCH
+            "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
+    endif()
 endforeach()
+
+# ---- Main closures + ARM7 alias banks, with superblock coalescing ----------
+# Field evidence (beads-0vo, v0.6.2 player diag): slow scenes are dispatch
+# bound -- ARM7 24.9k dispatches/frame (79 percent artificial fallthrough),
+# ARM9 23.7k. These four banks carry those flows and, unlike SM64DS's banks,
+# never received the retained D1 superblock pass (--coalesce-fallthroughs was
+# simply never passed here). Preceding-dispatch lists mirror the runner's
+# ALPHABETICAL *_dispatch.c registration order per CPU, so a coalesced
+# interior row can never shadow a bank registered ahead of it; windows that
+# cannot overlap are still listed -- a superfluous preceding row only
+# suppresses a merge, never correctness.
+function(mph_preceding_args out_var)
+    set(_args)
+    foreach(_p IN LISTS ARGN)
+        list(APPEND _args --preceding-dispatch "${_p}")
+    endforeach()
+    set(${out_var} "${_args}" PARENT_SCOPE)
+endfunction()
+
+mph_preceding_args(MPH_ARM9_PRECEDING ${MPH_COVERAGE_ARM9_DISPATCH})
+add_custom_command(
+    OUTPUT "${MPH_ARM9_STAMP}"
+    BYPRODUCTS ${MPH_ARM9_SOURCES} "${MPH_RECOMP_DIR}/mph_arm9.h"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
+    COMMAND $<TARGET_FILE:nds_recompile>
+            --config "${MPH_INPUT_DIR}/arm9.toml"
+            --bin "${MPH_INPUT_DIR}/arm9.bin"
+            --out "${MPH_RECOMP_DIR}"
+            --bank mph_arm9
+            --shards 16
+            --stable-address-shards
+            --max-function-bytes 512
+            --validate-live-bytes
+            --coalesce-fallthroughs
+            ${MPH_ARM9_PRECEDING}
+    COMMAND ${CMAKE_COMMAND} -E touch "${MPH_ARM9_STAMP}"
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+    COMMENT "Recompiling the AMHE0 ARM9 main closure (superblocks)")
+
+mph_preceding_args(MPH_ARM7_PRECEDING ${MPH_COVERAGE_ARM7_DISPATCH})
+add_custom_command(
+    OUTPUT "${MPH_ARM7_STAMP}"
+    BYPRODUCTS ${MPH_ARM7_MAIN_SOURCES} "${MPH_RECOMP_DIR}/mph_arm7.h"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
+    COMMAND $<TARGET_FILE:nds_recompile>
+            --config "${MPH_INPUT_DIR}/arm7.toml"
+            --bin "${MPH_INPUT_DIR}/arm7.bin"
+            --out "${MPH_RECOMP_DIR}"
+            --bank mph_arm7
+            --shards 4
+            --stable-address-shards
+            --max-function-bytes 512
+            --validate-live-bytes
+            --coalesce-fallthroughs
+            ${MPH_ARM7_PRECEDING}
+    COMMAND ${CMAKE_COMMAND} -E touch "${MPH_ARM7_STAMP}"
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+    COMMENT "Recompiling the AMHE0 ARM7 initial closure (superblocks)")
+
+mph_preceding_args(MPH_ARM7_MAINRAM_ALIAS_PRECEDING
+    ${MPH_COVERAGE_ARM7_DISPATCH}
+    "${MPH_RECOMP_DIR}/mph_arm7_dispatch.c")
+add_custom_command(
+    OUTPUT "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
+    BYPRODUCTS ${MPH_mph_arm7_mainram_alias_SOURCES}
+               "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.h"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
+    COMMAND $<TARGET_FILE:nds_recompile>
+            --config "${MPH_INPUT_DIR}/arm7_mainram_alias.toml"
+            --bin "${MPH_INPUT_DIR}/arm7.bin"
+            --out "${MPH_RECOMP_DIR}"
+            --bank mph_arm7_mainram_alias
+            --shards 2
+            --stable-address-shards
+            --max-function-bytes 512
+            --validate-live-bytes
+            --coalesce-fallthroughs
+            ${MPH_ARM7_MAINRAM_ALIAS_PRECEDING}
+    COMMAND ${CMAKE_COMMAND} -E touch
+            "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+            "${MPH_ARM7_STAMP}"
+    COMMENT "Recompiling the AMHE0 ARM7 main-RAM alias (superblocks)")
+
+mph_preceding_args(MPH_ARM7_WRAM_ALIAS_PRECEDING
+    ${MPH_COVERAGE_ARM7_DISPATCH}
+    "${MPH_RECOMP_DIR}/mph_arm7_dispatch.c"
+    "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias_dispatch.c"
+    ${MPH_ARM7_MP_RUNTIME_DISPATCH})
+add_custom_command(
+    OUTPUT "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
+    BYPRODUCTS ${MPH_mph_arm7_wram_alias_SOURCES}
+               "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.h"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${MPH_RECOMP_DIR}"
+    COMMAND $<TARGET_FILE:nds_recompile>
+            --config "${MPH_INPUT_DIR}/arm7_wram_alias.toml"
+            --bin "${MPH_INPUT_DIR}/arm7.bin"
+            --out "${MPH_RECOMP_DIR}"
+            --bank mph_arm7_wram_alias
+            --shards 2
+            --stable-address-shards
+            --max-function-bytes 512
+            --validate-live-bytes
+            --coalesce-fallthroughs
+            ${MPH_ARM7_WRAM_ALIAS_PRECEDING}
+    COMMAND ${CMAKE_COMMAND} -E touch
+            "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+            "${MPH_ARM7_STAMP}"
+            "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
+    COMMENT "Recompiling the AMHE0 ARM7 WRAM alias (superblocks)")
 
 add_custom_target(mph_generate_banks
     DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}"

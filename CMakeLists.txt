@@ -406,9 +406,19 @@ add_custom_command(
     DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
     COMMENT "Recompiling the AMHE0 ARM7 initial closure (superblocks)")
 
+# The WRAM alias registers FIRST among ARM7 banks (registration-order.txt
+# below): with no preceding rows its whole-module adjacency coalesces
+# freely instead of being suppressed by the 25 single-page coverage_arm7
+# generation banks inside its window. Content validation still gates every
+# row, so priority changes only which candidate is consulted first.
+file(WRITE "${MPH_RECOMP_DIR}/registration-order.txt"
+    "# beads-0vo: whole-module ARM7 alias precedes page-generation banks\n"
+    "mph_arm7_wram_alias\n")
+
 mph_preceding_args(MPH_ARM7_MAINRAM_ALIAS_PRECEDING
     ${MPH_COVERAGE_ARM7_DISPATCH}
-    "${MPH_RECOMP_DIR}/mph_arm7_dispatch.c")
+    "${MPH_RECOMP_DIR}/mph_arm7_dispatch.c"
+    "${MPH_RECOMP_DIR}/mph_arm7_wram_alias_dispatch.c")
 add_custom_command(
     OUTPUT "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
     BYPRODUCTS ${MPH_mph_arm7_mainram_alias_SOURCES}
@@ -429,13 +439,11 @@ add_custom_command(
             "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
     DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
             "${MPH_ARM7_STAMP}"
+            "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
     COMMENT "Recompiling the AMHE0 ARM7 main-RAM alias (superblocks)")
 
-mph_preceding_args(MPH_ARM7_WRAM_ALIAS_PRECEDING
-    ${MPH_COVERAGE_ARM7_DISPATCH}
-    "${MPH_RECOMP_DIR}/mph_arm7_dispatch.c"
-    "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias_dispatch.c"
-    ${MPH_ARM7_MP_RUNTIME_DISPATCH})
+# First-registered ARM7 bank (registration-order.txt): no preceding rows.
+set(MPH_ARM7_WRAM_ALIAS_PRECEDING)
 add_custom_command(
     OUTPUT "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
     BYPRODUCTS ${MPH_mph_arm7_wram_alias_SOURCES}
@@ -454,10 +462,8 @@ add_custom_command(
             ${MPH_ARM7_WRAM_ALIAS_PRECEDING}
     COMMAND ${CMAKE_COMMAND} -E touch
             "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
-            "${MPH_ARM7_STAMP}"
-            "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
-    COMMENT "Recompiling the AMHE0 ARM7 WRAM alias (superblocks)")
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS}
+    COMMENT "Recompiling the AMHE0 ARM7 WRAM alias (superblocks, first-registered)")
 
 add_custom_target(mph_generate_banks
     DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}"

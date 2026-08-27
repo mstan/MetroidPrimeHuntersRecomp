@@ -131,7 +131,11 @@ $runtimeDlls = @(
   "$SdlBackend.dll",
   'libgcc_s_seh-1.dll',
   'libstdc++-6.dll',
-  'libwinpthread-1.dll'
+  'libwinpthread-1.dll',
+  # MSYS2's SDL3 links libiconv; omitting it shipped v0.6.0/v0.6.1 builds
+  # that died on player machines with "libiconv-2.dll was not found"
+  # (invisible on dev machines, where mingw64\bin on PATH satisfies it).
+  'libiconv-2.dll'
 )
 foreach ($name in $runtimeDlls) {
   $source = Join-Path $RuntimeBinDir $name
@@ -139,6 +143,52 @@ foreach ($name in $runtimeDlls) {
     throw "Required runtime DLL missing: $source"
   }
   Copy-Item -LiteralPath $source -Destination $stage
+}
+
+# ---- DLL import-closure gate -----------------------------------------------
+# Every staged PE binary's non-system imports must resolve inside the stage.
+# This is the check a dev machine's PATH silently defeats: a player has no
+# mingw64\bin, so an unstaged toolchain DLL is a guaranteed startup crash.
+$systemDlls = @(
+  'kernel32.dll','user32.dll','msvcrt.dll','ole32.dll','oleaut32.dll',
+  'shell32.dll','advapi32.dll','gdi32.dll','imm32.dll','setupapi.dll',
+  'version.dll','winmm.dll','ws2_32.dll','iphlpapi.dll','opengl32.dll',
+  'comdlg32.dll','bcrypt.dll','crypt32.dll','shlwapi.dll','dbghelp.dll',
+  'ncrypt.dll','secur32.dll','winhttp.dll','wldap32.dll','normaliz.dll',
+  'rpcrt4.dll','psapi.dll','userenv.dll','netapi32.dll','wsock32.dll',
+  'propsys.dll'
+)
+$objdump = Join-Path $RuntimeBinDir 'objdump.exe'
+if (Test-Path -LiteralPath $objdump) {
+  $unresolved = @()
+  $binaries = Get-ChildItem -LiteralPath $stage -Recurse -File |
+    Where-Object { $_.Extension -in '.exe', '.dll', '.pyd' }
+  foreach ($bin in $binaries) {
+    $imports = & $objdump -p $bin.FullName 2>$null |
+      Select-String 'DLL Name: (.+)$' |
+      ForEach-Object { $_.Matches[0].Groups[1].Value.Trim() } | Sort-Object -Unique
+    foreach ($dep in $imports) {
+      $dl = $dep.ToLowerInvariant()
+      if ($systemDlls -contains $dl) { continue }
+      if ($dl.StartsWith('api-ms-win-')) { continue }
+      if ($dl.StartsWith('python3')) { continue }
+      if ((Test-Path -LiteralPath (Join-Path $bin.DirectoryName $dep)) -or
+          (Test-Path -LiteralPath (Join-Path $stage $dep))) { continue }
+      $unresolved += ('{0} needs {1}' -f
+        $bin.FullName.Substring($stage.Length + 1), $dep)
+    }
+  }
+  if ($unresolved.Count -gt 0) {
+    throw ("DLL import closure is broken - these imports resolve on a dev " +
+      "machine's PATH but NOT on a player machine:`n  " +
+      ($unresolved -join "`n  ") +
+      "`nStage the missing DLL(s) (add to `$runtimeDlls) or extend " +
+      "`$systemDlls if a genuine Windows system DLL is missing from the list.")
+  }
+  Write-Host (("DLL import closure OK: {0} binaries scanned, every " +
+    "non-system import resolves inside the stage") -f $binaries.Count)
+} else {
+  Write-Warning "objdump.exe not found; DLL import-closure gate SKIPPED"
 }
 
 # ---- Self-contained live-overlay toolchain (tcc tier) ---------------------

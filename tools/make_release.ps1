@@ -149,6 +149,9 @@ foreach ($name in $runtimeDlls) {
 # Every staged PE binary's non-system imports must resolve inside the stage.
 # This is the check a dev machine's PATH silently defeats: a player has no
 # mingw64\bin, so an unstaged toolchain DLL is a guaranteed startup crash.
+# Defined here, INVOKED after all staging (toolchain + shards included) so the
+# scan covers every binary that ends up in the ZIP, not just the core files.
+function Test-DllImportClosure {
 $systemDlls = @(
   'kernel32.dll','user32.dll','msvcrt.dll','ole32.dll','oleaut32.dll',
   'shell32.dll','advapi32.dll','gdi32.dll','imm32.dll','setupapi.dll',
@@ -189,6 +192,7 @@ if (Test-Path -LiteralPath $objdump) {
     "non-system import resolves inside the stage") -f $binaries.Count)
 } else {
   Write-Warning "objdump.exe not found; DLL import-closure gate SKIPPED"
+}
 }
 
 # ---- Self-contained live-overlay toolchain (tcc tier) ---------------------
@@ -439,6 +443,9 @@ $forbidden = @(Get-ChildItem -LiteralPath $stage -File -Recurse |
 if ($forbidden.Count -ne 0) {
   throw "Release stage contains forbidden private/derived material: $($forbidden.FullName -join ', ')"
 }
+
+# Full stage is assembled; scan EVERYTHING before archiving.
+Test-DllImportClosure
 
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem

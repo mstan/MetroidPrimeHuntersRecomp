@@ -103,3 +103,26 @@ Artifacts: `perf-results/baseline-{adventure,attract}-{banked,050}/`
   progress — recompile arm7.bin at the two observed runtime bases
   (0x037F7E50 WRAM, 0x027CFBC4 main RAM; 1,988 + 702 ingested entry
   targets from 11 player manifests).
+- 2026-08-27 **runner PGO** (beads-yjp.47): MEASURED WIN, opt-in. GCC
+  profile-guided optimization of the runner core only, trained on the
+  scripted `attract` and `adventure` routes. Interleaved A/B, five legs per
+  side, min-of-legs, emulation ms/frame: adventure -5.95 / -6.79 / -6.80 %
+  (settle / walk / steady), attract -2.8 to -10.2 % across its six windows,
+  mean -6.51 % and -6.00 % respectively. The FMV-heavy attract windows gain
+  most and also dominate the training profile. Binary size fell slightly
+  (211,206,805 -> 211,127,468 bytes). Gates: ctest 18/18 both builds; guest
+  state byte-identical at all seven vblank checkpoints (both register files,
+  mode registers, every event counter, zero differing pixels); packaging
+  staged the PGO runner and built a 0.6.3 ZIP; with the knob off the build
+  graph is byte-identical to the pristine framework commit.
+
+  Enable with `tools\build-windows.ps1 -Pgo`; off by default. Full sequence,
+  the mingw-gcc constraints (`-fprofile-dir` is unusable, `-fprofile-use`
+  without data exits 0, profiles only flush via `frontend_exit`), and the
+  runner-core-only scoping rationale are in the framework's
+  `docs/pgo_release_pipeline.md`.
+
+  Measurement warning: two earlier A/B attempts on a host that was
+  concurrently building returned +16.8 % and -2.8 % on these same two
+  binaries. Verify no foreign compiler/runner processes before and after
+  every leg, and treat a large median-to-minimum spread as contamination.

@@ -21,7 +21,15 @@ param(
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
-  [string]$SdlBackend = 'SDL3'
+  [string]$SdlBackend = 'SDL3',
+  # Opt-in profile-guided optimization of the runner. Off by default; with it
+  # off this script behaves exactly as before, down to the CMake arguments.
+  # With it on the runner is built three times in one build directory:
+  # instrumented, then trained on the scripted routes, then rebuilt with the
+  # profile. Only runner-owned host code carries PGO flags, so the generated
+  # bank objects compile once and are reused by every pass.
+  [switch]$Pgo,
+  [string]$PgoTrainRoutes = 'attract,adventure'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,15 +59,60 @@ try {
   & $cmakePath --build $gameBuild --target metroidprimehuntersrecomp -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Game bank build failed.' }
 
-  & $cmakePath -G $Generator -S "$frameworkRoot\runner" -B $runnerBuild `
-    -DCMAKE_BUILD_TYPE=Release `
-    "-DNDS_SDL_BACKEND=$SdlBackend" `
-    -DNDS_BOOTSTRAP_FIRMWARE=ON `
-    "-DNDS_TITLE_BANK_DIR=$titleBankDir" `
-    "-DNDS_TITLE_ROM_SHA1=$romSha1"
-  if ($LASTEXITCODE -ne 0) { throw 'Runner CMake configure failed.' }
-  & $cmakePath --build $runnerBuild -j $Jobs
-  if ($LASTEXITCODE -ne 0) { throw 'Runner build failed.' }
+  # Shared across every runner configure below so the PGO passes differ from
+  # the plain build in exactly one argument.
+  $runnerArgs = @(
+    '-G', $Generator, '-S', "$frameworkRoot\runner", '-B', $runnerBuild,
+    '-DCMAKE_BUILD_TYPE=Release',
+    "-DNDS_SDL_BACKEND=$SdlBackend",
+    '-DNDS_BOOTSTRAP_FIRMWARE=ON',
+    "-DNDS_TITLE_BANK_DIR=$titleBankDir",
+    "-DNDS_TITLE_ROM_SHA1=$romSha1")
+
+  if (-not $Pgo) {
+    & $cmakePath @runnerArgs
+    if ($LASTEXITCODE -ne 0) { throw 'Runner CMake configure failed.' }
+    & $cmakePath --build $runnerBuild -j $Jobs
+    if ($LASTEXITCODE -ne 0) { throw 'Runner build failed.' }
+  } else {
+    # A compiler cache must not sit between the profile data and the objects,
+    # so PGO builds compile directly. The framework refuses to configure a PGO
+    # build with a cache enabled.
+    $pgoArgs = $runnerArgs + @('-DNDSRECOMP_COMPILER_CACHE=OFF')
+
+    # Pass 1: instrument. GCC writes .gcda beside the object files, so all
+    # three passes must share this one build directory - there is no working
+    # -fprofile-dir on mingw-gcc (it mangles the object path into a nested
+    # directory it cannot create and silently writes no profile at all).
+    Write-Host '=== PGO pass 1/3: instrumented runner ==='
+    & $cmakePath @pgoArgs -DNDS_PGO_MODE=GENERATE
+    if ($LASTEXITCODE -ne 0) { throw 'Instrumented runner CMake configure failed.' }
+    & $cmakePath --build $runnerBuild -j $Jobs
+    if ($LASTEXITCODE -ne 0) { throw 'Instrumented runner build failed.' }
+
+    # Pass 2: train on the scripted routes. No human input; the harness exits
+    # each repetition through frontend_exit, which is what flushes the
+    # counters on Windows.
+    Write-Host '=== PGO pass 2/3: scripted training ==='
+    $routes = @($PgoTrainRoutes.Split(',') | ForEach-Object { $_.Trim() } |
+      Where-Object { $_ })
+    if ($routes.Count -eq 0) { throw 'PgoTrainRoutes is empty.' }
+    # Invoked in-process rather than through powershell.exe -File: an array
+    # parameter does not bind reliably across -File, and pgo_train.ps1 throws
+    # on failure, which propagates here directly.
+    & "$root\tools\pgo_train.ps1" `
+      -RunnerBuildDir $runnerBuild `
+      -NdsrecompRoot $frameworkRoot `
+      -Routes $routes
+
+    # Pass 3: rebuild with the profile. Only runner-owned translation units
+    # recompile here; every generated bank object from pass 1 is reused.
+    Write-Host '=== PGO pass 3/3: profile-optimized runner ==='
+    & $cmakePath @pgoArgs -DNDS_PGO_MODE=USE
+    if ($LASTEXITCODE -ne 0) { throw 'Profile-use runner CMake configure failed.' }
+    & $cmakePath --build $runnerBuild -j $Jobs
+    if ($LASTEXITCODE -ne 0) { throw 'Profile-use runner build failed.' }
+  }
 
   & $cmakePath -G $Generator -S "$root\launcher\recomp-ui" -B $launcherBuild `
     -DCMAKE_BUILD_TYPE=Release `

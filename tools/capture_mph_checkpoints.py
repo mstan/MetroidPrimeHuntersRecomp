@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import socket
 import subprocess
@@ -11,6 +12,24 @@ import time
 from pathlib import Path
 
 from PIL import Image
+
+
+def _register_state(regs: dict) -> dict:
+    """Normalize one CPU's register snapshot for exact comparison.
+
+    Everything the debug server reports is kept, with the register array
+    rendered as fixed-width hex so a textual diff of two captures points at
+    the register that actually differs.
+    """
+    state: dict[str, object] = {}
+    for key, value in regs.items():
+        if key == "r" and isinstance(value, list):
+            state["r"] = [f"0x{int(item):08x}" for item in value]
+        elif isinstance(value, int):
+            state[key] = f"0x{int(value):08x}"
+        else:
+            state[key] = value
+    return state
 
 
 def firmware_crc16(data: bytes, start: int = 0xFFFF) -> int:
@@ -159,6 +178,23 @@ def capture(
         "powercontrol9": f"0x{int(powercontrol9['value']):04x}",
         "dispcnt_a": f"0x{int(dispcnt_a['value']):08x}",
         "dispcnt_b": f"0x{int(dispcnt_b['value']):08x}",
+    }
+    # Full guest state, not just the two program counters. A build-vs-build
+    # comparison has to be able to say "byte-identical" about the whole
+    # machine: both register files, the mode registers, every event counter,
+    # and a hash of each screen. Storing only the PCs makes any comparison
+    # weaker than the byte-exact claim the release notes make.
+    result["state"] = {
+        "arm9": _register_state(arm9),
+        "arm7": _register_state(arm7),
+        "event_counts": client.command("event_counts"),
+        # Hash the screens already fetched for the PNG rather than refetching:
+        # one fetch per engine per checkpoint, and no chance of the two
+        # differing.
+        "framebuffer_sha256": {
+            engine: hashlib.sha256(screen.tobytes()).hexdigest()
+            for engine, screen in zip(("A", "B"), screens)
+        },
     }
     if include_native_stats:
         result["dispatch"] = client.command("dispatch_stats")

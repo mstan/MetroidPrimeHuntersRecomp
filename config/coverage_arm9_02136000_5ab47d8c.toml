@@ -12,74 +12,254 @@ cpu          = "arm9"
 isa          = "armv5te"
 load_address = 0x02136000
 size         = 0x00001000
-entry_pc     = 0x0213601C
+entry_pc     = 0x02136014
 
 [identity]
 sha1 = "5ab47d8cf51ab383736725670c9e072001cc13f9"
 rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 
 [[entry_point]]
-addr = 0x0213601C
+addr = 0x02136014
 mode = "arm"
 kind = "runtime_observed"
-# hits = 37, seen as indirect
+# hits = 162, seen as call
 
 [[entry_point]]
-addr = 0x02136028
+addr = 0x02136074
 mode = "arm"
 kind = "runtime_observed"
-# hits = 63, seen as indirect
+# hits = 8, seen as call
 
 [[entry_point]]
-addr = 0x0213602C
+addr = 0x021360E4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 45, seen as indirect
+# hits = 324, seen as call
 
 [[entry_point]]
-addr = 0x02136038
+addr = 0x0213613C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 60, seen as indirect
+# hits = 1576, seen as call
+
+[[entry_point]]
+addr = 0x021361AC
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1900, seen as call
+
+[[entry_point]]
+addr = 0x021361C8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 34, seen as call
+
+[[entry_point]]
+addr = 0x021361F4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 119587, seen as call
+
+[[entry_point]]
+addr = 0x02136254
+mode = "arm"
+kind = "runtime_observed"
+# hits = 138, seen as call
+
+[[entry_point]]
+addr = 0x021362D8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 18, seen as call
+
+[[entry_point]]
+addr = 0x021363D4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 131, seen as call
+
+[[entry_point]]
+addr = 0x02136428
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, seen as call
+
+[[entry_point]]
+addr = 0x0213645C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, seen as indirect
+
+[[entry_point]]
+addr = 0x021364A0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, seen as call
 
 [[entry_point]]
 addr = 0x021364D4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 30, seen as call
+# hits = 3, seen as indirect
 
 [[entry_point]]
-addr = 0x021365A8
+addr = 0x0213653C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 24998, seen as call
+# hits = 3, seen as call
 
 [[entry_point]]
-addr = 0x02136800
+addr = 0x0213655C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 7, seen as indirect
+# hits = 3, seen as call
 
 [[entry_point]]
-addr = 0x02136950
+addr = 0x0213658C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 20788, seen as call
+# hits = 3, seen as indirect
 
 [[entry_point]]
-addr = 0x02136A9C
+addr = 0x0213660C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 7, seen as indirect
+# hits = 2659, seen as call
 
 [[entry_point]]
-addr = 0x02136AE8
+addr = 0x02136638
 mode = "arm"
 kind = "runtime_observed"
-# hits = 3519, seen as call
+# hits = 6, seen as call
 
 [[entry_point]]
-addr = 0x02136BD8
+addr = 0x02136668
 mode = "arm"
 kind = "runtime_observed"
-# hits = 27, seen as call
+# hits = 9900, seen as call
+
+[[entry_point]]
+addr = 0x0213693C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 11054, seen as call
+
+[[entry_point]]
+addr = 0x0213696C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, seen as call
+
+[[entry_point]]
+addr = 0x02136A34
+mode = "arm"
+kind = "runtime_observed"
+# hits = 154, seen as call
+
+[[entry_point]]
+addr = 0x02136A80
+mode = "arm"
+kind = "runtime_observed"
+# hits = 19, seen as indirect
+
+[[entry_point]]
+addr = 0x02136AC0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 154, seen as call
+
+[[entry_point]]
+addr = 0x02136B10
+mode = "arm"
+kind = "runtime_observed"
+# hits = 29417, seen as call
+
+[[entry_point]]
+addr = 0x02136B20
+mode = "arm"
+kind = "runtime_observed"
+# hits = 8288, seen as indirect
+
+[[entry_point]]
+addr = 0x02136B24
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2319, seen as indirect
+
+[[entry_point]]
+addr = 0x02136B44
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2661, seen as indirect
+
+[[entry_point]]
+addr = 0x02136B54
+mode = "arm"
+kind = "runtime_observed"
+# hits = 9913, seen as indirect
+
+[[entry_point]]
+addr = 0x02136B58
+mode = "arm"
+kind = "runtime_observed"
+# hits = 630, seen as indirect
+
+[[entry_point]]
+addr = 0x02136B5C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3324, seen as indirect
+
+[[entry_point]]
+addr = 0x02136B70
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2590, seen as call/indirect
+
+[[entry_point]]
+addr = 0x02136C1C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5, seen as call
+
+[[entry_point]]
+addr = 0x02136C3C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 48243, seen as call
+
+[[entry_point]]
+addr = 0x02136C7C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 131, seen as call
+
+[[entry_point]]
+addr = 0x02136CA0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 7644, seen as call
+
+[[entry_point]]
+addr = 0x02136CE0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 465, seen as call
+
+[[entry_point]]
+addr = 0x02136EB0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 2, seen as call
+
+[[entry_point]]
+addr = 0x02136EE4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 15631, seen as call
+
+[[entry_point]]
+addr = 0x02136FE8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 5, seen as call

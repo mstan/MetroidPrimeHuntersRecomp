@@ -22,40 +22,40 @@ rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 addr = 0x02102220
 mode = "arm"
 kind = "runtime_observed"
-# hits = 7, seen as call
+# hits = 60, seen as call
 
 [[entry_point]]
 addr = 0x021022E4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 10, seen as call
+# hits = 62, seen as call
 
 [[entry_point]]
 addr = 0x021027EC
 mode = "arm"
 kind = "runtime_observed"
-# hits = 19, seen as call
+# hits = 17, seen as call
 
 [[entry_point]]
 addr = 0x021028D4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 1006, seen as call
+# hits = 722, seen as call
 
 [[entry_point]]
 addr = 0x0210292C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 1891, seen as call
+# hits = 36, seen as call
 
 [[entry_point]]
 addr = 0x02102A18
 mode = "arm"
 kind = "runtime_observed"
-# hits = 137, seen as call
+# hits = 212, seen as call
 
 [[entry_point]]
 addr = 0x02102AE8
 mode = "arm"
 kind = "runtime_observed"
-# hits = 1891, seen as call
+# hits = 433, seen as call

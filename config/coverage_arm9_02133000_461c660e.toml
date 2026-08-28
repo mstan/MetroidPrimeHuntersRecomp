@@ -28,28 +28,28 @@ kind = "runtime_observed"
 addr = 0x0213326C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 6, seen as call
+# hits = 12, seen as call
 
 [[entry_point]]
 addr = 0x02133A60
 mode = "arm"
 kind = "runtime_observed"
-# hits = 6, seen as call
+# hits = 12, seen as call
 
 [[entry_point]]
 addr = 0x02133D2C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 460, seen as call
+# hits = 882, seen as call
 
 [[entry_point]]
 addr = 0x02133D48
 mode = "arm"
 kind = "runtime_observed"
-# hits = 77, seen as indirect
+# hits = 440, seen as indirect
 
 [[entry_point]]
 addr = 0x02133D58
 mode = "arm"
 kind = "runtime_observed"
-# hits = 34, seen as indirect
+# hits = 106, seen as indirect

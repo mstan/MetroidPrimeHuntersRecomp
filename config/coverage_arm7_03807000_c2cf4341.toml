@@ -22,4 +22,4 @@ rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 addr = 0x03807774
 mode = "arm"
 kind = "runtime_observed"
-# hits = 133, seen as call
+# hits = 115, seen as call

@@ -22,88 +22,82 @@ rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 addr = 0x021050C8
 mode = "arm"
 kind = "runtime_observed"
-# hits = 2058, seen as call
+# hits = 5914, seen as call
 
 [[entry_point]]
 addr = 0x02105198
 mode = "arm"
 kind = "runtime_observed"
-# hits = 20, seen as call
+# hits = 228, seen as call
 
 [[entry_point]]
 addr = 0x021052C4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 1, seen as call
-
-[[entry_point]]
-addr = 0x02105308
-mode = "arm"
-kind = "runtime_observed"
-# hits = 1, seen as call
+# hits = 2, seen as call
 
 [[entry_point]]
 addr = 0x021056C4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 820, seen as call
+# hits = 82, seen as call
 
 [[entry_point]]
 addr = 0x021056E0
 mode = "arm"
 kind = "runtime_observed"
-# hits = 820, seen as indirect
+# hits = 82, seen as indirect
 
 [[entry_point]]
 addr = 0x02105790
 mode = "arm"
 kind = "runtime_observed"
-# hits = 804, seen as call
+# hits = 78, seen as call
 
 [[entry_point]]
 addr = 0x02105970
 mode = "arm"
 kind = "runtime_observed"
-# hits = 1299, seen as call
+# hits = 246, seen as call
 
 [[entry_point]]
 addr = 0x02105A64
 mode = "arm"
 kind = "runtime_observed"
-# hits = 740, seen as call
+# hits = 62, seen as call
 
 [[entry_point]]
 addr = 0x02105A9C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 267, seen as indirect
+# hits = 2, seen as indirect
 
 [[entry_point]]
 addr = 0x02105CD4
 mode = "arm"
 kind = "runtime_observed"
-# hits = 473, seen as call
+# hits = 60, seen as call
 
 [[entry_point]]
 addr = 0x02105CF0
 mode = "arm"
 kind = "runtime_observed"
-# hits = 16, seen as call
+# hits = 2, seen as call
 
 [[entry_point]]
 addr = 0x02105D68
 mode = "arm"
 kind = "runtime_observed"
-# hits = 740, seen as call
+# hits = 62, seen as call
 
 [[entry_point]]
 addr = 0x02105F2C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 740, seen as call
+# hits = 62, seen as call
 
 [[entry_point]]
 addr = 0x02105FB8
 mode = "arm"
 kind = "runtime_observed"
-# hits = 736, seen as call
+# hits = 61, seen as call

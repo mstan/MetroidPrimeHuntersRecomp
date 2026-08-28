@@ -50,10 +50,14 @@ Measured on a real session: **+53% shard throughput**, and the queue now
 actually converges to empty where it previously did not. Frame-time cost
 during compile intervals is within session noise.
 
-**First launch after upgrading will recompile the cached shards.** The bank
-ABI changed in this release, so the shards cached by v0.6.3 no longer match
-and are correctly discarded. This is a one-time cost at first launch; the new
-persistent queue then carries the work across sessions.
+**If you copy your old install's `live-shard-cache` across, its shards will be
+recompiled once.** The live bank ABI went from 5 to 6 in this release (direct
+linking adds per-call-site link slots), so shards compiled by v0.6.3 no longer
+match and are refused - safely, before anything in them is ever run. They are
+left on disk rather than deleted, so you can simply delete the old
+`live-shard-cache` folder if you want the space back. A normal install into a
+fresh folder is unaffected: there is nothing to refuse, and the prebuilt cache
+that ships with this release is already built against the new ABI.
 
 ## Broader shipped coverage from your diagnostics
 

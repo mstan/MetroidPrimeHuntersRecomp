@@ -45,6 +45,65 @@ def compare(native_path: Path, oracle_path: Path) -> dict[str, object]:
     }
 
 
+def _load_state(directory: Path) -> dict[str, object] | None:
+    """Per-checkpoint guest state from a capture's report.json, if present."""
+    report_path = directory / "report.json"
+    if not report_path.is_file():
+        return None
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    # capture_mph_checkpoints.py writes a bare list of checkpoint records.
+    # Accept a wrapped form too so this keeps working if that report grows a
+    # header.
+    if isinstance(report, list):
+        checkpoints = report
+    elif isinstance(report, dict):
+        checkpoints = report.get("checkpoints")
+    else:
+        return None
+    if not isinstance(checkpoints, list):
+        return None
+    out: dict[str, object] = {}
+    for entry in checkpoints:
+        if isinstance(entry, dict) and "state" in entry:
+            out[str(entry.get("vblank9"))] = entry["state"]
+    return out or None
+
+
+def compare_state(native_dir: Path, oracle_dir: Path) -> dict[str, object] | None:
+    native = _load_state(native_dir)
+    oracle = _load_state(oracle_dir)
+    if native is None or oracle is None:
+        return {
+            "available": False,
+            "reason": "one or both captures carry no per-checkpoint state; "
+                      "recapture with a capture_mph_checkpoints.py that "
+                      "records it",
+        }
+    shared = sorted(native.keys() & oracle.keys(), key=lambda key: int(key))
+    if not shared:
+        return {"available": False, "reason": "no shared checkpoints"}
+    differing = [key for key in shared if native[key] != oracle[key]]
+    result: dict[str, object] = {
+        "available": True,
+        "checkpoints_compared": len(shared),
+        "identical": not differing,
+        "differing_checkpoints": differing,
+    }
+    if differing:
+        # Only the earliest divergence has a root cause; later ones are
+        # downstream of it.
+        first = differing[0]
+        result["first_divergence"] = {
+            "vblank9": first,
+            "native": native[first],
+            "oracle": oracle[first],
+        }
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--native", type=Path, required=True)
@@ -67,10 +126,20 @@ def main() -> int:
     if not names:
         raise SystemExit(f"no matching {args.pattern} checkpoints")
 
-    report = {
+    report: dict[str, object] = {
         name: compare(native_files[name], oracle_files[name])
         for name in names
     }
+
+    # Screens agreeing is necessary but not sufficient: two builds can paint
+    # the same frame from divergent machine state. When both captures carry
+    # the full state block written by capture_mph_checkpoints.py, compare it
+    # exactly - both register files, the mode registers and every event
+    # counter - and report the first checkpoint that differs.
+    state = compare_state(args.native, args.oracle)
+    if state is not None:
+        report["guest_state"] = state
+
     encoded = json.dumps(report, indent=2) + "\n"
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -290,11 +290,17 @@ if (-not $SkipOverlayToolchain) {
 # the player's first frame.
 #
 # Only shards whose provider identity matches THESE artifacts are staged. The
-# identity folds the recompiler binary, the runtime ABI headers, the backend
-# and its flags, and it is computed by importing ndsrecomp's own
-# compile_live_shards.py rather than being re-derived here -- the packager
-# drifting from the compiler is precisely how psxrecomp shipped v0.11.2 with a
-# silently empty cache.
+# identity folds the recompiler's REPORTED CODEGEN VERSION (not its bytes --
+# see beads-yjp.52), the shard compiler's emission surface, the runtime ABI
+# headers, and the backend and its flags. It is computed by importing
+# ndsrecomp's own compile_live_shards.py rather than being re-derived here --
+# the packager drifting from the compiler is precisely how psxrecomp shipped
+# v0.11.2 with a silently empty cache.
+#
+# Because none of those move on a rebuild any more, a cache built for one
+# release can be carried forward into the next as long as the ABI, the headers
+# and the codegen versions are unchanged. v0.6.5 had to ship without one
+# because the old identity hashed the whole compile script (beads-yjp.56).
 #
 # The staged location is not a free choice: for a shipped install the launcher
 # passes --live-overlay-cache <game dir>\live-shard-cache (see
@@ -363,15 +369,21 @@ The shard cache at $shardCache has $present DLL(s) but NONE published under
 this build's provider identity $shardIdentity, so the package would ship an
 empty cache.
 
-The identity folds the recompiler binary, the runtime ABI headers, the shard
-backend and its compile flags. The usual causes of that drift are:
+The identity folds the live bank ABI, the recompiler's reported codegen version,
+the shard compiler's emission surface, the runtime ABI headers, and the shard
+backend with its compile flags. The usual causes of that drift are:
 
   * the cache was built against the in-tree recompiler\armv4t and
     external\arm-recomp-core\common header directories instead of the two-file
     flattened set a shipped install carries. Pass --runtime-include pointing at
     the flattened set (tools\build_release_shard_cache.ps1 does this for you).
-  * the recompiler was rebuilt after the cache was warmed.
+  * generated-C emission changed, so kCodegenVersion in
+    recompiler\src\codegen_identity.h or SHARD_CODEGEN_VERSION in
+    tools\compile_live_shards.py was bumped.
   * a different gcc, -O level or --max-function-bytes was used.
+
+Merely rebuilding the recompiler is NOT one of them any more (beads-yjp.52):
+the identity reads the version the binary reports, not its bytes.
 
 Rebuild it with tools\build_release_shard_cache.ps1 against the artifacts being
 shipped, or pass -AllowNoShardCache to ship without a cache anyway.
@@ -400,7 +412,7 @@ shipped, or pass -AllowNoShardCache to ship without a cache anyway.
       "provider_identity : $shardIdentity",
       "backend           : $($namespaces -join ', ')",
       "source_cache      : $shardCache",
-      "recompiler_hashed : $identityRecompiler",
+      "recompiler_queried: $identityRecompiler",
       "headers_hashed    : $identityInclude",
       "staged_at         : live-shard-cache\<backend>\",
       "shard_count       : $($shards.Count)",

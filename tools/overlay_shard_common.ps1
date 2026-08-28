@@ -62,9 +62,18 @@ function New-OverlayToolchainIncludeDir {
   return [IO.Path]::GetFullPath($Destination)
 }
 
-# Compile settings the release cache is built with. Every one of them is folded
-# into the provider identity, so the builder and the packager must agree on all
-# of them or the shipped cache filters down to nothing.
+# Compile settings the release cache is built with.
+#
+# Compiler / GeneratedOpt / MaxFunctionBytes are folded into the provider
+# identity (they change the emitted code), so the builder and the packager must
+# agree on them or the shipped cache filters down to nothing.
+#
+# MaxPages / MinHits / IncludeRoots / MergeCacheSnapshots are RUN MODE: they
+# select which observed pages become work, never how a page is compiled.
+# beads-yjp.52 removed the last two from the identity, which is what lets a
+# --merge-cache-snapshots re-warm run publish under the identity the packager
+# computes. Whatever they select still reaches the shard through the entry
+# points, and compile_live_shards.py::work_identity() folds those directly.
 function Get-ReleaseShardPolicy {
   return [ordered]@{
     Compiler           = 'gcc'
@@ -93,6 +102,13 @@ function Get-ShardPython {
 Provider identity of a gcc shard produced by, and consumable by, EXACTLY the
 artifacts passed in. Computed by importing compile_live_shards.py and calling
 its provider_identity(), so this can never drift from the compiler.
+
+$Recompiler must be RUNNABLE here, not merely present: since beads-yjp.52 the
+identity folds the codegen version the binary reports over
+`--codegen-identity` instead of a hash of its bytes, so that a rebuild of an
+unchanged recompiler no longer discards every player's shard cache. A staged
+recompiler therefore has to be staged with whatever DLLs it needs before the
+identity can be computed. It fails loudly if it cannot answer.
 #>
 function Get-ShardProviderIdentity {
   param(
@@ -127,9 +143,11 @@ args = argparse.Namespace(
     runtime_include=[pathlib.Path(r'$IncludeDir')],
     generated_opt='$($Policy.GeneratedOpt)',
     max_function_bytes=$($Policy.MaxFunctionBytes),
-    include_roots=$(if ($Policy.IncludeRoots) { 'True' } else { 'False' }),
-    merge_cache_snapshots=$(if ($Policy.MergeCacheSnapshots) { 'True' } else { 'False' }),
 )
+# Deliberately absent: include_roots and merge_cache_snapshots. They are run
+# mode, not code semantics, and beads-yjp.52 took them out of the identity so
+# a re-warm run publishes under the identity the packager computes. Passing
+# them here again would be harmless but misleading.
 sys.stdout.write(mod.provider_identity(args))
 "@
   Set-Content -LiteralPath $script -Value $body -Encoding ASCII

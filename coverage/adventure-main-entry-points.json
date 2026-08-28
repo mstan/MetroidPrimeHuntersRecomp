@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "game_sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
-  "scenario": "scenarios/adventure_start.json; plus user-submitted 2026-08-24/25 and 2026-08-27 field coverage ingest",
+  "scenario": "scenarios/adventure_start.json; plus user-submitted 2026-08-24/25, 2026-08-27 and 2026-08-28 field coverage ingest",
   "runner_commit": "6b9a88859ded02496b320aab4d0ae20bee6ab3ba",
-  "selection": "Tier-3 call and indirect targets inside immutable ARM9/ARM7 main-image ranges; monotonic union of every ingest to date (2026-08-27 field round adds three player bundles plus the dev coverage exports); slice-resume roots omitted",
+  "selection": "Tier-3 call and indirect targets inside immutable ARM9/ARM7 main-image ranges; monotonic union of every ingest to date; slice-resume roots omitted. The 2026-08-28 field round (three schema-4 player parts, build af38165) added ZERO new ARM9 main seeds: all 153 call/indirect targets it observed, including its six hottest (0x020872AC, 0x02088344, 0x0208B624, 0x0208AB70, 0x02086EA0, 0x0207F4C8), were already in this list and already have mph_arm9 dispatch rows, so their Tier-3 hits are not a seed-coverage gap (beads-lqa.39). Hit counts here were refreshed upward from that round.",
   "static_coverage": {
     "tier3_entries9": 64619845,
     "tier3_entries7": 7653980,
@@ -137,7 +137,7 @@
       {
         "addr": "0x020077c8",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -241,7 +241,7 @@
       {
         "addr": "0x0200891c",
         "mode": "arm",
-        "hits": 208,
+        "hits": 221,
         "kinds": [
           "call"
         ]
@@ -257,7 +257,7 @@
       {
         "addr": "0x020089fc",
         "mode": "arm",
-        "hits": 270,
+        "hits": 287,
         "kinds": [
           "call"
         ]
@@ -265,7 +265,7 @@
       {
         "addr": "0x02008aa8",
         "mode": "arm",
-        "hits": 270,
+        "hits": 285,
         "kinds": [
           "call"
         ]
@@ -273,7 +273,7 @@
       {
         "addr": "0x02008b08",
         "mode": "arm",
-        "hits": 270,
+        "hits": 285,
         "kinds": [
           "call"
         ]
@@ -593,7 +593,7 @@
       {
         "addr": "0x02013e8c",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -1161,7 +1161,7 @@
       {
         "addr": "0x0202c0f0",
         "mode": "arm",
-        "hits": 3,
+        "hits": 4,
         "kinds": [
           "call"
         ]
@@ -1545,7 +1545,7 @@
       {
         "addr": "0x02030a38",
         "mode": "arm",
-        "hits": 58,
+        "hits": 62,
         "kinds": [
           "call"
         ]
@@ -1585,7 +1585,7 @@
       {
         "addr": "0x02030e9c",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -1713,7 +1713,7 @@
       {
         "addr": "0x02034554",
         "mode": "arm",
-        "hits": 45,
+        "hits": 54,
         "kinds": [
           "call"
         ]
@@ -2162,7 +2162,7 @@
       {
         "addr": "0x020395a4",
         "mode": "arm",
-        "hits": 137,
+        "hits": 145,
         "kinds": [
           "call"
         ]
@@ -2346,7 +2346,7 @@
       {
         "addr": "0x0203a7c8",
         "mode": "arm",
-        "hits": 57,
+        "hits": 123,
         "kinds": [
           "call"
         ]
@@ -2651,7 +2651,7 @@
       {
         "addr": "0x0203c2b8",
         "mode": "arm",
-        "hits": 379,
+        "hits": 386,
         "kinds": [
           "call"
         ]
@@ -2667,7 +2667,7 @@
       {
         "addr": "0x0203c474",
         "mode": "arm",
-        "hits": 53,
+        "hits": 57,
         "kinds": [
           "call"
         ]
@@ -2675,7 +2675,7 @@
       {
         "addr": "0x0203c578",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -2949,7 +2949,7 @@
       {
         "addr": "0x02042858",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -2965,7 +2965,7 @@
       {
         "addr": "0x02042f18",
         "mode": "arm",
-        "hits": 260,
+        "hits": 262,
         "kinds": [
           "call"
         ]
@@ -3061,7 +3061,7 @@
       {
         "addr": "0x02043490",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -3134,7 +3134,7 @@
       {
         "addr": "0x02044388",
         "mode": "arm",
-        "hits": 429,
+        "hits": 451,
         "kinds": [
           "call"
         ]
@@ -3280,7 +3280,7 @@
       {
         "addr": "0x02044cdc",
         "mode": "arm",
-        "hits": 30237,
+        "hits": 30240,
         "kinds": [
           "call"
         ]
@@ -3384,7 +3384,7 @@
       {
         "addr": "0x02045b00",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -3922,7 +3922,7 @@
       {
         "addr": "0x02048d64",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -4082,7 +4082,7 @@
       {
         "addr": "0x0204937c",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -4426,7 +4426,7 @@
       {
         "addr": "0x0204bee0",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -5178,7 +5178,7 @@
       {
         "addr": "0x020528e0",
         "mode": "arm",
-        "hits": 422,
+        "hits": 497,
         "kinds": [
           "call"
         ]
@@ -5218,7 +5218,7 @@
       {
         "addr": "0x020537e4",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -5242,7 +5242,7 @@
       {
         "addr": "0x02054270",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -5394,7 +5394,7 @@
       {
         "addr": "0x02059248",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -5506,7 +5506,7 @@
       {
         "addr": "0x02059574",
         "mode": "arm",
-        "hits": 72,
+        "hits": 74,
         "kinds": [
           "call"
         ]
@@ -5626,7 +5626,7 @@
       {
         "addr": "0x0205a5a4",
         "mode": "arm",
-        "hits": 43,
+        "hits": 51,
         "kinds": [
           "call"
         ]
@@ -5642,7 +5642,7 @@
       {
         "addr": "0x0205a77c",
         "mode": "arm",
-        "hits": 48,
+        "hits": 53,
         "kinds": [
           "call"
         ]
@@ -5650,7 +5650,7 @@
       {
         "addr": "0x0205a864",
         "mode": "arm",
-        "hits": 95,
+        "hits": 99,
         "kinds": [
           "call"
         ]
@@ -5722,7 +5722,7 @@
       {
         "addr": "0x0205bc00",
         "mode": "arm",
-        "hits": 69098,
+        "hits": 85325,
         "kinds": [
           "call"
         ]
@@ -5738,7 +5738,7 @@
       {
         "addr": "0x0205bf24",
         "mode": "arm",
-        "hits": 56,
+        "hits": 59,
         "kinds": [
           "call"
         ]
@@ -5762,7 +5762,7 @@
       {
         "addr": "0x0205c464",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -5802,7 +5802,7 @@
       {
         "addr": "0x0205c60c",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -5818,7 +5818,7 @@
       {
         "addr": "0x0205c74c",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -6170,7 +6170,7 @@
       {
         "addr": "0x0205ec5c",
         "mode": "arm",
-        "hits": 99444,
+        "hits": 99454,
         "kinds": [
           "call"
         ]
@@ -6562,7 +6562,7 @@
       {
         "addr": "0x02060638",
         "mode": "arm",
-        "hits": 61,
+        "hits": 63,
         "kinds": [
           "call"
         ]
@@ -6786,7 +6786,7 @@
       {
         "addr": "0x02061538",
         "mode": "arm",
-        "hits": 295,
+        "hits": 324,
         "kinds": [
           "call"
         ]
@@ -7050,7 +7050,7 @@
       {
         "addr": "0x02062cd0",
         "mode": "arm",
-        "hits": 652,
+        "hits": 681,
         "kinds": [
           "call"
         ]
@@ -7116,7 +7116,7 @@
       {
         "addr": "0x0206357c",
         "mode": "arm",
-        "hits": 255,
+        "hits": 277,
         "kinds": [
           "call",
           "indirect"
@@ -7133,7 +7133,7 @@
       {
         "addr": "0x02063624",
         "mode": "arm",
-        "hits": 46,
+        "hits": 51,
         "kinds": [
           "call"
         ]
@@ -7157,7 +7157,7 @@
       {
         "addr": "0x02063854",
         "mode": "arm",
-        "hits": 531,
+        "hits": 558,
         "kinds": [
           "call"
         ]
@@ -7421,7 +7421,7 @@
       {
         "addr": "0x0206553c",
         "mode": "arm",
-        "hits": 523670,
+        "hits": 585326,
         "kinds": [
           "call"
         ]
@@ -7429,7 +7429,7 @@
       {
         "addr": "0x020656d0",
         "mode": "arm",
-        "hits": 67,
+        "hits": 75,
         "kinds": [
           "call"
         ]
@@ -7589,7 +7589,7 @@
       {
         "addr": "0x02066ddc",
         "mode": "arm",
-        "hits": 595,
+        "hits": 646,
         "kinds": [
           "indirect"
         ]
@@ -7597,7 +7597,7 @@
       {
         "addr": "0x02066e08",
         "mode": "arm",
-        "hits": 67,
+        "hits": 75,
         "kinds": [
           "call"
         ]
@@ -7605,7 +7605,7 @@
       {
         "addr": "0x02066f98",
         "mode": "arm",
-        "hits": 68,
+        "hits": 76,
         "kinds": [
           "call"
         ]
@@ -8464,7 +8464,7 @@
       {
         "addr": "0x0206f918",
         "mode": "arm",
-        "hits": 107766,
+        "hits": 145545,
         "kinds": [
           "call"
         ]
@@ -8560,7 +8560,7 @@
       {
         "addr": "0x02071818",
         "mode": "arm",
-        "hits": 238,
+        "hits": 251,
         "kinds": [
           "call"
         ]
@@ -8664,7 +8664,7 @@
       {
         "addr": "0x02071c34",
         "mode": "arm",
-        "hits": 94,
+        "hits": 110,
         "kinds": [
           "call"
         ]
@@ -8736,7 +8736,7 @@
       {
         "addr": "0x02072034",
         "mode": "arm",
-        "hits": 94,
+        "hits": 110,
         "kinds": [
           "call"
         ]
@@ -8752,7 +8752,7 @@
       {
         "addr": "0x0207210c",
         "mode": "arm",
-        "hits": 301,
+        "hits": 321,
         "kinds": [
           "call"
         ]
@@ -8833,7 +8833,7 @@
       {
         "addr": "0x02073bf4",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -8841,7 +8841,7 @@
       {
         "addr": "0x02073c2c",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -8849,7 +8849,7 @@
       {
         "addr": "0x02073c84",
         "mode": "arm",
-        "hits": 51,
+        "hits": 55,
         "kinds": [
           "call"
         ]
@@ -9473,7 +9473,7 @@
       {
         "addr": "0x0207f4c8",
         "mode": "arm",
-        "hits": 4382272,
+        "hits": 4403719,
         "kinds": [
           "call"
         ]
@@ -9778,7 +9778,7 @@
       {
         "addr": "0x02080ec0",
         "mode": "arm",
-        "hits": 751352,
+        "hits": 751353,
         "kinds": [
           "call"
         ]
@@ -9882,7 +9882,7 @@
       {
         "addr": "0x02081648",
         "mode": "arm",
-        "hits": 97,
+        "hits": 98,
         "kinds": [
           "call"
         ]
@@ -10082,7 +10082,7 @@
       {
         "addr": "0x02081c28",
         "mode": "arm",
-        "hits": 57,
+        "hits": 59,
         "kinds": [
           "call"
         ]
@@ -10090,7 +10090,7 @@
       {
         "addr": "0x02081cb4",
         "mode": "arm",
-        "hits": 42091,
+        "hits": 42093,
         "kinds": [
           "call"
         ]
@@ -10098,7 +10098,7 @@
       {
         "addr": "0x02081d30",
         "mode": "arm",
-        "hits": 42100,
+        "hits": 42102,
         "kinds": [
           "call"
         ]
@@ -10178,7 +10178,7 @@
       {
         "addr": "0x020824b8",
         "mode": "arm",
-        "hits": 74,
+        "hits": 76,
         "kinds": [
           "call"
         ]
@@ -10186,7 +10186,7 @@
       {
         "addr": "0x02082624",
         "mode": "arm",
-        "hits": 74,
+        "hits": 76,
         "kinds": [
           "call"
         ]
@@ -10386,7 +10386,7 @@
       {
         "addr": "0x02082e70",
         "mode": "arm",
-        "hits": 164,
+        "hits": 182,
         "kinds": [
           "call"
         ]
@@ -10530,7 +10530,7 @@
       {
         "addr": "0x020842c8",
         "mode": "arm",
-        "hits": 1611107,
+        "hits": 1611121,
         "kinds": [
           "call"
         ]
@@ -11046,7 +11046,7 @@
       {
         "addr": "0x02086ea0",
         "mode": "arm",
-        "hits": 4509635,
+        "hits": 4568851,
         "kinds": [
           "call"
         ]
@@ -11112,7 +11112,7 @@
       {
         "addr": "0x020872ac",
         "mode": "arm",
-        "hits": 9101655,
+        "hits": 9218183,
         "kinds": [
           "call"
         ]
@@ -11168,7 +11168,7 @@
       {
         "addr": "0x02087b78",
         "mode": "arm",
-        "hits": 214953,
+        "hits": 214961,
         "kinds": [
           "call"
         ]
@@ -11200,7 +11200,7 @@
       {
         "addr": "0x02087d6c",
         "mode": "arm",
-        "hits": 199070,
+        "hits": 217835,
         "kinds": [
           "call"
         ]
@@ -11304,7 +11304,7 @@
       {
         "addr": "0x02088344",
         "mode": "arm",
-        "hits": 7735245,
+        "hits": 7828296,
         "kinds": [
           "call"
         ]
@@ -11603,7 +11603,7 @@
       {
         "addr": "0x0208ab70",
         "mode": "arm",
-        "hits": 3249055,
+        "hits": 3467209,
         "kinds": [
           "call"
         ]
@@ -11667,7 +11667,7 @@
       {
         "addr": "0x0208b624",
         "mode": "arm",
-        "hits": 3333021,
+        "hits": 3547317,
         "kinds": [
           "call"
         ]
@@ -11683,7 +11683,7 @@
       {
         "addr": "0x0208b6c8",
         "mode": "arm",
-        "hits": 254660,
+        "hits": 268397,
         "kinds": [
           "call"
         ]
@@ -11883,7 +11883,7 @@
       {
         "addr": "0x0208cc94",
         "mode": "arm",
-        "hits": 405910,
+        "hits": 424403,
         "kinds": [
           "call"
         ]
@@ -12422,7 +12422,7 @@
       {
         "addr": "0x02090ccc",
         "mode": "arm",
-        "hits": 601327,
+        "hits": 612917,
         "kinds": [
           "call"
         ]
@@ -12430,7 +12430,7 @@
       {
         "addr": "0x02090cec",
         "mode": "arm",
-        "hits": 601327,
+        "hits": 612917,
         "kinds": [
           "call"
         ]
@@ -13898,7 +13898,7 @@
       {
         "addr": "0x020a0f34",
         "mode": "arm",
-        "hits": 12,
+        "hits": 13,
         "kinds": [
           "indirect"
         ]
@@ -13906,7 +13906,7 @@
       {
         "addr": "0x020a0f5c",
         "mode": "arm",
-        "hits": 14,
+        "hits": 18,
         "kinds": [
           "indirect"
         ]
@@ -14043,7 +14043,7 @@
       {
         "addr": "0x020a2f90",
         "mode": "arm",
-        "hits": 6,
+        "hits": 7,
         "kinds": [
           "indirect"
         ]
@@ -14139,7 +14139,7 @@
       {
         "addr": "0x020a3d8c",
         "mode": "arm",
-        "hits": 6087,
+        "hits": 6093,
         "kinds": [
           "indirect"
         ]
@@ -14244,7 +14244,7 @@
       {
         "addr": "0x020a5000",
         "mode": "arm",
-        "hits": 260916,
+        "hits": 266632,
         "kinds": [
           "call"
         ]
@@ -14333,7 +14333,7 @@
       {
         "addr": "0x020a6a00",
         "mode": "arm",
-        "hits": 10130,
+        "hits": 10136,
         "kinds": [
           "call"
         ]
@@ -14670,7 +14670,7 @@
       {
         "addr": "0x020adcb0",
         "mode": "arm",
-        "hits": 437,
+        "hits": 438,
         "kinds": [
           "indirect"
         ]
@@ -14686,7 +14686,7 @@
       {
         "addr": "0x020adea4",
         "mode": "arm",
-        "hits": 155522,
+        "hits": 162325,
         "kinds": [
           "call"
         ]

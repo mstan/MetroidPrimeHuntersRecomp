@@ -103,7 +103,7 @@ fi
 exec "$HERE/usr/bin/nds_runner" "$BIOS" --interactive \
   --rom "$ROM" --config "$HERE/usr/bin/game.toml" \
   --screen-layout separate --adaptive-widescreen top \
-  --relative-mouse-touch on --relative-mouse-sensitivity 30 \
+  --relative-mouse-touch on --relative-mouse-sensitivity 20 \
   --relative-mouse-invert-y off --relative-mouse-fire-key l \
   --mph-prime-controls on --mph-virtual-stylus-sensitivity 20 \
   --startup-mode automatic \

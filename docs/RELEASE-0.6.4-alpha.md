@@ -77,6 +77,17 @@ hardware information (CPU, core count, memory), so future reports can be
 attributed to the kind of machine they came from instead of being averaged
 together.
 
+## Lower default aim sensitivity
+
+Mouse aim now defaults to **0.20x** instead of 0.30x - about a third slower
+out of the box, which testing found to be a better starting point for aiming
+with a mouse.
+
+If you have already set your own aim sensitivity, it is kept. The one
+exception is if you were still on the old **0.30x default**, in which case you
+are moved to the new one; anything else you picked is left alone. You can
+change it at any time under Mouse aim in the launcher.
+
 ## Correctness
 
 Unchanged, and proven rather than assumed. Guest state - both screens, both

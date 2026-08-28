@@ -36,8 +36,17 @@ ROOT = TOOLS.parent
 
 
 def run_leg(args: argparse.Namespace, exe: str, label: str, leg: int,
-            out_dir: Path) -> dict:
-    """Run one measurement leg and return its parsed report."""
+            out_dir: Path, runner_args: list[str] | None = None) -> dict:
+    """Run one measurement leg and return its parsed report.
+
+    `runner_args` are forwarded to the runner for THIS side only. Two staged
+    builds are not interchangeable at the command line: each ships its own
+    prebuilt shard cache (the ABI folds into the shard identity, so a cache
+    built for one build is orphaned by the other). Measuring both sides with a
+    single shared argument list would therefore either strip the caches from
+    both -- comparing something neither build ships -- or hand one side a cache
+    it cannot load. Per-side arguments keep each leg in ITS OWN shipped shape.
+    """
     tag_dir = out_dir / f"leg{leg:02d}-{label}"
     # "-3" selects Python 3 from the `py` launcher; a python.exe rejects it.
     launcher = [args.python]
@@ -55,6 +64,11 @@ def run_leg(args: argparse.Namespace, exe: str, label: str, leg: int,
         cmd += ["--rom", args.rom]
     if args.bios:
         cmd += ["--bios", args.bios]
+    for extra in (runner_args or []):
+        # "--runner-arg=<value>", not two tokens: forwarded runner flags start
+        # with "--" and argparse would otherwise read the value as the next
+        # option and fail with "expected one argument".
+        cmd.append(f"--runner-arg={extra}")
     print(f"\n=== leg {leg} / side {label} ===", flush=True)
     completed = subprocess.run(cmd, cwd=str(ROOT))
     if completed.returncode != 0:
@@ -114,6 +128,11 @@ def main() -> int:
     parser.add_argument("--exe-b", required=True)
     parser.add_argument("--label-a", default="a")
     parser.add_argument("--label-b", default="b")
+    parser.add_argument("--runner-arg-a", action="append", default=[],
+                        help="extra nds_runner argument for side A only "
+                             "(repeatable); e.g. --live-overlay-enable")
+    parser.add_argument("--runner-arg-b", action="append", default=[],
+                        help="extra nds_runner argument for side B only")
     parser.add_argument("--legs", type=int, default=3,
                         help="legs per side (default 3)")
     parser.add_argument("--rom", default="")
@@ -130,15 +149,17 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     reports: dict[str, list[dict]] = {args.label_a: [], args.label_b: []}
-    sides = [(args.label_a, args.exe_a), (args.label_b, args.exe_b)]
+    sides = [(args.label_a, args.exe_a, args.runner_arg_a),
+             (args.label_b, args.exe_b, args.runner_arg_b)]
     leg = 0
     for round_index in range(args.legs):
         # Alternate which side leads each round so neither side systematically
         # occupies the same position relative to host warm-up.
         ordered = sides if round_index % 2 == 0 else list(reversed(sides))
-        for label, exe in ordered:
+        for label, exe, extra in ordered:
             leg += 1
-            reports[label].append(run_leg(args, exe, label, leg, out_dir))
+            reports[label].append(
+                run_leg(args, exe, label, leg, out_dir, extra))
 
     summary = {label: summarize(rs) for label, rs in reports.items()}
 

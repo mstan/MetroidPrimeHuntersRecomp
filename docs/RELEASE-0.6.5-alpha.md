@@ -42,7 +42,19 @@ Three coupled defects in the live-overlay pipeline are fixed:
    answer this class of question outright.
 
 Shipped shard caches and existing installs are unaffected; no ABI change in
-this release.
+this release (live bank ABI stays at 6, so a copied `live-shard-cache` from
+v0.6.4 keeps working).
+
+**Prebuilt cache note:** this package ships WITHOUT a prebuilt shard cache.
+With the phantom-work fix, a clean-cache rebuild produces no shards — every
+address those shards covered is already owned by a shipped static bank, so
+there is no legitimate work list to build one from. **If you are upgrading,
+copy your existing `live-shard-cache` folder across: your shards keep loading
+and working (ABI unchanged).** A fresh install simply runs on the static
+banks alone; if busy areas feel worse than v0.6.4 on a fresh install, that is
+exactly the signal we are instrumenting for — please send a diagnostic. The
+underlying static-bank code-layout issue is tracked and is the target of the
+next performance release.
 
 ## Coverage corpus
 

@@ -12,20 +12,14 @@ cpu          = "arm9"
 isa          = "armv5te"
 load_address = 0x02168000
 size         = 0x00001000
-entry_pc     = 0x02168B20
+entry_pc     = 0x02168D98
 
 [identity]
 sha1 = "6330a63b49f62fc9a84ae3143cf68f7f6ec3efc3"
 rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 
 [[entry_point]]
-addr = 0x02168B20
-mode = "arm"
-kind = "runtime_observed"
-# hits = 2960, seen as call
-
-[[entry_point]]
 addr = 0x02168D98
 mode = "arm"
 kind = "runtime_observed"
-# hits = 6, seen as call
+# hits = 1, seen as call

@@ -194,6 +194,14 @@ set(MPH_OVERLAY_BANKS
     "mph_arm9_ov002:32:002"
     "mph_arm9_ov003:4:003"
     "mph_arm9_ov004:32:004"
+    # Overlays 5 and 6 share the 0x0219DC20 base and were undeclared until the
+    # 2026-08-27 field ingest: no dev route had ever proved either resident, so
+    # tools/seed_overlay_from_coverage.py had nothing to attribute and
+    # tools/prepare_mph.py emits overlay configs with no entry points. Player
+    # manifests supplied 10 and 314 generation-proven entries respectively, so
+    # both are now real banks instead of interpreted address space.
+    "mph_arm9_ov005:4:005"
+    "mph_arm9_ov006:16:006"
     "mph_arm9_ov008:4:008"
     "mph_arm9_ov009:16:009"
     "mph_arm9_ov010:16:010"

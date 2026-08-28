@@ -22,82 +22,70 @@ rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 addr = 0x02102220
 mode = "arm"
 kind = "runtime_observed"
-# hits = 13, seen as call
+# hits = 19, seen as call
 
 [[entry_point]]
 addr = 0x021022A0
 mode = "arm"
 kind = "runtime_observed"
-# hits = 13, seen as call
+# hits = 127, seen as call
 
 [[entry_point]]
 addr = 0x02102340
 mode = "arm"
 kind = "runtime_observed"
-# hits = 23686, seen as call
+# hits = 222017, seen as call
 
 [[entry_point]]
 addr = 0x02102434
 mode = "arm"
 kind = "runtime_observed"
-# hits = 13, seen as call
+# hits = 127, seen as call
 
 [[entry_point]]
 addr = 0x02102488
 mode = "arm"
 kind = "runtime_observed"
-# hits = 10, seen as call
+# hits = 9, seen as call
 
 [[entry_point]]
 addr = 0x02102524
 mode = "arm"
 kind = "runtime_observed"
-# hits = 7, seen as call
+# hits = 76, seen as call
 
 [[entry_point]]
 addr = 0x02102608
 mode = "arm"
 kind = "runtime_observed"
-# hits = 25, seen as call
+# hits = 21, seen as call
 
 [[entry_point]]
 addr = 0x021026A0
 mode = "arm"
 kind = "runtime_observed"
-# hits = 66, seen as call
+# hits = 39, seen as call
 
 [[entry_point]]
 addr = 0x0210271C
 mode = "arm"
 kind = "runtime_observed"
-# hits = 42, seen as call
-
-[[entry_point]]
-addr = 0x02102758
-mode = "arm"
-kind = "runtime_observed"
-# hits = 13, seen as call
-
-[[entry_point]]
-addr = 0x021027B8
-mode = "arm"
-kind = "runtime_observed"
-# hits = 4, seen as call
+# hits = 19, seen as call
 
 [[entry_point]]
 addr = 0x021028D8
 mode = "arm"
 kind = "runtime_observed"
-# hits = 118, seen as call
+# hits = 62, seen as call
 
 [[entry_point]]
 addr = 0x02102920
 mode = "arm"
 kind = "runtime_observed"
-# hits = 13, seen as call
+# hits = 120, seen as call
 
 [[entry_point]]
 addr = 0x02102EDC
 mode = "arm"
 kind = "runtime_observed"
-# hits = 13, seen as call
+# hits = 127, seen as call

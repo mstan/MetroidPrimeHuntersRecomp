@@ -21,6 +21,12 @@ by hand.
      Add-only. A bank stem carries its image SHA-1, so a stem that already
      exists is by construction the same bytes; the tool verifies that rather
      than assuming it, and refuses to overwrite a differing image.
+     A stem that already exists still has its ENTRY POINTS unioned, because
+     the image and the seed list are independent: a later capture of the same
+     bytes can prove entry points the first one never reached, and beads-yjp.55
+     made the ingest promote a whole class of them (interpreted span starts)
+     that no earlier run could produce. Skipping the bank wholesale because its
+     image matched would have silently discarded exactly those.
   2. coverage/adventure-main-entry-points.json
      Union of (addr, mode); hits are summed, kinds unioned.
   3. coverage/arm7-alias-entry-points.json
@@ -110,8 +116,15 @@ def merge_json_seeds(path: Path, produced: dict[str, dict], note: str,
     report[f"{path.name}:rewritten"] = True
 
 
-def merge_overlay_toml(committed: Path, produced: Path) -> dict:
-    """Union produced overlay seeds into a committed overlay bank config."""
+def merge_entry_toml(committed: Path, produced: Path,
+                     entry_pc_line: bool = True) -> dict:
+    """Union produced seeds into a committed bank config, add-only.
+
+    Used for both the overlay configs and the ingest's own coverage banks: the
+    file shapes differ only in their headers, and the header is preserved
+    verbatim so the [program]/[identity] block -- above all the image SHA-1 --
+    can never drift here.
+    """
     have = read_entry_toml(committed)
     got = read_entry_toml(produced)
     added = sorted(set(got) - set(have))
@@ -123,21 +136,31 @@ def merge_overlay_toml(committed: Path, produced: Path) -> dict:
         slot["hits"] = max(slot["hits"], got[key]["hits"])
         slot["kinds"] |= got[key]["kinds"]
 
-    # Rebuild the file with the seeder's own header, keeping [program] and
-    # [identity] verbatim so the image identity can never drift here.
     text = committed.read_text(encoding="utf-8")
     head = text.split("[[entry_point]]")[0].rstrip("\n")
     ordered = sorted(merged)
-    head = re.sub(r"^entry_pc = 0x[0-9A-Fa-f]+$",
-                  f"entry_pc = 0x{ordered[0][0]:08X}", head, flags=re.M)
+    if entry_pc_line:
+        # The two producers pad the assignment differently; keep whatever this
+        # file already used so the merge shows only the value that changed.
+        head = re.sub(
+            r"^(entry_pc\s*=\s*)0x[0-9A-Fa-f]+$",
+            lambda m: f"{m.group(1)}0x{ordered[0][0]:08X}", head, flags=re.M)
     lines = [head, ""]
     for addr, mode in ordered:
+        slot = merged[(addr, mode)]
+        note = f"# hits = {slot['hits']}"
+        # Keep the producer's provenance annotation. It is the only record of
+        # WHY an address is a seed -- a call target, an indirect target, or the
+        # start of an interpreted span (beads-yjp.55) -- and rewriting the file
+        # without it would erase that on the first re-merge.
+        if slot["kinds"]:
+            note += f", seen as {'/'.join(sorted(slot['kinds']))}"
         lines += [
             "[[entry_point]]",
             f"addr = 0x{addr:08X}",
             f'mode = "{mode}"',
             'kind = "runtime_observed"',
-            f"# hits = {merged[(addr, mode)]['hits']}",
+            note,
             "",
         ]
     committed.write_text("\n".join(lines), encoding="utf-8", newline="\n")
@@ -145,6 +168,10 @@ def merge_overlay_toml(committed: Path, produced: Path) -> dict:
             "added": len(added),
             "added_addrs": [f"0x{a:08X} {m}" for a, m in added],
             "total": len(merged)}
+
+
+# Kept as the overlay-facing name; the body is shared with the coverage banks.
+merge_overlay_toml = merge_entry_toml
 
 
 def main() -> int:
@@ -171,6 +198,7 @@ def main() -> int:
     config = args.repo / "config"
     capture = args.repo / "generated" / "capture"
     added_banks, same_banks, conflicts = [], [], []
+    bank_seeds_added: dict[str, dict] = {}
     for toml in sorted(glob.glob(str(args.ingest / "images" /
                                      "coverage_arm*.toml"))):
         stem = Path(toml).stem
@@ -183,6 +211,18 @@ def main() -> int:
                 conflicts.append(stem)
                 continue
             same_banks.append(stem)
+            # Same bytes, possibly BETTER seeds. The image identity and the
+            # entry list are independent facts about a bank; unioning the
+            # seeds here is what lets a re-ingest of the same page improve it.
+            if dst_toml.exists():
+                delta = (merge_entry_toml(dst_toml, Path(toml))
+                         if not args.dry_run else {
+                             "committed": len(read_entry_toml(dst_toml)),
+                             "produced": len(read_entry_toml(Path(toml))),
+                             "added": len(set(read_entry_toml(Path(toml)))
+                                          - set(read_entry_toml(dst_toml)))})
+                if delta.get("added"):
+                    bank_seeds_added[stem] = delta
             continue
         added_banks.append(stem)
         if not args.dry_run:
@@ -193,6 +233,7 @@ def main() -> int:
         "already_present_identical": len(same_banks),
         "added": len(added_banks),
         "added_stems": added_banks,
+        "seeds_added_to_existing_banks": bank_seeds_added,
         "IMAGE_CONFLICTS": conflicts,
     }
     if conflicts:

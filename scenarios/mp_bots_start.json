@@ -1,5 +1,5 @@
 {
-  "description": "Hypothesis test: a slot showing a green check is OPEN FOR A HUMAN PEER, not ready. Convert all three non-host slots to bots (star rating) so nothing waits on a peer, then START.",
+  "description": "TENTATIVE_FIX_UNVALIDATED (2026-08-29, beads-lqa.41): blank-save Multi-Card BATTLE against three bots. Previously the lobby stage tapped a single point three times, which cannot tick three per-slot checkboxes. The three ADD-BOT taps stay on the shared add button at (222,173); the per-slot green checkmarks now land on three DIFFERENT rows -- P2 below the P1 row (97,139), P3 above (154,61), P4 below (212,139) -- and START GAME is the upper-right disc at (195,35), with a trailing START keypress as a fallback. Coordinates are lifted from scenarios/multiplayer_battle_bots.json and docs/HANDOFF_MPH_LOCAL_PLAY.md; they have NOT been screenshot-validated on the blank-save path, where the nickname dialog shifts earlier timing. If this route stalls at the lobby, capture the screen and correct the trio rather than re-tapping one point.",
   "actions": [
     {
       "kind": "touch",
@@ -132,8 +132,8 @@
     },
     {
       "kind": "touch",
-      "x": 222,
-      "y": 133
+      "x": 97,
+      "y": 139
     },
     {
       "kind": "wait",
@@ -141,8 +141,8 @@
     },
     {
       "kind": "touch",
-      "x": 148,
-      "y": 60
+      "x": 154,
+      "y": 61
     },
     {
       "kind": "wait",
@@ -150,8 +150,21 @@
     },
     {
       "kind": "touch",
-      "x": 222,
-      "y": 60
+      "x": 212,
+      "y": 139
+    },
+    {
+      "kind": "wait",
+      "frames": 300
+    },
+    {
+      "kind": "touch",
+      "x": 195,
+      "y": 35
+    },
+    {
+      "kind": "wait",
+      "frames": 300
     },
     {
       "kind": "wait",

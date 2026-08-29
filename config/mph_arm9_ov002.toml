@@ -4728,10 +4728,28 @@ kind = "runtime_observed"
 # hits = 2
 
 [[entry_point]]
+addr = 0x0211D5C0
+mode = "arm"
+kind = "runtime_observed"
+# hits = 27
+
+[[entry_point]]
 addr = 0x0211D5C4
 mode = "arm"
 kind = "runtime_observed"
 # hits = 1
+
+[[entry_point]]
+addr = 0x0211D624
+mode = "arm"
+kind = "runtime_observed"
+# hits = 8
+
+[[entry_point]]
+addr = 0x0211D63C
+mode = "arm"
+kind = "runtime_observed"
+# hits = 20
 
 [[entry_point]]
 addr = 0x0211D690

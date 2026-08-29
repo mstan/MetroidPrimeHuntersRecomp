@@ -283,8 +283,23 @@ foreach(_bank_config IN LISTS MPH_INGESTED_RUNTIME_BANK_CONFIGS)
 endforeach()
 set(MPH_RUNTIME_BANK_SOURCES)
 set(MPH_RUNTIME_BANK_STAMPS)
+# Stamps of the runtime banks generated BEFORE the main closures. The two ARM9
+# capture banks are deliberately absent: they are generated after mph_arm9 (see
+# the deferred list below), so the closures cannot depend on them.
+set(MPH_RUNTIME_BANK_STAMPS_PRE)
 set(MPH_RUNTIME_ARM9_SOURCES)
 set(MPH_RUNTIME_ARM7_SOURCES)
+# beads-lqa.40: capture-derived ARM9 banks whose dispatch rows must be pruned
+# against the main closure. tools/promote_mph_runtime_coverage.py seeds them
+# from every call target the Tier-3 interpreter observed inside the ARM9 main
+# image, so they re-translate code mph_arm9 already owns -- as two-instruction
+# landing pads that co-validate with the closure's whole-function rows on ~88k
+# addresses. Their generation therefore runs AFTER mph_arm9 and consumes its
+# dispatch table, so the redundant rows are never emitted in the first place.
+set(MPH_ARM9_CAPTURE_BANKS
+    "mph_arm9_fmv_runtime"
+    "mph_arm9_mp_runtime")
+set(MPH_DEFERRED_ARM9_CAPTURE_SPECS)
 # Dispatch tables of the ingested coverage banks, per CPU. These are the
 # banks that sort BEFORE the main closures in the runner's alphabetical
 # *_dispatch.c registration glob, so they are the (only) preceding rows the
@@ -321,22 +336,31 @@ foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
         endforeach()
     endif()
     list(APPEND _bank_sources "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
+    set(MPH_${_bank}_SOURCES ${_bank_sources})
     set(_bank_stamp "${MPH_RECOMP_DIR}/${_bank}.stamp")
-    add_custom_command(
-        OUTPUT "${_bank_stamp}"
-        BYPRODUCTS ${_bank_sources} "${MPH_RECOMP_DIR}/${_bank}.h"
-        COMMAND $<TARGET_FILE:nds_recompile>
-                --config "${_bank_config}"
-                --bin "${_bank_image}"
-                --out "${MPH_RECOMP_DIR}"
-                --bank "${_bank}"
-                --shards ${_bank_shards}
-                --stable-address-shards
-                --max-function-bytes 512
-                --validate-live-bytes
-        COMMAND ${CMAKE_COMMAND} -E touch "${_bank_stamp}"
-        DEPENDS nds_recompile "${_bank_config}" "${_bank_image}"
-        COMMENT "Recompiling content-validated AMHE0 runtime bank ${_bank}")
+    list(FIND MPH_ARM9_CAPTURE_BANKS "${_bank}" _capture_index)
+    if(_capture_index EQUAL -1)
+        add_custom_command(
+            OUTPUT "${_bank_stamp}"
+            BYPRODUCTS ${_bank_sources} "${MPH_RECOMP_DIR}/${_bank}.h"
+            COMMAND $<TARGET_FILE:nds_recompile>
+                    --config "${_bank_config}"
+                    --bin "${_bank_image}"
+                    --out "${MPH_RECOMP_DIR}"
+                    --bank "${_bank}"
+                    --shards ${_bank_shards}
+                    --stable-address-shards
+                    --max-function-bytes 512
+                    --validate-live-bytes
+            COMMAND ${CMAKE_COMMAND} -E touch "${_bank_stamp}"
+            DEPENDS nds_recompile "${_bank_config}" "${_bank_image}"
+            COMMENT "Recompiling content-validated AMHE0 runtime bank ${_bank}")
+        list(APPEND MPH_RUNTIME_BANK_STAMPS_PRE "${_bank_stamp}")
+    else()
+        # Generated below, once mph_arm9_dispatch.c exists to prune against.
+        list(APPEND MPH_DEFERRED_ARM9_CAPTURE_SPECS
+            "${_bank}|${_bank_config}|${_bank_image}|${_bank_shards}")
+    endif()
     list(APPEND MPH_RUNTIME_BANK_SOURCES ${_bank_sources})
     list(APPEND MPH_RUNTIME_BANK_STAMPS "${_bank_stamp}")
     if(_bank MATCHES "_arm9_")
@@ -391,7 +415,7 @@ add_custom_command(
             --coalesce-fallthroughs
             ${MPH_ARM9_PRECEDING}
     COMMAND ${CMAKE_COMMAND} -E touch "${MPH_ARM9_STAMP}"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS_PRE}
     COMMENT "Recompiling the AMHE0 ARM9 main closure (superblocks)")
 
 mph_preceding_args(MPH_ARM7_PRECEDING ${MPH_COVERAGE_ARM7_DISPATCH})
@@ -411,7 +435,7 @@ add_custom_command(
             --coalesce-fallthroughs
             ${MPH_ARM7_PRECEDING}
     COMMAND ${CMAKE_COMMAND} -E touch "${MPH_ARM7_STAMP}"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS_PRE}
     COMMENT "Recompiling the AMHE0 ARM7 initial closure (superblocks)")
 
 # The WRAM alias registers FIRST among ARM7 banks (registration-order.txt
@@ -445,10 +469,48 @@ add_custom_command(
             ${MPH_ARM7_MAINRAM_ALIAS_PRECEDING}
     COMMAND ${CMAKE_COMMAND} -E touch
             "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
-    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS}
+    DEPENDS nds_recompile ${MPH_PREP_OUTPUTS} ${MPH_RUNTIME_BANK_STAMPS_PRE}
             "${MPH_ARM7_STAMP}"
             "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
     COMMENT "Recompiling the AMHE0 ARM7 main-RAM alias (superblocks)")
+
+# ---- Capture-derived ARM9 banks, pruned against the main closure ----------
+# beads-lqa.40. These run LAST of the generation commands: their preceding set
+# is every ARM9 bank the runner registers ahead of them (the ingested coverage
+# banks, then the mph_arm9 main closure), and --prune-preceding-owned drops
+# every row those banks already own with an equal-or-larger proven span over
+# byte-identical content. What survives is exactly what the capture uniquely
+# contributes -- ITCM/relocated code and genuinely novel entry points.
+mph_preceding_args(MPH_ARM9_CAPTURE_PRECEDING
+    ${MPH_COVERAGE_ARM9_DISPATCH}
+    "${MPH_RECOMP_DIR}/mph_arm9_dispatch.c")
+foreach(_capture_spec IN LISTS MPH_DEFERRED_ARM9_CAPTURE_SPECS)
+    string(REPLACE "|" ";" _capture_spec "${_capture_spec}")
+    list(GET _capture_spec 0 _cap_bank)
+    list(GET _capture_spec 1 _cap_config)
+    list(GET _capture_spec 2 _cap_image)
+    list(GET _capture_spec 3 _cap_shards)
+    add_custom_command(
+        OUTPUT "${MPH_RECOMP_DIR}/${_cap_bank}.stamp"
+        BYPRODUCTS ${MPH_${_cap_bank}_SOURCES}
+                   "${MPH_RECOMP_DIR}/${_cap_bank}.h"
+        COMMAND $<TARGET_FILE:nds_recompile>
+                --config "${_cap_config}"
+                --bin "${_cap_image}"
+                --out "${MPH_RECOMP_DIR}"
+                --bank "${_cap_bank}"
+                --shards ${_cap_shards}
+                --stable-address-shards
+                --max-function-bytes 512
+                --validate-live-bytes
+                --prune-preceding-owned
+                ${MPH_ARM9_CAPTURE_PRECEDING}
+        COMMAND ${CMAKE_COMMAND} -E touch
+                "${MPH_RECOMP_DIR}/${_cap_bank}.stamp"
+        DEPENDS nds_recompile "${_cap_config}" "${_cap_image}"
+                "${MPH_ARM9_STAMP}" ${MPH_RUNTIME_BANK_STAMPS_PRE}
+        COMMENT "Recompiling AMHE0 capture bank ${_cap_bank} (pruned against the ARM9 main closure)")
+endforeach()
 
 # First-registered ARM7 bank (registration-order.txt): no preceding rows.
 set(MPH_ARM7_WRAM_ALIAS_PRECEDING)

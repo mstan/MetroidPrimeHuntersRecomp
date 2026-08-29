@@ -47,7 +47,7 @@ struct ModState {
     int player_src = 2;
     std::string player_gamepad_guid;
     bool mouse_aim = true;
-    int mouse_sensitivity = 20;
+    int mouse_sensitivity = 13;
     bool mouse_invert_y = false;
     bool cross_window_mouse_capture = false;
     bool prime_controls = true;
@@ -182,7 +182,8 @@ struct SensitivityChoice {
     const char* label;
 };
 
-constexpr std::array<SensitivityChoice, 11> kSensitivityChoices{{
+constexpr std::array<SensitivityChoice, 12> kSensitivityChoices{{
+    {13, "0.13x"},
     {20, "0.20x"},
     {25, "0.25x"},
     {30, "0.30x"},
@@ -709,6 +710,10 @@ void load_mod_state(ModState& state) {
         state.mouse_sensitivity == 30) {
         state.mouse_sensitivity = 20;
     }
+    if (settings_version < 11 && saw_mouse_sensitivity &&
+        state.mouse_sensitivity == 20) {
+        state.mouse_sensitivity = 13;
+    }
     state.mouse_aim = state.prime_controls;
 }
 
@@ -729,7 +734,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=10\n"
+        file << "settings_version=11\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "widescreen_mode=" << widescreen_choice(state).value << '\n'
@@ -1023,7 +1028,7 @@ int mod_feature_option_get(void* context, const char* package_id,
         copy_text(output->group, "Mouse aim");
         std::snprintf(output->value, sizeof(output->value), "%d",
                       state->mouse_sensitivity);
-        copy_text(output->default_value, "20");
+        copy_text(output->default_value, "13");
         output->type = RECOMP_MOD_OPTION_CHOICE;
         output->choice_count = static_cast<int>(kSensitivityChoices.size());
         return 1;

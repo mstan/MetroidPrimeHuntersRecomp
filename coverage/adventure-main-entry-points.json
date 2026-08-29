@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "game_sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
-  "scenario": "adventure route + 2026-08-28 field parts (beads-yjp.55 interpreted-span promotion, round 2 owned-rows residual)",
+  "scenario": "adventure route + 2026-08-28 field parts (beads-yjp.55 span promotion, converged)",
   "runner_commit": "6b9a88859ded02496b320aab4d0ae20bee6ab3ba",
   "selection": "Tier-3 call and indirect targets inside immutable ARM9/ARM7 main-image ranges; monotonic union of every ingest to date; slice-resume roots omitted. The 2026-08-28 field round (three schema-4 player parts, build af38165) added ZERO new ARM9 main seeds: all 153 call/indirect targets it observed, including its six hottest (0x020872AC, 0x02088344, 0x0208B624, 0x0208AB70, 0x02086EA0, 0x0207F4C8), were already in this list and already have mph_arm9 dispatch rows, so their Tier-3 hits are not a seed-coverage gap (beads-lqa.39). Hit counts here were refreshed upward from that round.",
   "static_coverage": {
@@ -1207,6 +1207,14 @@
         ]
       },
       {
+        "addr": "0x0202a400",
+        "mode": "arm",
+        "hits": 18,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0202a408",
         "mode": "arm",
         "hits": 42,
@@ -1218,6 +1226,14 @@
         "addr": "0x0202a40c",
         "mode": "arm",
         "hits": 25,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a410",
+        "mode": "arm",
+        "hits": 16,
         "kinds": [
           "span"
         ]
@@ -1602,6 +1618,14 @@
         "addr": "0x0202be60",
         "mode": "arm",
         "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202be64",
+        "mode": "arm",
+        "hits": 9,
         "kinds": [
           "span"
         ]
@@ -2098,6 +2122,22 @@
         "addr": "0x0202d17c",
         "mode": "arm",
         "hits": 13493,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d180",
+        "mode": "arm",
+        "hits": 10793,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d184",
+        "mode": "arm",
+        "hits": 8094,
         "kinds": [
           "span"
         ]
@@ -2914,6 +2954,14 @@
         "addr": "0x02033134",
         "mode": "arm",
         "hits": 146,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033138",
+        "mode": "arm",
+        "hits": 13,
         "kinds": [
           "span"
         ]
@@ -8928,6 +8976,14 @@
         ]
       },
       {
+        "addr": "0x0206222c",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02062234",
         "mode": "arm",
         "hits": 5,
@@ -13494,6 +13550,22 @@
         ]
       },
       {
+        "addr": "0x020873d8",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020873dc",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020874b4",
         "mode": "arm",
         "hits": 4,
@@ -13513,6 +13585,22 @@
         "addr": "0x020874c0",
         "mode": "arm",
         "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874c4",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874c8",
+        "mode": "arm",
+        "hits": 8,
         "kinds": [
           "span"
         ]
@@ -14004,6 +14092,14 @@
         "addr": "0x0208ad58",
         "mode": "arm",
         "hits": 242569,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208ad80",
+        "mode": "arm",
+        "hits": 237499,
         "kinds": [
           "span"
         ]

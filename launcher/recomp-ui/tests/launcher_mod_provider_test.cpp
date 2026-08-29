@@ -84,7 +84,7 @@ int main() {
         }
         load_mod_state(legacy_state);
         std::filesystem::remove(legacy_state.settings_path);
-        if (!require(legacy_state.mouse_sensitivity == 20,
+        if (!require(legacy_state.mouse_sensitivity == 13,
                      "legacy aim sensitivity migration")) {
             return 1;
         }
@@ -223,11 +223,11 @@ int main() {
     }
     if (!require(std::strcmp(option.id, "aim-sensitivity") == 0,
                  "aim sensitivity option id")) return 9;
-    if (!require(std::strcmp(option.value, "20") == 0,
+    if (!require(std::strcmp(option.value, "13") == 0,
                  "aim sensitivity default value")) return 10;
-    if (!require(std::strcmp(option.default_value, "20") == 0,
+    if (!require(std::strcmp(option.default_value, "13") == 0,
                  "aim sensitivity declared default")) return 11;
-    if (!require(option.choice_count == 11,
+    if (!require(option.choice_count == 12,
                  "aim sensitivity choice count")) return 12;
 
     option = {};
@@ -273,7 +273,7 @@ int main() {
                  "pad aim sensitivity default value")) return 14;
     if (!require(std::strcmp(option.default_value, "100") == 0,
                  "pad aim sensitivity declared default")) return 14;
-    if (!require(option.choice_count == 11,
+    if (!require(option.choice_count == 12,
                  "pad aim sensitivity choice count")) return 14;
     if (!require(provider.feature_set_option(
             provider.ctx, "mph-prime-controls", "prime-controls",

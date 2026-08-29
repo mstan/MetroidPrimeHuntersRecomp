@@ -300,6 +300,15 @@ set(MPH_ARM9_CAPTURE_BANKS
     "mph_arm9_fmv_runtime"
     "mph_arm9_mp_runtime")
 set(MPH_DEFERRED_ARM9_CAPTURE_SPECS)
+# beads-yjp.57: the ARM7 capture banks get the same treatment against every
+# ARM7 bank the runner registers ahead of them (the WRAM alias, the ingested
+# coverage banks, the mph_arm7 closure, the main-RAM alias). Ranking
+# (beads-lqa.40 layer 2) already selects the larger owning span at runtime;
+# pruning stops the shadowed fragment rows from being emitted at all.
+set(MPH_ARM7_CAPTURE_BANKS
+    "mph_arm7_mp_wram_runtime"
+    "mph_arm7_mp_mainram_runtime")
+set(MPH_DEFERRED_ARM7_CAPTURE_SPECS)
 # Dispatch tables of the ingested coverage banks, per CPU. These are the
 # banks that sort BEFORE the main closures in the runner's alphabetical
 # *_dispatch.c registration glob, so they are the (only) preceding rows the
@@ -339,7 +348,8 @@ foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
     set(MPH_${_bank}_SOURCES ${_bank_sources})
     set(_bank_stamp "${MPH_RECOMP_DIR}/${_bank}.stamp")
     list(FIND MPH_ARM9_CAPTURE_BANKS "${_bank}" _capture_index)
-    if(_capture_index EQUAL -1)
+    list(FIND MPH_ARM7_CAPTURE_BANKS "${_bank}" _capture7_index)
+    if(_capture_index EQUAL -1 AND _capture7_index EQUAL -1)
         add_custom_command(
             OUTPUT "${_bank_stamp}"
             BYPRODUCTS ${_bank_sources} "${MPH_RECOMP_DIR}/${_bank}.h"
@@ -356,9 +366,14 @@ foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
             DEPENDS nds_recompile "${_bank_config}" "${_bank_image}"
             COMMENT "Recompiling content-validated AMHE0 runtime bank ${_bank}")
         list(APPEND MPH_RUNTIME_BANK_STAMPS_PRE "${_bank_stamp}")
-    else()
+    elseif(NOT _capture_index EQUAL -1)
         # Generated below, once mph_arm9_dispatch.c exists to prune against.
         list(APPEND MPH_DEFERRED_ARM9_CAPTURE_SPECS
+            "${_bank}|${_bank_config}|${_bank_image}|${_bank_shards}")
+    else()
+        # Generated below, once the ARM7 closure and alias dispatch tables
+        # exist to prune against (beads-yjp.57).
+        list(APPEND MPH_DEFERRED_ARM7_CAPTURE_SPECS
             "${_bank}|${_bank_config}|${_bank_image}|${_bank_shards}")
     endif()
     list(APPEND MPH_RUNTIME_BANK_SOURCES ${_bank_sources})
@@ -373,9 +388,6 @@ foreach(_bank_spec IN LISTS MPH_RUNTIME_BANKS)
             "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
     elseif(_bank MATCHES "^coverage_arm7")
         list(APPEND MPH_COVERAGE_ARM7_DISPATCH
-            "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
-    elseif(_bank MATCHES "^mph_arm7_mp_")
-        list(APPEND MPH_ARM7_MP_RUNTIME_DISPATCH
             "${MPH_RECOMP_DIR}/${_bank}_dispatch.c")
     endif()
 endforeach()
@@ -473,6 +485,65 @@ add_custom_command(
             "${MPH_ARM7_STAMP}"
             "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
     COMMENT "Recompiling the AMHE0 ARM7 main-RAM alias (superblocks)")
+
+# ---- Capture-derived ARM7 banks, pruned against the closure + aliases ------
+# beads-yjp.57. Same shape as the ARM9 capture banks above: these run last of
+# the ARM7 generation commands, and their preceding set is every ARM7 bank the
+# runner registers ahead of them (registration-order.txt puts the WRAM alias
+# first; the rest follow alphabetically: coverage_arm7*, mph_arm7,
+# mph_arm7_mainram_alias). --prune-preceding-owned drops every row those banks
+# already own with an equal-or-larger proven span over byte-identical content.
+# The alias banks' validation records are emitted at their relocated guest
+# bases with the relocated expected bytes (write_bank_dispatch reads the
+# source offset but keys the guest address), and the capture images here are
+# identity-mapped guest snapshots, so the byte comparison needs no extra
+# relocation mapping. The main-RAM capture registers ahead of the WRAM
+# capture, so the WRAM capture also lists it as preceding -- their windows
+# are disjoint today, and a superfluous preceding row only suppresses
+# emission it could never have won, never correctness.
+mph_preceding_args(MPH_ARM7_CAPTURE_PRECEDING
+    "${MPH_RECOMP_DIR}/mph_arm7_wram_alias_dispatch.c"
+    ${MPH_COVERAGE_ARM7_DISPATCH}
+    "${MPH_RECOMP_DIR}/mph_arm7_dispatch.c"
+    "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias_dispatch.c")
+foreach(_capture_spec IN LISTS MPH_DEFERRED_ARM7_CAPTURE_SPECS)
+    string(REPLACE "|" ";" _capture_spec "${_capture_spec}")
+    list(GET _capture_spec 0 _cap_bank)
+    list(GET _capture_spec 1 _cap_config)
+    list(GET _capture_spec 2 _cap_image)
+    list(GET _capture_spec 3 _cap_shards)
+    set(_cap_preceding ${MPH_ARM7_CAPTURE_PRECEDING})
+    set(_cap_extra_stamps)
+    if(_cap_bank STREQUAL "mph_arm7_mp_wram_runtime")
+        list(APPEND _cap_preceding --preceding-dispatch
+            "${MPH_RECOMP_DIR}/mph_arm7_mp_mainram_runtime_dispatch.c")
+        list(APPEND _cap_extra_stamps
+            "${MPH_RECOMP_DIR}/mph_arm7_mp_mainram_runtime.stamp")
+    endif()
+    add_custom_command(
+        OUTPUT "${MPH_RECOMP_DIR}/${_cap_bank}.stamp"
+        BYPRODUCTS ${MPH_${_cap_bank}_SOURCES}
+                   "${MPH_RECOMP_DIR}/${_cap_bank}.h"
+        COMMAND $<TARGET_FILE:nds_recompile>
+                --config "${_cap_config}"
+                --bin "${_cap_image}"
+                --out "${MPH_RECOMP_DIR}"
+                --bank "${_cap_bank}"
+                --shards ${_cap_shards}
+                --stable-address-shards
+                --max-function-bytes 512
+                --validate-live-bytes
+                --prune-preceding-owned
+                ${_cap_preceding}
+        COMMAND ${CMAKE_COMMAND} -E touch
+                "${MPH_RECOMP_DIR}/${_cap_bank}.stamp"
+        DEPENDS nds_recompile "${_cap_config}" "${_cap_image}"
+                "${MPH_ARM7_STAMP}" ${MPH_RUNTIME_BANK_STAMPS_PRE}
+                "${MPH_RECOMP_DIR}/mph_arm7_wram_alias.stamp"
+                "${MPH_RECOMP_DIR}/mph_arm7_mainram_alias.stamp"
+                ${_cap_extra_stamps}
+        COMMENT "Recompiling AMHE0 capture bank ${_cap_bank} (pruned against the ARM7 closure + aliases)")
+endforeach()
 
 # ---- Capture-derived ARM9 banks, pruned against the main closure ----------
 # beads-lqa.40. These run LAST of the generation commands: their preceding set

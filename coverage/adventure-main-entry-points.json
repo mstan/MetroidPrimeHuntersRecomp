@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "game_sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
-  "scenario": "scenarios/adventure_start.json; plus user-submitted 2026-08-24/25, 2026-08-27 and 2026-08-28 field coverage ingest",
+  "scenario": "adventure route + 2026-08-28 field parts (beads-yjp.55 span promotion, converged)",
   "runner_commit": "6b9a88859ded02496b320aab4d0ae20bee6ab3ba",
   "selection": "Tier-3 call and indirect targets inside immutable ARM9/ARM7 main-image ranges; monotonic union of every ingest to date; slice-resume roots omitted. The 2026-08-28 field round (three schema-4 player parts, build af38165) added ZERO new ARM9 main seeds: all 153 call/indirect targets it observed, including its six hottest (0x020872AC, 0x02088344, 0x0208B624, 0x0208AB70, 0x02086EA0, 0x0207F4C8), were already in this list and already have mph_arm9 dispatch rows, so their Tier-3 hits are not a seed-coverage gap (beads-lqa.39). Hit counts here were refreshed upward from that round.",
   "static_coverage": {
@@ -348,6 +348,54 @@
         "hits": 4270,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x0200a440",
+        "mode": "arm",
+        "hits": 36,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0200a44c",
+        "mode": "arm",
+        "hits": 35,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0200a488",
+        "mode": "arm",
+        "hits": 169,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0200a4dc",
+        "mode": "arm",
+        "hits": 7,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0200a4e8",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0200a4f0",
+        "mode": "arm",
+        "hits": 45,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -799,6 +847,14 @@
         ]
       },
       {
+        "addr": "0x02019cf8",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02019cfc",
         "mode": "arm",
         "hits": 2,
@@ -823,11 +879,51 @@
         ]
       },
       {
+        "addr": "0x02019d34",
+        "mode": "arm",
+        "hits": 7,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02019d44",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02019d4c",
         "mode": "arm",
         "hits": 1,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x0201a100",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0201a124",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0201a148",
+        "mode": "arm",
+        "hits": 7,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -1095,6 +1191,382 @@
         ]
       },
       {
+        "addr": "0x0202a3f8",
+        "mode": "arm",
+        "hits": 58,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a3fc",
+        "mode": "arm",
+        "hits": 37,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a400",
+        "mode": "arm",
+        "hits": 18,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a408",
+        "mode": "arm",
+        "hits": 42,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a40c",
+        "mode": "arm",
+        "hits": 25,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a410",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a45c",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a47c",
+        "mode": "arm",
+        "hits": 17,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a490",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a49c",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a4a8",
+        "mode": "arm",
+        "hits": 62,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a4bc",
+        "mode": "arm",
+        "hits": 71,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a4c4",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a4d4",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a4f0",
+        "mode": "arm",
+        "hits": 7,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a500",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a51c",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a538",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a54c",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a558",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a560",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a568",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a574",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a58c",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a59c",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a5b0",
+        "mode": "arm",
+        "hits": 27,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a5f4",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a5fc",
+        "mode": "arm",
+        "hits": 6,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a644",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a658",
+        "mode": "arm",
+        "hits": 13,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a6e8",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a71c",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a72c",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a750",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a7a8",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a7c4",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a7cc",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a814",
+        "mode": "arm",
+        "hits": 268,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a81c",
+        "mode": "arm",
+        "hits": 536,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a820",
+        "mode": "arm",
+        "hits": 268,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a828",
+        "mode": "arm",
+        "hits": 268,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a83c",
+        "mode": "arm",
+        "hits": 342,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a858",
+        "mode": "arm",
+        "hits": 268,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a864",
+        "mode": "arm",
+        "hits": 3531,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a86c",
+        "mode": "arm",
+        "hits": 3189,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a894",
+        "mode": "arm",
+        "hits": 265,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202a8a0",
+        "mode": "arm",
+        "hits": 6497,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0202a948",
         "mode": "arm",
         "hits": 845,
@@ -1135,6 +1607,30 @@
         ]
       },
       {
+        "addr": "0x0202be5c",
+        "mode": "arm",
+        "hits": 26,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202be60",
+        "mode": "arm",
+        "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202be64",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0202bea0",
         "mode": "arm",
         "hits": 61,
@@ -1159,6 +1655,70 @@
         ]
       },
       {
+        "addr": "0x0202bfb0",
+        "mode": "arm",
+        "hits": 7,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202bfd0",
+        "mode": "arm",
+        "hits": 7,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202bfe0",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202bff8",
+        "mode": "arm",
+        "hits": 11,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c008",
+        "mode": "arm",
+        "hits": 46,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c01c",
+        "mode": "arm",
+        "hits": 38,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c03c",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c04c",
+        "mode": "arm",
+        "hits": 55,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0202c0f0",
         "mode": "arm",
         "hits": 4,
@@ -1180,6 +1740,118 @@
         "hits": 2,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x0202c120",
+        "mode": "arm",
+        "hits": 23,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c124",
+        "mode": "arm",
+        "hits": 11,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c1b8",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c1cc",
+        "mode": "arm",
+        "hits": 11,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c1dc",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c1f0",
+        "mode": "arm",
+        "hits": 11,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c1f8",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c210",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c234",
+        "mode": "arm",
+        "hits": 94,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c240",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c254",
+        "mode": "arm",
+        "hits": 17,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c264",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c274",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202c298",
+        "mode": "arm",
+        "hits": 15,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -1383,6 +2055,526 @@
         ]
       },
       {
+        "addr": "0x0202d0ac",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d0b4",
+        "mode": "arm",
+        "hits": 25,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d0b8",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d0fc",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d108",
+        "mode": "arm",
+        "hits": 2700,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d134",
+        "mode": "arm",
+        "hits": 2700,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d13c",
+        "mode": "arm",
+        "hits": 2700,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d178",
+        "mode": "arm",
+        "hits": 15777,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d17c",
+        "mode": "arm",
+        "hits": 13493,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d180",
+        "mode": "arm",
+        "hits": 10793,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d184",
+        "mode": "arm",
+        "hits": 8094,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d194",
+        "mode": "arm",
+        "hits": 2698,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d19c",
+        "mode": "arm",
+        "hits": 1656,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1a0",
+        "mode": "arm",
+        "hits": 1046,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1a8",
+        "mode": "arm",
+        "hits": 3744,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1ac",
+        "mode": "arm",
+        "hits": 1046,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1b4",
+        "mode": "arm",
+        "hits": 1236,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1c0",
+        "mode": "arm",
+        "hits": 1897,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1d4",
+        "mode": "arm",
+        "hits": 609,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1dc",
+        "mode": "arm",
+        "hits": 1024,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1e4",
+        "mode": "arm",
+        "hits": 1845,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d1fc",
+        "mode": "arm",
+        "hits": 415,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d208",
+        "mode": "arm",
+        "hits": 6,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d210",
+        "mode": "arm",
+        "hits": 26,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d22c",
+        "mode": "arm",
+        "hits": 107,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d2f4",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d2fc",
+        "mode": "arm",
+        "hits": 98,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d30c",
+        "mode": "arm",
+        "hits": 340,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d328",
+        "mode": "arm",
+        "hits": 90,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d334",
+        "mode": "arm",
+        "hits": 82,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d33c",
+        "mode": "arm",
+        "hits": 175,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d354",
+        "mode": "arm",
+        "hits": 872,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d364",
+        "mode": "arm",
+        "hits": 426,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d378",
+        "mode": "arm",
+        "hits": 123,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d384",
+        "mode": "arm",
+        "hits": 668,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d398",
+        "mode": "arm",
+        "hits": 130,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d3a0",
+        "mode": "arm",
+        "hits": 361,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d3b0",
+        "mode": "arm",
+        "hits": 431,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d3c8",
+        "mode": "arm",
+        "hits": 346,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d3d8",
+        "mode": "arm",
+        "hits": 1984,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d3f8",
+        "mode": "arm",
+        "hits": 49,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d404",
+        "mode": "arm",
+        "hits": 15,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d420",
+        "mode": "arm",
+        "hits": 355,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d448",
+        "mode": "arm",
+        "hits": 162,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d478",
+        "mode": "arm",
+        "hits": 15,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d4a8",
+        "mode": "arm",
+        "hits": 928,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d60c",
+        "mode": "arm",
+        "hits": 391,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d650",
+        "mode": "arm",
+        "hits": 329,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d6b4",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d6c8",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d8fc",
+        "mode": "arm",
+        "hits": 240,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d90c",
+        "mode": "arm",
+        "hits": 6,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d980",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d988",
+        "mode": "arm",
+        "hits": 17,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d99c",
+        "mode": "arm",
+        "hits": 64,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202d9ac",
+        "mode": "arm",
+        "hits": 146,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202da40",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202da90",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dc34",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dc44",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dc70",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dccc",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dcec",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dcf8",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0202dd14",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0202df58",
         "mode": "arm",
         "hits": 2,
@@ -1404,6 +2596,14 @@
         "hits": 749,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x0202e8f0",
+        "mode": "arm",
+        "hits": 38472,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -1471,6 +2671,14 @@
         ]
       },
       {
+        "addr": "0x0202f2b4",
+        "mode": "arm",
+        "hits": 38490,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0202f2b8",
         "mode": "arm",
         "hits": 748,
@@ -1519,11 +2727,35 @@
         ]
       },
       {
+        "addr": "0x02030924",
+        "mode": "arm",
+        "hits": 16076,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02030940",
         "mode": "arm",
         "hits": 470,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x02030944",
+        "mode": "arm",
+        "hits": 13986,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020309dc",
+        "mode": "arm",
+        "hits": 30801,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -1700,6 +2932,94 @@
         "hits": 5,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02033124",
+        "mode": "arm",
+        "hits": 189,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033130",
+        "mode": "arm",
+        "hits": 679,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033134",
+        "mode": "arm",
+        "hits": 146,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033138",
+        "mode": "arm",
+        "hits": 13,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033148",
+        "mode": "arm",
+        "hits": 820,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033154",
+        "mode": "arm",
+        "hits": 186,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02033178",
+        "mode": "arm",
+        "hits": 71,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020331a0",
+        "mode": "arm",
+        "hits": 132,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020331b4",
+        "mode": "arm",
+        "hits": 214,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020331c8",
+        "mode": "arm",
+        "hits": 13,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0203321c",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -3124,11 +4444,235 @@
         ]
       },
       {
+        "addr": "0x02043f64",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02043f74",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02043f84",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02043f94",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02043fa8",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02043fcc",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044008",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044024",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044034",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044044",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020440cc",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02044114",
         "mode": "arm",
         "hits": 11,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x020441b8",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020441d0",
+        "mode": "arm",
+        "hits": 39,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020441f0",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020441f8",
+        "mode": "arm",
+        "hits": 19,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044204",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044210",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0204421c",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044230",
+        "mode": "arm",
+        "hits": 22,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044254",
+        "mode": "arm",
+        "hits": 55,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044274",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044290",
+        "mode": "arm",
+        "hits": 18,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020442ac",
+        "mode": "arm",
+        "hits": 45,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020442e0",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020442e8",
+        "mode": "arm",
+        "hits": 23,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044314",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044340",
+        "mode": "arm",
+        "hits": 29,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02044360",
+        "mode": "arm",
+        "hits": 30,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -4880,6 +6424,38 @@
         ]
       },
       {
+        "addr": "0x02050a30",
+        "mode": "arm",
+        "hits": 49,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02050a7c",
+        "mode": "arm",
+        "hits": 47,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02050ab8",
+        "mode": "arm",
+        "hits": 49,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02050ac4",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02050d48",
         "mode": "arm",
         "hits": 36555,
@@ -5184,11 +6760,35 @@
         ]
       },
       {
+        "addr": "0x02052a2c",
+        "mode": "arm",
+        "hits": 30,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02052a40",
         "mode": "arm",
         "hits": 4,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02053778",
+        "mode": "arm",
+        "hits": 17,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02053784",
+        "mode": "arm",
+        "hits": 18,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -5232,6 +6832,14 @@
         ]
       },
       {
+        "addr": "0x02053f18",
+        "mode": "arm",
+        "hits": 98698,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02053f34",
         "mode": "arm",
         "hits": 5,
@@ -5272,11 +6880,395 @@
         ]
       },
       {
+        "addr": "0x020546f4",
+        "mode": "arm",
+        "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0205490c",
         "mode": "arm",
         "hits": 23,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x02055768",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020557c8",
+        "mode": "arm",
+        "hits": 6,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056350",
+        "mode": "arm",
+        "hits": 32,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0205636c",
+        "mode": "arm",
+        "hits": 39,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056384",
+        "mode": "arm",
+        "hits": 13,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056390",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020563c4",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020563fc",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0205642c",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056434",
+        "mode": "arm",
+        "hits": 17,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056458",
+        "mode": "arm",
+        "hits": 78,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056484",
+        "mode": "arm",
+        "hits": 39,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0205649c",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020564e4",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020564fc",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056504",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056558",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056564",
+        "mode": "arm",
+        "hits": 21,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056588",
+        "mode": "arm",
+        "hits": 26,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020565c8",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020565d4",
+        "mode": "arm",
+        "hits": 13,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0205660c",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056624",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056664",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020566bc",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020566d4",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020566f0",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056704",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056724",
+        "mode": "arm",
+        "hits": 26,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056734",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0205673c",
+        "mode": "arm",
+        "hits": 23,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056768",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056770",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056778",
+        "mode": "arm",
+        "hits": 114,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020567cc",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020567e4",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056848",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020568c4",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056910",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056920",
+        "mode": "arm",
+        "hits": 22,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0205693c",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056948",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056954",
+        "mode": "arm",
+        "hits": 10,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056990",
+        "mode": "arm",
+        "hits": 1,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056a28",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056a34",
+        "mode": "arm",
+        "hits": 113,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02056a7c",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -5677,6 +7669,14 @@
         "hits": 749,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x0205af60",
+        "mode": "arm",
+        "hits": 38472,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -6960,6 +8960,62 @@
         ]
       },
       {
+        "addr": "0x02062224",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02062228",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0206222c",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02062234",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02062240",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02062254",
+        "mode": "arm",
+        "hits": 2,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02062270",
+        "mode": "arm",
+        "hits": 10,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02062428",
         "mode": "arm",
         "hits": 17,
@@ -7095,6 +9151,110 @@
         "hits": 11,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02063304",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0206331c",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02063334",
+        "mode": "arm",
+        "hits": 10,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02063354",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020633c4",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020633d0",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020633d8",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020633ec",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02063408",
+        "mode": "arm",
+        "hits": 34,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02063418",
+        "mode": "arm",
+        "hits": 18,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0206342c",
+        "mode": "arm",
+        "hits": 10,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02063438",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02063458",
+        "mode": "arm",
+        "hits": 88,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -7483,6 +9643,22 @@
         ]
       },
       {
+        "addr": "0x0206658c",
+        "mode": "arm",
+        "hits": 70,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02066598",
+        "mode": "arm",
+        "hits": 202,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020665f8",
         "mode": "arm",
         "hits": 1,
@@ -7504,6 +9680,14 @@
         "hits": 2,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02066648",
+        "mode": "arm",
+        "hits": 779,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -7531,6 +9715,14 @@
         ]
       },
       {
+        "addr": "0x0206677c",
+        "mode": "arm",
+        "hits": 30612,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02066780",
         "mode": "arm",
         "hits": 8,
@@ -7544,6 +9736,22 @@
         "hits": 2,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x02066840",
+        "mode": "arm",
+        "hits": 14133,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02066864",
+        "mode": "arm",
+        "hits": 69253,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -7563,11 +9771,27 @@
         ]
       },
       {
+        "addr": "0x02066a6c",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x02066a70",
         "mode": "arm",
         "hits": 1,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x02066bd4",
+        "mode": "arm",
+        "hits": 10,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -8903,6 +11127,38 @@
         ]
       },
       {
+        "addr": "0x02076918",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02076920",
+        "mode": "arm",
+        "hits": 9,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02077308",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02077310",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020774ac",
         "mode": "arm",
         "hits": 10989,
@@ -9359,6 +11615,22 @@
         ]
       },
       {
+        "addr": "0x0207b61c",
+        "mode": "arm",
+        "hits": 24125,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0207b630",
+        "mode": "arm",
+        "hits": 1209083,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0207b688",
         "mode": "arm",
         "hits": 5678,
@@ -9423,6 +11695,14 @@
         ]
       },
       {
+        "addr": "0x0207d8ac",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0207d8f8",
         "mode": "arm",
         "hits": 126,
@@ -9476,6 +11756,14 @@
         "hits": 4403719,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x0207f5c8",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -10160,6 +12448,46 @@
         ]
       },
       {
+        "addr": "0x0208217c",
+        "mode": "arm",
+        "hits": 100,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208218c",
+        "mode": "arm",
+        "hits": 158,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020821e8",
+        "mode": "arm",
+        "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020821f4",
+        "mode": "arm",
+        "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02082288",
+        "mode": "arm",
+        "hits": 24,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020822ec",
         "mode": "arm",
         "hits": 1,
@@ -10808,11 +13136,43 @@
         ]
       },
       {
+        "addr": "0x02085194",
+        "mode": "arm",
+        "hits": 32532,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020851ac",
+        "mode": "arm",
+        "hits": 32523,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020851c4",
         "mode": "arm",
         "hits": 8069,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x020851fc",
+        "mode": "arm",
+        "hits": 6503,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02085214",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -10902,6 +13262,22 @@
         "hits": 9804,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02085fac",
+        "mode": "arm",
+        "hits": 65606,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x02085fb4",
+        "mode": "arm",
+        "hits": 427970,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -11150,6 +13526,86 @@
         ]
       },
       {
+        "addr": "0x020873c8",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020873d0",
+        "mode": "arm",
+        "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020873d4",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020873d8",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020873dc",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874b4",
+        "mode": "arm",
+        "hits": 4,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874bc",
+        "mode": "arm",
+        "hits": 20,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874c0",
+        "mode": "arm",
+        "hits": 16,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874c4",
+        "mode": "arm",
+        "hits": 12,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020874c8",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020878f4",
         "mode": "arm",
         "hits": 62728,
@@ -11195,6 +13651,14 @@
         "hits": 187,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02087d5c",
+        "mode": "arm",
+        "hits": 105281,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -11617,11 +14081,59 @@
         ]
       },
       {
+        "addr": "0x0208ad50",
+        "mode": "arm",
+        "hits": 243462,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208ad58",
+        "mode": "arm",
+        "hits": 242569,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208ad80",
+        "mode": "arm",
+        "hits": 237499,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0208add0",
         "mode": "arm",
         "hits": 263,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x0208b1bc",
+        "mode": "arm",
+        "hits": 426511,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208b2b8",
+        "mode": "arm",
+        "hits": 708282,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208b3d8",
+        "mode": "arm",
+        "hits": 293471,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -11649,11 +14161,27 @@
         ]
       },
       {
+        "addr": "0x0208b4e8",
+        "mode": "arm",
+        "hits": 19324,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x0208b520",
         "mode": "arm",
         "hits": 545,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x0208b5b8",
+        "mode": "arm",
+        "hits": 40792,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -11878,6 +14406,22 @@
         "hits": 1,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x0208cbfc",
+        "mode": "arm",
+        "hits": 82433,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x0208cc20",
+        "mode": "arm",
+        "hits": 145570,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -12625,6 +15169,14 @@
         "hits": 71898,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x02091f80",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -14025,6 +16577,46 @@
         ]
       },
       {
+        "addr": "0x020a1988",
+        "mode": "arm",
+        "hits": 44765,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a1d08",
+        "mode": "arm",
+        "hits": 9495,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a1d48",
+        "mode": "arm",
+        "hits": 28475,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a1d8c",
+        "mode": "arm",
+        "hits": 9489,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a1db8",
+        "mode": "arm",
+        "hits": 77002,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020a2044",
         "mode": "arm",
         "hits": 6,
@@ -14070,6 +16662,22 @@
         "hits": 9,
         "kinds": [
           "indirect"
+        ]
+      },
+      {
+        "addr": "0x020a34b4",
+        "mode": "arm",
+        "hits": 44765,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3650",
+        "mode": "arm",
+        "hits": 5480,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -14137,6 +16745,86 @@
         ]
       },
       {
+        "addr": "0x020a3c28",
+        "mode": "arm",
+        "hits": 14,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3c90",
+        "mode": "arm",
+        "hits": 10,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3c9c",
+        "mode": "arm",
+        "hits": 8,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3cdc",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3d00",
+        "mode": "arm",
+        "hits": 50,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3d1c",
+        "mode": "arm",
+        "hits": 6,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3d5c",
+        "mode": "arm",
+        "hits": 3,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3d6c",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3d78",
+        "mode": "arm",
+        "hits": 5,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
+        "addr": "0x020a3d84",
+        "mode": "arm",
+        "hits": 42,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020a3d8c",
         "mode": "arm",
         "hits": 6093,
@@ -14158,6 +16846,14 @@
         "hits": 4,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x020a4734",
+        "mode": "arm",
+        "hits": 29,
+        "kinds": [
+          "span"
         ]
       },
       {
@@ -14692,11 +17388,27 @@
         ]
       },
       {
+        "addr": "0x020adfa8",
+        "mode": "arm",
+        "hits": 1117569,
+        "kinds": [
+          "span"
+        ]
+      },
+      {
         "addr": "0x020ae0b0",
         "mode": "arm",
         "hits": 20352,
         "kinds": [
           "call"
+        ]
+      },
+      {
+        "addr": "0x020ae10c",
+        "mode": "arm",
+        "hits": 234245,
+        "kinds": [
+          "span"
         ]
       },
       {

@@ -12,17 +12,35 @@ cpu          = "arm9"
 isa          = "armv5te"
 load_address = 0x02105000
 size         = 0x00001000
-entry_pc     = 0x021050C8
+entry_pc     = 0x02105094
 
 [identity]
 sha1 = "3f9ece6d88dfd92b29fb0bfd64c53fa979b1b436"
 rom_sha1 = "90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 
 [[entry_point]]
+addr = 0x02105094
+mode = "arm"
+kind = "runtime_observed"
+# hits = 8, seen as span
+
+[[entry_point]]
 addr = 0x021050C8
 mode = "arm"
 kind = "runtime_observed"
 # hits = 5914, seen as call
+
+[[entry_point]]
+addr = 0x02105104
+mode = "arm"
+kind = "runtime_observed"
+# hits = 8, seen as span
+
+[[entry_point]]
+addr = 0x02105130
+mode = "arm"
+kind = "runtime_observed"
+# hits = 3, seen as span
 
 [[entry_point]]
 addr = 0x02105198

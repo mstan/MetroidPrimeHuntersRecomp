@@ -79,11 +79,53 @@ function Get-ReleaseShardPolicy {
     Compiler           = 'gcc'
     GeneratedOpt       = '-O2'
     MaxFunctionBytes   = 512
-    IncludeRoots       = $false
+    IncludeRoots       = $true
     MergeCacheSnapshots = $false
     MaxPages           = 6
     MinHits            = 8
   }
+}
+
+function Format-ReleaseShardCommandArg {
+  param(
+    [Parameter(Mandatory = $true)][string]$Value,
+    [switch]$Quote
+  )
+  if (-not $Quote) { return $Value }
+  return ('"{0}"' -f ($Value -replace '"', '\"'))
+}
+
+function New-ReleaseShardCompileCommand {
+  param(
+    [Parameter(Mandatory = $true)][string[]]$Python,
+    [Parameter(Mandatory = $true)][string]$CompileScript,
+    [Parameter(Mandatory = $true)][string]$IncludeDir,
+    [Parameter(Mandatory = $true)][string]$RunnerBuild,
+    [Parameter(Mandatory = $true)][string]$Recompiler,
+    [Parameter(Mandatory = $true)][string]$Gcc,
+    [hashtable]$Policy = $null
+  )
+  if (-not $Policy) { $Policy = @{} + (Get-ReleaseShardPolicy) }
+
+  $args = @(
+    (Format-ReleaseShardCommandArg $Python[0] -Quote)
+  )
+  if ($Python.Count -gt 1) { $args += $Python[1..($Python.Count - 1)] }
+  $args += @(
+    (Format-ReleaseShardCommandArg $CompileScript -Quote),
+    '--runtime-include', (Format-ReleaseShardCommandArg $IncludeDir -Quote),
+    '--runner-build', (Format-ReleaseShardCommandArg $RunnerBuild -Quote),
+    '--recompiler', (Format-ReleaseShardCommandArg $Recompiler -Quote),
+    '--compiler', $Policy.Compiler,
+    '--gcc', (Format-ReleaseShardCommandArg $Gcc -Quote),
+    ('--generated-opt={0}' -f $Policy.GeneratedOpt),
+    '--max-function-bytes', $Policy.MaxFunctionBytes,
+    '--max-pages', $Policy.MaxPages,
+    '--min-hits', $Policy.MinHits
+  )
+  if ($Policy.IncludeRoots) { $args += '--include-roots' }
+  if ($Policy.MergeCacheSnapshots) { $args += '--merge-cache-snapshots' }
+  return ($args -join ' ')
 }
 
 # A Python that is NOT the devkitPro MSYS build on PATH (that one mangles
@@ -203,4 +245,44 @@ function Get-ShardsForIdentity {
     }
   }
   return @($out | Sort-Object Name -Unique)
+}
+
+function Assert-ReleaseShardCacheUsable {
+  param(
+    [Parameter(Mandatory = $true)][string]$CacheDir,
+    [Parameter(Mandatory = $true)][string]$Identity,
+    [switch]$AllowNoShardCache
+  )
+  $shards = @(Get-ShardsForIdentity -CacheDir $CacheDir -Identity $Identity)
+  if ($shards.Count -ne 0) { return $shards }
+
+  $present = @(Get-ChildItem -LiteralPath $CacheDir -Recurse -File `
+    -Filter '*.dll' -ErrorAction SilentlyContinue).Count
+  $message = @"
+The shard cache at $CacheDir has $present DLL(s) but NONE published under
+this build's provider identity $Identity, so the package would ship an
+empty cache.
+
+The identity folds the live bank ABI, the recompiler's reported codegen version,
+the shard compiler's emission surface, the runtime ABI headers, and the shard
+backend with its compile flags. The usual causes of that drift are:
+
+  * the cache was built against the in-tree recompiler\armv4t and
+    external\arm-recomp-core\common header directories instead of the two-file
+    flattened set a shipped install carries. Pass --runtime-include pointing at
+    the flattened set (tools\build_release_shard_cache.ps1 does this for you).
+  * generated-C emission changed, so kCodegenVersion in
+    recompiler\src\codegen_identity.h or SHARD_CODEGEN_VERSION in
+    tools\compile_live_shards.py was bumped.
+  * a different gcc, -O level or --max-function-bytes was used.
+
+Merely rebuilding the recompiler is NOT one of them any more (beads-yjp.52):
+the identity reads the version the binary reports, not its bytes.
+
+Rebuild it with tools\build_release_shard_cache.ps1 against the artifacts being
+shipped, or pass -AllowNoShardCache to ship without a cache anyway.
+"@
+  if (-not $AllowNoShardCache) { throw $message }
+  Write-Warning $message
+  return @()
 }

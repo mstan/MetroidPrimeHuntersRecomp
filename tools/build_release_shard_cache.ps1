@@ -169,19 +169,10 @@ Write-Host "Routes         : $($Routes -join ', ')"
 $pyExe = $python[0]
 $pyArgs = @()
 if ($python.Count -gt 1) { $pyArgs = $python[1..($python.Count - 1)] }
-$liveCommand = (@(
-  ('"{0}"' -f $pyExe)) + $pyArgs + @(
-  ('"{0}"' -f $compileScript),
-  '--runtime-include', ('"{0}"' -f $includeDir),
-  '--runner-build', ('"{0}"' -f $runnerBuild),
-  '--recompiler', ('"{0}"' -f $recompiler),
-  '--compiler', $policy.Compiler,
-  '--gcc', ('"{0}"' -f $Gcc),
-  ('--generated-opt={0}' -f $policy.GeneratedOpt),
-  '--max-function-bytes', $policy.MaxFunctionBytes,
-  '--max-pages', $policy.MaxPages,
-  '--min-hits', $policy.MinHits
-)) -join ' '
+$liveCommand = New-ReleaseShardCompileCommand -Python $python `
+  -CompileScript $compileScript -IncludeDir $includeDir `
+  -RunnerBuild $runnerBuild -Recompiler $recompiler -Gcc $Gcc `
+  -Policy $policy
 Write-Host "Autocompile    : $liveCommand"
 
 # ---- replay ----------------------------------------------------------------

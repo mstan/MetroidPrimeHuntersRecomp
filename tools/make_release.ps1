@@ -360,37 +360,9 @@ then re-run this packager, or pass -AllowNoShardCache to ship without one.
     -IncludeDir $identityInclude -Gcc $Gcc -Python (Get-ShardPython -PythonExe $PythonExe)
   Write-Host "Release shard provider identity: $shardIdentity (only shards published under it are shipped)"
 
-  $shards = @(Get-ShardsForIdentity -CacheDir $shardCache -Identity $shardIdentity)
-  if ($shards.Count -eq 0) {
-    $present = @(Get-ChildItem -LiteralPath $shardCache -Recurse -File `
-      -Filter '*.dll' -ErrorAction SilentlyContinue).Count
-    $message = @"
-The shard cache at $shardCache has $present DLL(s) but NONE published under
-this build's provider identity $shardIdentity, so the package would ship an
-empty cache.
-
-The identity folds the live bank ABI, the recompiler's reported codegen version,
-the shard compiler's emission surface, the runtime ABI headers, and the shard
-backend with its compile flags. The usual causes of that drift are:
-
-  * the cache was built against the in-tree recompiler\armv4t and
-    external\arm-recomp-core\common header directories instead of the two-file
-    flattened set a shipped install carries. Pass --runtime-include pointing at
-    the flattened set (tools\build_release_shard_cache.ps1 does this for you).
-  * generated-C emission changed, so kCodegenVersion in
-    recompiler\src\codegen_identity.h or SHARD_CODEGEN_VERSION in
-    tools\compile_live_shards.py was bumped.
-  * a different gcc, -O level or --max-function-bytes was used.
-
-Merely rebuilding the recompiler is NOT one of them any more (beads-yjp.52):
-the identity reads the version the binary reports, not its bytes.
-
-Rebuild it with tools\build_release_shard_cache.ps1 against the artifacts being
-shipped, or pass -AllowNoShardCache to ship without a cache anyway.
-"@
-    if (-not $AllowNoShardCache) { throw $message }
-    Write-Warning $message
-  } else {
+  $shards = @(Assert-ReleaseShardCacheUsable -CacheDir $shardCache `
+    -Identity $shardIdentity -AllowNoShardCache:$AllowNoShardCache)
+  if ($shards.Count -ne 0) {
     $shardDst = Join-Path $stage 'live-shard-cache'
     foreach ($shard in $shards) {
       $dest = Join-Path (Join-Path $shardDst $shard.Backend) $shard.Name
@@ -509,4 +481,3 @@ try {
 Write-Host "--- $stageName ---"
 Get-ChildItem -LiteralPath $stage | Select-Object Name, Length | Out-Host
 Get-FileHash -LiteralPath $zip -Algorithm SHA256 | Out-Host
-

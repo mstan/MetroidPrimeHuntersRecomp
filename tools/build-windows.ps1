@@ -19,9 +19,14 @@ param(
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$RecompilerBuildDir = 'recompiler\build',
   [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
+  [string]$ShardCacheDir = 'release-shard-cache',
+  [string]$Gcc = 'C:\msys64\mingw64\bin\gcc.exe',
+  [string]$PythonExe = '',
+  [switch]$AllowNoShardCache,
   # Opt-in profile-guided optimization of the runner. Off by default; with it
   # off this script behaves exactly as before, down to the CMake arguments.
   # With it on the runner is built three times in one build directory:
@@ -124,14 +129,18 @@ try {
   & $cmakePath --build $launcherBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed.' }
 
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-    "$root\tools\make_release.ps1" `
+  & "$root\tools\make_release.ps1" `
     -Version $Version `
     -RunnerBuildDir $RunnerBuildDir `
     -LauncherBuildDir $LauncherBuildDir `
     -RuntimeBinDir $RuntimeBinDir `
-    -SdlBackend $SdlBackend
-  if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed.' }
+    -NdsrecompRoot $NdsrecompRoot `
+    -RecompilerBuildDir $RecompilerBuildDir `
+    -SdlBackend $SdlBackend `
+    -ShardCacheDir $ShardCacheDir `
+    -Gcc $Gcc `
+    -PythonExe $PythonExe `
+    -AllowNoShardCache:$AllowNoShardCache
 } finally {
   Pop-Location
 }

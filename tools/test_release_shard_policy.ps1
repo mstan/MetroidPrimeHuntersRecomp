@@ -181,6 +181,17 @@ print("ok: root-only manifest qualifies only when include_roots is set")
     -Identity 'other')
   Require ($matching.Count -eq 1 -and $matching[0].Backend -eq 'gcc') `
     'packaging gate returns matching prebuilt shards'
+
+  $buildWindows = Get-Content -LiteralPath (Join-Path $PSScriptRoot `
+    'build-windows.ps1') -Raw
+  foreach ($paramName in @('NdsrecompRoot', 'RecompilerBuildDir',
+      'ShardCacheDir', 'Gcc', 'PythonExe', 'AllowNoShardCache')) {
+    Require ($buildWindows -match "(?m)\[.*\]\`$$paramName\b") `
+      "build-windows exposes $paramName for release packaging"
+    Require ($buildWindows -match "(?m)-$paramName\s+\`$$paramName\b" -or
+        $buildWindows -match "(?m)-$paramName`:\`$$paramName\b") `
+      "build-windows forwards $paramName to make_release"
+  }
 } finally {
   $tmpFull = [IO.Path]::GetFullPath($tmp)
   $systemTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())

@@ -16,6 +16,9 @@ param(
   [string]$Out = 'release-linux-steamdeck',
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompUiRoot = '..\recomp-ui',
+  [string]$ShardCacheDir = 'release-shard-cache-linux',
+  [switch]$AllowNoShardCache,
+  [switch]$SkipOverlayToolchain,
   [switch]$NoPackage,
   [switch]$SkipImageBuild
 )
@@ -77,10 +80,17 @@ $buildArgs = @(
   '--out', "/work/mph/$Out",
   '--ndsrecomp-root', '/work/ndsrecomp',
   '--recomp-ui-root', '/work/recomp-ui',
+  '--shard-cache', ("/work/mph/{0}" -f $ShardCacheDir.Replace('\', '/')),
   '--build-flavor', 'steamdeck'
 )
 if ($NoPackage) {
   $buildArgs += '--no-package'
+}
+if ($AllowNoShardCache) {
+  $buildArgs += '--allow-no-shard-cache'
+}
+if ($SkipOverlayToolchain) {
+  $buildArgs += '--skip-overlay-toolchain'
 }
 
 $dockerArgs = @(

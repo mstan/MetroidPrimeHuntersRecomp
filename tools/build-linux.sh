@@ -20,6 +20,10 @@ JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 BUILD_FLAVOR="release"
 SDL_BACKEND="${NDS_SDL_BACKEND:-SDL3}"
+SHARD_CACHE="${MPH_RELEASE_SHARD_CACHE:-}"
+GCC="${CC:-gcc}"
+ALLOW_NO_SHARD_CACHE=0
+SKIP_OVERLAY_TOOLCHAIN=0
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
@@ -37,6 +41,10 @@ while [ $# -gt 0 ]; do
     --recomp-ui-root) RECOMP_UI_ROOT="$(cd "$2" && pwd)"; shift 2;;
     --build-flavor) BUILD_FLAVOR="$2"; shift 2;;
     --sdl-backend) SDL_BACKEND="$2"; shift 2;;
+    --shard-cache) SHARD_CACHE="$2"; shift 2;;
+    --gcc) GCC="$2"; shift 2;;
+    --allow-no-shard-cache) ALLOW_NO_SHARD_CACHE=1; shift;;
+    --skip-overlay-toolchain) SKIP_OVERLAY_TOOLCHAIN=1; shift;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
       sed -n '2,14p' "$0"
@@ -55,6 +63,7 @@ GAME_BUILD="$REPO/build-linux-$BUILD_FLAVOR"
 RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-$BUILD_FLAVOR"
 LAUNCHER_BUILD="$REPO/launcher/recomp-ui/build-linux-$BUILD_FLAVOR"
 TITLE_BANK_DIR="$REPO/generated/recomp"
+SHARD_CACHE="${SHARD_CACHE:-$REPO/release-shard-cache-linux}"
 
 cd "$REPO"
 test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
@@ -69,6 +78,10 @@ test -f "$REPO/Metroid Prime Hunters.nds" || {
   echo "ERROR: verified Metroid Prime Hunters ROM is missing from the repo root." >&2
   exit 1
 }
+if [ "$SKIP_OVERLAY_TOOLCHAIN" = 1 ] && [ "$ALLOW_NO_SHARD_CACHE" != 1 ]; then
+  echo "ERROR: --skip-overlay-toolchain requires --allow-no-shard-cache" >&2
+  exit 2
+fi
 
 echo "[1/4] configure title banks"
 cmake -S "$REPO" -B "$GAME_BUILD" -G "Unix Makefiles" \
@@ -162,6 +175,97 @@ cp "$REPO/README.md" "$APPDIR/usr/bin/README.md"
 cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
 cp "$REPO/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
 
+# The live compiler and cache are a release unit. The cache is filtered
+# against these exact staged artifacts; the player-side TCC command discovers
+# this fixed layout beside nds_runner.
+TOOLCHAIN=""
+if [ "$SKIP_OVERLAY_TOOLCHAIN" != 1 ]; then
+  TOOLCHAIN="$APPDIR/usr/bin/overlay_toolchain"
+  mkdir -p "$TOOLCHAIN/include" "$TOOLCHAIN/python/bin" \
+    "$TOOLCHAIN/python/lib" "$TOOLCHAIN/tcc/lib/tcc"
+  RECOMPILER="$GAME_BUILD/ndsrecomp-recompiler/nds_recompile"
+  for required in "$FRAMEWORK_ROOT/tools/compile_live_shards.py" \
+      "$FRAMEWORK_ROOT/recompiler/armv4t/runtime_arm.h" \
+      "$FRAMEWORK_ROOT/external/arm-recomp-core/common/runtime_arm_types.h" \
+      "$RECOMPILER"; do
+    [ -f "$required" ] || {
+      echo "ERROR: overlay toolchain input missing: $required" >&2; exit 1;
+    }
+  done
+  cp "$FRAMEWORK_ROOT/tools/compile_live_shards.py" "$TOOLCHAIN/"
+  cp "$RECOMPILER" "$TOOLCHAIN/nds_recompile"
+  cp "$FRAMEWORK_ROOT/recompiler/armv4t/runtime_arm.h" "$TOOLCHAIN/include/"
+  cp "$FRAMEWORK_ROOT/external/arm-recomp-core/common/runtime_arm_types.h" \
+    "$TOOLCHAIN/include/"
+  cp "$REPO/tools/install_prebuilt_shards.py" "$TOOLCHAIN/"
+
+  SYSTEM_PYTHON="$(readlink -f "$(command -v python3)")"
+  PY_STDLIB="$(python3 -c 'import sysconfig; print(sysconfig.get_path("stdlib"))')"
+  [ -x "$SYSTEM_PYTHON" ] && [ -d "$PY_STDLIB" ] || {
+    echo "ERROR: a relocatable Python runtime could not be staged" >&2; exit 1;
+  }
+  cp "$SYSTEM_PYTHON" "$TOOLCHAIN/python/bin/python3-runtime"
+  cp -a "$PY_STDLIB" "$TOOLCHAIN/python/lib/"
+  cat > "$TOOLCHAIN/python/bin/python3" <<'EOF'
+#!/bin/sh
+HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+export PYTHONHOME="$(dirname "$HERE")"
+export PYTHONDONTWRITEBYTECODE=1
+exec "$HERE/python3-runtime" "$@"
+EOF
+
+  command -v tcc >/dev/null 2>&1 || {
+    echo "ERROR: tcc is required to package runtime live shards" >&2; exit 1;
+  }
+  TCC_SYSTEM="$(readlink -f "$(command -v tcc)")"
+  TCC_SUPPORT="$(dpkg-query -L tcc 2>/dev/null | \
+    sed -n 's#\(/.*\)/libtcc1\.a$#\1#p' | head -1)"
+  [ -n "$TCC_SUPPORT" ] && [ -f "$TCC_SUPPORT/libtcc1.a" ] || {
+    echo "ERROR: cannot locate tcc runtime support (libtcc1.a)" >&2; exit 1;
+  }
+  cp "$TCC_SYSTEM" "$TOOLCHAIN/tcc/tcc-runtime"
+  cp -a "$TCC_SUPPORT/." "$TOOLCHAIN/tcc/lib/tcc/"
+  write_tcc_wrapper() {
+    local runtime_sha tree_sha
+    runtime_sha="$(sha256sum "$TOOLCHAIN/tcc/tcc-runtime" | awk '{print $1}')"
+    tree_sha="$(cd "$TOOLCHAIN/tcc" && \
+      find tcc-runtime lib -type f -print0 | LC_ALL=C sort -z | \
+      xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+    printf '#!/bin/sh\n# tcc-runtime-sha256=%s\n# tcc-toolchain-sha256=%s\n' \
+      "$runtime_sha" "$tree_sha" > "$TOOLCHAIN/tcc/tcc"
+    cat >> "$TOOLCHAIN/tcc/tcc" <<'EOF'
+HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec "$HERE/tcc-runtime" -B"$HERE/lib/tcc" "$@"
+EOF
+    chmod 0755 "$TOOLCHAIN/tcc/tcc"
+  }
+  write_tcc_wrapper
+  chmod 0755 "$TOOLCHAIN/nds_recompile" "$TOOLCHAIN/python/bin/python3" \
+    "$TOOLCHAIN/python/bin/python3-runtime" "$TOOLCHAIN/tcc/tcc" \
+    "$TOOLCHAIN/tcc/tcc-runtime"
+
+  command -v "$GCC" >/dev/null 2>&1 || {
+    echo "ERROR: release-cache gcc not found: $GCC" >&2; exit 1;
+  }
+  RUNNER_SHA="$(sha256sum "$APPDIR/usr/bin/$RUNNER_NAME" | awk '{print $1}')"
+  STAGE_ARGS=(stage-cache
+    --compile-script "$TOOLCHAIN/compile_live_shards.py"
+    --runtime-include "$TOOLCHAIN/include"
+    --recompiler "$TOOLCHAIN/nds_recompile"
+    --gcc "$(command -v "$GCC")"
+    --cache "$SHARD_CACHE"
+    --destination "$APPDIR/usr/bin/prebuilt-live-shard-cache"
+    --extension .so --rom-sha1 "$ROM_SHA1" --runner-sha256 "$RUNNER_SHA")
+  if [ "$ALLOW_NO_SHARD_CACHE" = 1 ]; then
+    STAGE_ARGS+=(--allow-empty)
+  fi
+  python3 "$REPO/tools/release_shard_common.py" "${STAGE_ARGS[@]}"
+
+  "$TOOLCHAIN/python/bin/python3" -c \
+    'import argparse, hashlib, json, pathlib, subprocess, sysconfig'
+  "$TOOLCHAIN/tcc/tcc" -v >/dev/null 2>&1
+fi
+
 # Audit trail: the verified bank inventory of the exact runner being shipped.
 bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
   --repo "$REPO" --manifest "$APPDIR/usr/bin/bank-manifest.txt" --quiet
@@ -209,6 +313,12 @@ done
 if [ -n "$ROM" ]; then
   export RECOMP_DISC_HINT="$ROM"
 fi
+if [ -d "$HERE/usr/bin/prebuilt-live-shard-cache" ]; then
+  "$HERE/usr/bin/overlay_toolchain/python/bin/python3" \
+    "$HERE/usr/bin/overlay_toolchain/install_prebuilt_shards.py" \
+    --source "$HERE/usr/bin/prebuilt-live-shard-cache" \
+    --cache "$RUNDIR/live-shard-cache" || exit 1
+fi
 mkdir -p "$RUNDIR/bios" 2>/dev/null || true
 if [ ! -f "$RUNDIR/bios/README.txt" ] && [ -f "$HERE/usr/bin/bios/README.txt" ]; then
   cp "$HERE/usr/bin/bios/README.txt" "$RUNDIR/bios/README.txt" 2>/dev/null || true
@@ -225,15 +335,33 @@ chmod +x "$APPDIR/AppRun" \
   "$APPDIR/usr/bin/$LAUNCHER_NAME"
 
 echo "[4/4] package AppImage"
+DEPLOY_TOOLCHAIN_ARGS=()
+if [ -n "$TOOLCHAIN" ]; then
+  DEPLOY_TOOLCHAIN_ARGS+=(
+    --executable "$TOOLCHAIN/nds_recompile"
+    --executable "$TOOLCHAIN/python/bin/python3-runtime"
+    --executable "$TOOLCHAIN/tcc/tcc-runtime")
+  while IFS= read -r extension; do
+    DEPLOY_TOOLCHAIN_ARGS+=(--library "$extension")
+  done < <(find "$TOOLCHAIN/python/lib" -type f -name '*.so')
+fi
 "$LINUXDEPLOY_BIN" --appimage-extract-and-run --appdir "$APPDIR" \
   --executable "$APPDIR/usr/bin/$RUNNER_NAME" \
   --executable "$APPDIR/usr/bin/$LAUNCHER_NAME" \
+  "${DEPLOY_TOOLCHAIN_ARGS[@]}" \
   --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null
+if [ -n "$TOOLCHAIN" ]; then
+  # linuxdeploy may rewrite ELF RPATHs. Refresh the wrapper identity against
+  # the bytes that actually enter the AppImage.
+  write_tcc_wrapper
+fi
 
 APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
 rm -f "$APP"
 ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run "$APPDIR" "$APP" >/dev/null
 chmod +x "$APP"
-bash "$REPO/tools/test_appimage_layout.sh" "$APPDIR"
+EXPECT_LIVE_TOOLCHAIN="$((1 - SKIP_OVERLAY_TOOLCHAIN))" \
+EXPECT_LIVE_SHARDS="$((1 - ALLOW_NO_SHARD_CACHE))" \
+  bash "$REPO/tools/test_appimage_layout.sh" "$APPDIR"
 sha256sum "$APP"

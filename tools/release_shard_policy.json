@@ -1,0 +1,9 @@
+{
+  "compiler": "gcc",
+  "generated_opt": "-O2",
+  "max_function_bytes": 512,
+  "include_roots": true,
+  "merge_cache_snapshots": false,
+  "max_pages": 6,
+  "min_hits": 8
+}

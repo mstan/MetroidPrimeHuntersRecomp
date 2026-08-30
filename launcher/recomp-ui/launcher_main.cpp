@@ -1578,6 +1578,34 @@ void append_binding_args(std::vector<std::string>& args,
     }
 }
 
+std::string env_value(const char* name) {
+    const char* value = std::getenv(name);
+    return value && value[0] ? value : "";
+}
+
+void append_live_overlay_args(std::vector<std::string>& args,
+                              const std::filesystem::path& game_dir,
+                              const std::filesystem::path& data_dir) {
+    const std::string env_command = env_value("NDS_LIVE_OVERLAY_COMMAND");
+    const std::string env_cache = env_value("NDS_LIVE_OVERLAY_CACHE");
+    std::error_code error;
+    const bool bundled_toolchain = std::filesystem::is_regular_file(
+        game_dir / "overlay_toolchain" / "compile_live_shards.py", error);
+    if (!bundled_toolchain && env_command.empty() && env_cache.empty()) return;
+
+    args.push_back("--live-overlay-enable");
+    args.push_back("--live-overlay-auto");
+    append_arg(args, "--live-overlay-activation-delay-ms", "90000");
+    append_arg(args, "--live-overlay-auto-delay-ms", "90000");
+    append_arg(args, "--live-overlay-auto-cooldown-ms", "30000");
+    if (!env_command.empty())
+        append_arg(args, "--live-overlay-command", env_command);
+    append_arg(args, "--live-overlay-cache",
+               env_cache.empty()
+                   ? (data_dir / "live-shard-cache").string()
+                   : env_cache);
+}
+
 #endif
 
 void show_launch_error(const char* message) {
@@ -1860,6 +1888,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     }
 
     append_binding_args(args, mods);
+    append_live_overlay_args(args, game_dir, data_dir);
 
     std::vector<char*> argv;
     argv.reserve(args.size() + 1);

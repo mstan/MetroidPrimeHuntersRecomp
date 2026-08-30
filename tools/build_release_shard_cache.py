@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Replay one benchmark route with live-overlay autocompile pointed at a cache.
 
-This is the engine behind tools\\build_release_shard_cache.ps1: the packaged
-release ships PRE-COMPILED native shards so a player's very first session
+This is the route engine behind the Windows and Linux release-cache builders.
+The packaged release ships PRE-COMPILED native shards so a player's first session
 already runs the game's hot RAM-generated pages natively instead of
 interpreted, and the only way to produce those shards is to actually play the
 game while the runner's autocompile tier is armed.
@@ -31,7 +31,10 @@ def load_harness(mph_root: pathlib.Path):
 
 
 def shard_paths(cache: pathlib.Path, backend: str) -> set[str]:
-    return {p.name for p in (cache / backend).glob("*.dll")}
+    return {
+        p.name for pattern in ("*.dll", "*.so")
+        for p in (cache / backend).glob(pattern)
+    }
 
 
 def status_line(tag: str, status: dict, shards: int) -> None:

@@ -23,5 +23,6 @@ PRIVACY / SHARING
 live-shard-cache\snapshots\*.json and any coverage manifest written into the
 diagnostics folder contain snapshots of the game's own code, read out of YOUR
 copy of the cartridge. Do NOT post them publicly or attach them to bug reports.
-The converted .dll files under live-shard-cache\gcc and live-shard-cache\tcc
-are derived from the same material, so treat the whole folder as private too.
+The converted .dll (Windows) or .so (Linux) files under the gcc and tcc cache
+namespaces are derived from the same material, so treat the whole folder as
+private too.

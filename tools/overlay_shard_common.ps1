@@ -75,14 +75,16 @@ function New-OverlayToolchainIncludeDir {
 # computes. Whatever they select still reaches the shard through the entry
 # points, and compile_live_shards.py::work_identity() folds those directly.
 function Get-ReleaseShardPolicy {
+  $policyPath = Join-Path $PSScriptRoot 'release_shard_policy.json'
+  $policy = Get-Content -LiteralPath $policyPath -Raw | ConvertFrom-Json
   return [ordered]@{
-    Compiler           = 'gcc'
-    GeneratedOpt       = '-O2'
-    MaxFunctionBytes   = 512
-    IncludeRoots       = $true
-    MergeCacheSnapshots = $false
-    MaxPages           = 6
-    MinHits            = 8
+    Compiler            = [string]$policy.compiler
+    GeneratedOpt        = [string]$policy.generated_opt
+    MaxFunctionBytes    = [int]$policy.max_function_bytes
+    IncludeRoots        = [bool]$policy.include_roots
+    MergeCacheSnapshots = [bool]$policy.merge_cache_snapshots
+    MaxPages            = [int]$policy.max_pages
+    MinHits             = [int]$policy.min_hits
   }
 }
 

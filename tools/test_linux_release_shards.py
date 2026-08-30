@@ -7,9 +7,10 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import time
 
 
-TOOLS = pathlib.Path(__file__).resolve().parent
+TOOLS = pathlib.Path(__file__.replace("\\", "/")).resolve().parent
 ROOT = TOOLS.parent
 COMMON = TOOLS / "release_shard_common.py"
 INSTALLER = TOOLS / "install_prebuilt_shards.py"
@@ -113,6 +114,62 @@ def main() -> int:
         installed = json.loads(
             (external / "live-index.json").read_text(encoding="utf-8"))
         assert pathlib.Path(installed["captures"]["good"]["dll"]).is_file()
+
+        ready = tmp / "lock-ready.txt"
+        holder_script = tmp / "hold_install_lock.py"
+        holder_script.write_text(
+            "import importlib.util, pathlib, time\n"
+            f"spec = importlib.util.spec_from_file_location('installer', "
+            f"{json.dumps(str(INSTALLER))})\n"
+            "installer = importlib.util.module_from_spec(spec)\n"
+            "spec.loader.exec_module(installer)\n"
+            f"cache = pathlib.Path({json.dumps(str(external))})\n"
+            f"ready = pathlib.Path({json.dumps(str(ready))})\n"
+            "with installer.CacheInstallLock(cache):\n"
+            "    ready.write_text('ready\\n', encoding='ascii')\n"
+            "    time.sleep(1.0)\n",
+            encoding="ascii")
+        holder = subprocess.Popen(
+            [sys.executable, str(holder_script)],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        deadline = time.monotonic() + 5.0
+        while not ready.is_file() and time.monotonic() < deadline:
+            if holder.poll() is not None:
+                stdout, stderr = holder.communicate()
+                raise AssertionError(stderr or stdout)
+            time.sleep(0.05)
+        assert ready.is_file(), "lock holder did not start"
+        waiting = subprocess.Popen(
+            [sys.executable, str(INSTALLER), "--source", str(stage),
+             "--cache", str(external)],
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(0.25)
+        assert waiting.poll() is None, "installer did not wait on lock"
+        stdout, stderr = holder.communicate(timeout=10)
+        if holder.returncode:
+            raise AssertionError(stderr or stdout)
+        stdout, stderr = waiting.communicate(timeout=10)
+        if waiting.returncode:
+            raise AssertionError(stderr or stdout)
+
+        (external / ".mph-prebuilt-release-id").write_text(
+            "old-release\n", encoding="ascii")
+        (external / "stale-provider.so").write_bytes(b"stale")
+        workers = [
+            subprocess.Popen(
+                [sys.executable, str(INSTALLER), "--source", str(stage),
+                 "--cache", str(external)],
+                text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            for _ in range(2)
+        ]
+        for worker in workers:
+            stdout, stderr = worker.communicate(timeout=10)
+            if worker.returncode:
+                raise AssertionError(stderr or stdout)
+        assert not (external / "stale-provider.so").exists()
+        assert (external / "gcc" / "known.so").is_file()
+        assert not any(path.name.startswith(".live-shard-cache.seed-")
+                       for path in external.parent.iterdir())
 
         empty = tmp / "empty"
         empty.mkdir()

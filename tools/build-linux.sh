@@ -286,7 +286,7 @@ EOF
 
   "$TOOLCHAIN/python/bin/python3" -c \
     'import argparse, hashlib, json, pathlib, subprocess, sysconfig'
-  "$TOOLCHAIN/tcc/tcc" -v >/dev/null 2>&1
+  "$TOOLCHAIN/tcc/tcc" -v -E /dev/null >/dev/null 2>&1
 fi
 
 # Audit trail: the verified bank inventory of the exact runner being shipped.

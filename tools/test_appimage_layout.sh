@@ -39,7 +39,7 @@ if [ "$EXPECT_LIVE_TOOLCHAIN" = 1 ]; then
   "$TOOLCHAIN/python/bin/python3" "$TOOLCHAIN/compile_live_shards.py" \
     --help >/dev/null
   "$TOOLCHAIN/nds_recompile" --codegen-identity >/dev/null
-  "$TOOLCHAIN/tcc/tcc" -v >/dev/null 2>&1
+  "$TOOLCHAIN/tcc/tcc" -v -E /dev/null >/dev/null 2>&1
 fi
 if [ "$EXPECT_LIVE_SHARDS" = 1 ]; then
   PREBUILT="$APPDIR/usr/bin/prebuilt-live-shard-cache"

@@ -47,11 +47,6 @@ done
 command -v "$GCC" >/dev/null 2>&1 || {
   echo "ERROR: gcc not found: $GCC" >&2; exit 1;
 }
-find "$RUNNER_BUILD" -name '*nds_runner*.a' -print -quit | grep -q . || {
-  echo "ERROR: no nds_runner import/static link archive under $RUNNER_BUILD" >&2
-  exit 1
-}
-
 if [ "$CLEAN" = 1 ] && [ -d "$CACHE" ]; then
   rm -rf -- "$CACHE"
 fi

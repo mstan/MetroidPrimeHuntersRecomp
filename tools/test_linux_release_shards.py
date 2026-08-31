@@ -195,6 +195,9 @@ def main() -> int:
         "prebuilt-live-shard-cache", "--extension .so",
     ):
         assert required in package, required
+    cache_builder = (TOOLS / "build_release_shard_cache.sh").read_text(
+        encoding="utf-8")
+    assert "*nds_runner*.a" not in cache_builder
     print("Linux release shards: all assertions hold")
     return 0
 

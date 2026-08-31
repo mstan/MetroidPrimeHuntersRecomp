@@ -198,6 +198,10 @@ def main() -> int:
     cache_builder = (TOOLS / "build_release_shard_cache.sh").read_text(
         encoding="utf-8")
     assert "*nds_runner*.a" not in cache_builder
+    stage_exit = package.rindex(
+        'if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]')
+    assert package.index('chmod +x "$APPDIR/AppRun"') < stage_exit
+    assert stage_exit < package.index('echo "[4/4] package AppImage"')
     print("Linux release shards: all assertions hold")
     return 0
 

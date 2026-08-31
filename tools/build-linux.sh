@@ -292,15 +292,6 @@ fi
 # Audit trail: the verified bank inventory of the exact runner being shipped.
 bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
   --repo "$REPO" --manifest "$APPDIR/usr/bin/bank-manifest.txt" --quiet
-if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
-  CANDIDATE="$OUT/shard-performance-candidate"
-  rm -rf -- "$CANDIDATE"
-  cp -a "$APPDIR" "$CANDIDATE"
-  echo "Shard performance candidate staged at: $CANDIDATE"
-  echo "No AppImage was produced; run the bot-route gate, then package again with --shard-performance-gate."
-  exit 0
-fi
-
 python3 - "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" <<'PY'
 import struct, sys, zlib
 out = sys.argv[1]
@@ -364,6 +355,15 @@ EOF
 chmod +x "$APPDIR/AppRun" \
   "$APPDIR/usr/bin/$RUNNER_NAME" \
   "$APPDIR/usr/bin/$LAUNCHER_NAME"
+
+if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
+  CANDIDATE="$OUT/shard-performance-candidate"
+  rm -rf -- "$CANDIDATE"
+  cp -a "$APPDIR" "$CANDIDATE"
+  echo "Shard performance candidate staged at: $CANDIDATE"
+  echo "No AppImage was produced; run the bot-route gate, then package again with --shard-performance-gate."
+  exit 0
+fi
 
 echo "[4/4] package AppImage"
 DEPLOY_TOOLCHAIN_ARGS=()

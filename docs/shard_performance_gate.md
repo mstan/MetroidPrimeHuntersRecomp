@@ -24,8 +24,10 @@ compare unmatched routes.
 The report includes emulation and overlay-poll milliseconds per frame, ARM9
 and ARM7 execution attribution, Tier-3 instruction counts, native hits,
 loaded/registered banks, dispatch rates, and CRS hit/miss rates. Runtime TCC
-may hitch during compilation, but it must be idle, drained, registered, and
-receiving native hits by the final steady phase.
+may hitch during compilation, but it must be idle, drained, registered,
+receiving native-hit deltas, and measurably faster than the empty-cache leg by
+the route's final steady landmark. Truncated routes and unmatched steady
+dispatch bands are failures, even when the remaining phases look consistent.
 
 ## Windows field gate
 

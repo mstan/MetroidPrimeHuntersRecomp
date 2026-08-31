@@ -30,6 +30,7 @@ DEFAULT_THRESHOLDS = {
     "empty_max_poll_ms_per_frame": 0.25,
     "native_max_emu_ratio": 1.05,
     "native_max_emu_slack_ms": 0.25,
+    "native_min_steady_emu_improvement_ms": 0.25,
 }
 
 
@@ -206,6 +207,22 @@ def final_status(report: dict[str, Any]) -> dict[str, Any]:
     return runs[0].get("final_live_overlay") or {} if len(runs) == 1 else {}
 
 
+def phase_labels_from_route(report: dict[str, Any]) -> list[str]:
+    route = report.get("route", {})
+    if not isinstance(route, dict):
+        return []
+    values = []
+    for item in route.get("vblank_windows", []):
+        if isinstance(item, dict) and isinstance(item.get("label"), str):
+            values.append(item["label"])
+    for item in route.get("insn9_phases", []):
+        if isinstance(item, dict) and isinstance(item.get("label"), str):
+            values.append(item["label"])
+        elif isinstance(item, str):
+            values.append(item)
+    return values
+
+
 def add_check(checks: list[dict[str, Any]], name: str, passed: bool,
               detail: str) -> None:
     checks.append({"name": name, "pass": bool(passed), "detail": detail})
@@ -221,6 +238,7 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
     reports: list[tuple[dict[str, Any], dict[str, Any]]] = []
     seen: set[tuple[str, int]] = set()
     identities = []
+    expected_phase_labels: list[str] = []
 
     for leg in legs:
         mode = str(leg.get("mode"))
@@ -234,12 +252,20 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
                       f"missing report: {report_path}")
             continue
         report = read_json(report_path)
+        labels = phase_labels_from_route(report)
+        if not expected_phase_labels and labels:
+            expected_phase_labels = labels
         reports.append((leg, report))
         identities.append(report_identity(report))
 
     repetitions = int(manifest.get("repetitions", 0))
     expected = {(mode, rep) for mode in MODES
                 for rep in range(1, repetitions + 1)}
+    add_check(checks, "manifest_kind",
+              manifest.get("kind") == "mph-shard-performance-matrix",
+              f"kind={manifest.get('kind')!r}")
+    add_check(checks, "minimum_repetitions", repetitions >= 3,
+              f"repetitions={repetitions}")
     add_check(checks, "complete_matrix",
               seen == expected and len(legs) == len(expected),
               f"legs={len(legs)} unique={len(seen)} expected={len(expected)}")
@@ -257,6 +283,9 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
     for leg, report in reports:
         mode = leg["mode"]
         rep = int(leg["repetition"])
+        add_check(checks, f"{mode}.r{rep}.exit_code",
+                  "exit_code" in leg and int(leg["exit_code"]) == 0,
+                  f"exit_code={leg.get('exit_code', 'missing')}")
         runs = report.get("runs", [])
         valid = [run for run in runs if run.get("valid") and run.get("phases")]
         add_check(checks, f"{mode}.r{rep}.fresh_process",
@@ -264,6 +293,10 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
                   f"runs={len(runs)} valid={len(valid)}")
         if not valid:
             continue
+        labels = [phase.get("label") for phase in valid[0]["phases"]]
+        add_check(checks, f"{mode}.r{rep}.phase_landmarks",
+                  bool(expected_phase_labels) and labels == expected_phase_labels,
+                  f"labels={labels!r} expected={expected_phase_labels!r}")
         add_check(checks, f"{mode}.r{rep}.metric_surface",
                   all(has_required_metrics(phase)
                       for phase in valid[0]["phases"]),
@@ -314,7 +347,7 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
                       f"{status.get('runs_failed')} registered={status.get('registered_banks')} "
                       f"hits={status.get('native_hits')} busy={status.get('busy')}")
 
-    phases = sorted({m["phase"] for m in metrics})
+    phases = expected_phase_labels or sorted({m["phase"] for m in metrics})
     per_mode_phase = {
         mode: {
             field: median_by_phase(metrics, mode, field)
@@ -358,11 +391,39 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
 
     if phases:
         steady = phases[-1]
+        steady_bands = {
+            mode: {
+                m["dispatch_band"] for m in metrics
+                if m["mode"] == mode and m["phase"] == steady
+            } for mode in MODES
+        }
+        common_bands = set.intersection(*steady_bands.values()) if all(
+            steady_bands.values()) else set()
+        add_check(checks, f"{steady}.matched_dispatch_band",
+                  bool(common_bands),
+                  "steady dispatch bands by mode: " + ", ".join(
+                      f"{mode}={sorted(values)}"
+                      for mode, values in steady_bands.items()))
+        empty_emu = per_mode_phase["empty"]["emu_ms_per_frame"].get(steady)
         for mode in ("prebuilt_gcc", "runtime_tcc"):
             fps = per_mode_phase[mode]["fps"].get(steady, 0)
             add_check(checks, f"{mode}.{steady}.steady_fps",
                       fps >= thresholds["min_steady_fps"],
                       f"fps={fps:.3f} minimum={thresholds['min_steady_fps']:.3f}")
+            hits = [
+                m["native_hits"] for m in metrics
+                if m["mode"] == mode and m["phase"] == steady
+            ]
+            add_check(checks, f"{mode}.{steady}.steady_native_hits",
+                      bool(hits) and all(hit > 0 for hit in hits),
+                      f"native_hit_deltas={hits}")
+            candidate_emu = per_mode_phase[mode]["emu_ms_per_frame"].get(steady)
+            if empty_emu is not None and candidate_emu is not None:
+                improvement = empty_emu - candidate_emu
+                minimum = thresholds["native_min_steady_emu_improvement_ms"]
+                add_check(checks, f"{mode}.{steady}.steady_emu_improvement",
+                          improvement >= minimum,
+                          f"improvement={improvement:.3f} minimum={minimum:.3f} ms/f")
 
     bands = []
     for low, high in DISPATCH_BANDS:
@@ -532,6 +593,15 @@ def verify_package(gate_path: pathlib.Path, cache: pathlib.Path,
     result = read_json(gate_path)
     if result.get("kind") != "mph-shard-performance-gate" or not result.get("pass"):
         raise RuntimeError(f"performance gate did not pass: {gate_path}")
+    checks = result.get("checks")
+    if not isinstance(checks, list) or not checks or not all(
+            isinstance(check, dict) and check.get("pass") is True
+            for check in checks):
+        raise RuntimeError(f"performance gate has no passing check record: {gate_path}")
+    if result.get("route") not in ("mp_bots", "mp_bots_blank"):
+        raise RuntimeError(f"performance gate route is not a bot route: {gate_path}")
+    if int(result.get("repetitions", 0)) < 3:
+        raise RuntimeError(f"performance gate has fewer than three repetitions: {gate_path}")
     expected = result.get("prebuilt_cache") or {}
     actual = cache_inventory(cache)
     if actual["native_inventory_sha256"] != expected.get(
@@ -542,6 +612,8 @@ def verify_package(gate_path: pathlib.Path, cache: pathlib.Path,
             f"measured cache does not contain provider identity {provider_identity}")
     measured_runner = (result.get("measurement_identity") or {}).get(
         "executable_sha256")
+    if not measured_runner:
+        raise RuntimeError(f"performance gate does not record a measured runner: {gate_path}")
     if runner_sha256 and measured_runner != runner_sha256:
         raise RuntimeError(
             f"gate measured runner {measured_runner}, package has {runner_sha256}")

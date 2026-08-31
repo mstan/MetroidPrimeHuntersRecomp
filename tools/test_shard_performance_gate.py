@@ -16,11 +16,12 @@ PHASES = ("mp_bots_settle", "mp_bots_fight", "mp_bots_steady")
 def phase(label: str, mode: str) -> dict:
     hits = 1000 if mode in ("prebuilt_gcc", "runtime_tcc") else 0
     poll = 0.05 if mode != "disabled" else 0.0
+    emu = 9.5 if mode in ("prebuilt_gcc", "runtime_tcc") else 10.0
     return {
         "label": label,
         "frames": 120,
         "fps": 59.8,
-        "phase_ms_per_frame": {"emu": 10.0},
+        "phase_ms_per_frame": {"emu": emu},
         "emu_attrib_ms_per_frame": {
             "overlay_poll": poll, "exec_arm9": 5.0, "exec_arm7": 1.0,
         },
@@ -87,13 +88,14 @@ class GateTest(unittest.TestCase):
             "native_inventory_sha256": "cache-digest",
             "provider_identities": ["provider"],
         }
-        for repetition in (1, 2):
+        for repetition in (1, 2, 3):
             for mode in gate.MODES:
                 path = root / f"{mode}-{repetition}.json"
                 gate.write_json(path, report(mode))
                 legs.append({
                     "mode": mode, "repetition": repetition,
                     "report": path.name,
+                    "exit_code": 0,
                     "cache_before": (copy.deepcopy(inventory)
                                      if mode == "prebuilt_gcc" else {
                                          "native_file_count": 0,
@@ -106,8 +108,8 @@ class GateTest(unittest.TestCase):
                 })
         manifest = root / "manifest.json"
         gate.write_json(manifest, {
-            "schema": 1, "route": "mp_bots_blank", "repetitions": 2,
-            "legs": legs,
+            "schema": 1, "kind": "mph-shard-performance-matrix",
+            "route": "mp_bots_blank", "repetitions": 3, "legs": legs,
         })
         return manifest
 
@@ -165,6 +167,85 @@ class GateTest(unittest.TestCase):
         self.assertTrue(any(not c["pass"] and c["name"].endswith(
             "metric_surface") for c in result["checks"]))
 
+    def test_rejects_truncated_route_landmarks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest_path = self.fixture(root)
+            manifest = gate.read_json(manifest_path)
+            for leg in manifest["legs"]:
+                payload = gate.read_json(root / leg["report"])
+                payload["runs"][0]["phases"] = payload["runs"][0]["phases"][:1]
+                gate.write_json(root / leg["report"], payload)
+            result = gate.evaluate_manifest(manifest_path)
+        self.assertFalse(result["pass"])
+        self.assertTrue(any(not c["pass"] and c["name"].endswith(
+            "phase_landmarks") for c in result["checks"]))
+
+    def test_rejects_nonzero_measurement_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest_path = self.fixture(root)
+            manifest = gate.read_json(manifest_path)
+            manifest["legs"][0]["exit_code"] = 1
+            gate.write_json(manifest_path, manifest)
+            result = gate.evaluate_manifest(manifest_path)
+        self.assertFalse(result["pass"])
+        self.assertFalse(next(c for c in result["checks"]
+                              if c["name"].endswith(".exit_code"))["pass"])
+
+    def test_rejects_native_hits_only_before_steady_phase(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest_path = self.fixture(root)
+            manifest = gate.read_json(manifest_path)
+            for leg in manifest["legs"]:
+                if leg["mode"] != "prebuilt_gcc":
+                    continue
+                payload = gate.read_json(root / leg["report"])
+                payload["runs"][0]["phases"][-1]["live_overlay_delta"][
+                    "native_hits"] = 0
+                gate.write_json(root / leg["report"], payload)
+            result = gate.evaluate_manifest(manifest_path)
+        self.assertFalse(result["pass"])
+        self.assertFalse(next(c for c in result["checks"]
+                              if c["name"].endswith("steady_native_hits"))["pass"])
+
+    def test_rejects_native_mode_without_steady_emu_gain(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest_path = self.fixture(root)
+            manifest = gate.read_json(manifest_path)
+            for leg in manifest["legs"]:
+                if leg["mode"] != "prebuilt_gcc":
+                    continue
+                payload = gate.read_json(root / leg["report"])
+                for item in payload["runs"][0]["phases"]:
+                    item["phase_ms_per_frame"]["emu"] = 10.0
+                gate.write_json(root / leg["report"], payload)
+            result = gate.evaluate_manifest(manifest_path)
+        self.assertFalse(result["pass"])
+        self.assertFalse(next(c for c in result["checks"]
+                              if c["name"].endswith("steady_emu_improvement"))[
+                                  "pass"])
+
+    def test_rejects_unmatched_steady_dispatch_band(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            manifest_path = self.fixture(root)
+            manifest = gate.read_json(manifest_path)
+            for leg in manifest["legs"]:
+                if leg["mode"] != "runtime_tcc":
+                    continue
+                payload = gate.read_json(root / leg["report"])
+                payload["runs"][0]["phases"][-1]["dispatch_delta"]["arm9"][
+                    "dispatch_total"] = 6_000_000
+                gate.write_json(root / leg["report"], payload)
+            result = gate.evaluate_manifest(manifest_path)
+        self.assertFalse(result["pass"])
+        self.assertFalse(next(c for c in result["checks"]
+                              if c["name"].endswith("matched_dispatch_band"))[
+                                  "pass"])
+
     def test_package_verifier_binds_measured_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
@@ -177,14 +258,33 @@ class GateTest(unittest.TestCase):
             inventory = gate.cache_inventory(cache)
             result = {
                 "kind": "mph-shard-performance-gate", "pass": True,
-                "route": "mp_bots_blank", "prebuilt_cache": inventory,
+                "route": "mp_bots_blank", "repetitions": 3,
+                "checks": [{"name": "fixture", "pass": True, "detail": ""}],
+                "prebuilt_cache": inventory,
+                "measurement_identity": {"executable_sha256": "runner"},
             }
             result_path = root / "gate.json"
             gate.write_json(result_path, result)
-            self.assertEqual(gate.verify_package(result_path, cache, "provider"), 0)
+            self.assertEqual(gate.verify_package(
+                result_path, cache, "provider", "runner"), 0)
             (cache / "gcc" / "two.dll").write_bytes(b"unmeasured")
             with self.assertRaisesRegex(RuntimeError, "differs"):
-                gate.verify_package(result_path, cache, "provider")
+                gate.verify_package(result_path, cache, "provider", "runner")
+
+    def test_package_verifier_rejects_minimal_fabricated_gate_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            cache = root / "cache"
+            (cache / "gcc").mkdir(parents=True)
+            (cache / "gcc" / "one.dll").write_bytes(b"native")
+            result_path = root / "gate.json"
+            gate.write_json(result_path, {
+                "kind": "mph-shard-performance-gate", "pass": True,
+                "route": "mp_bots_blank",
+                "prebuilt_cache": gate.cache_inventory(cache),
+            })
+            with self.assertRaisesRegex(RuntimeError, "passing check record"):
+                gate.verify_package(result_path, cache, None, "runner")
 
 
 if __name__ == "__main__":

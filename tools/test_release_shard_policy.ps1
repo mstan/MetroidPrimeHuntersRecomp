@@ -185,13 +185,24 @@ print("ok: root-only manifest qualifies only when include_roots is set")
   $buildWindows = Get-Content -LiteralPath (Join-Path $PSScriptRoot `
     'build-windows.ps1') -Raw
   foreach ($paramName in @('NdsrecompRoot', 'RecompilerBuildDir',
-      'ShardCacheDir', 'Gcc', 'PythonExe', 'AllowNoShardCache')) {
+      'ShardCacheDir', 'ShardPerformanceGate', 'Gcc', 'PythonExe',
+      'AllowNoShardCache')) {
     Require ($buildWindows -match "(?m)\[.*\]\`$$paramName\b") `
       "build-windows exposes $paramName for release packaging"
     Require ($buildWindows -match "(?m)-$paramName\s+\`$$paramName\b" -or
         $buildWindows -match "(?m)-$paramName`:\`$$paramName\b") `
       "build-windows forwards $paramName to make_release"
   }
+  $makeRelease = Get-Content -LiteralPath (Join-Path $PSScriptRoot `
+    'make_release.ps1') -Raw
+  Require ($makeRelease.Contains('shard_performance_gate.py')) `
+    'Windows packager verifies the measured shard performance gate'
+  Require ($makeRelease.Contains('verify-package')) `
+    'Windows packager binds the gate to the staged shard inventory'
+  $buildLinux = Get-Content -LiteralPath (Join-Path $PSScriptRoot `
+    'build-linux.sh') -Raw
+  Require ($buildLinux.Contains('shard_performance_gate.py')) `
+    'Linux packager verifies the measured shard performance gate'
 } finally {
   $tmpFull = [IO.Path]::GetFullPath($tmp)
   $systemTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())

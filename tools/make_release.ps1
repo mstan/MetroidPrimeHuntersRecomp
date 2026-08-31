@@ -29,6 +29,11 @@ param(
   # tools\build_release_shard_cache.ps1. Relative paths are resolved against
   # the repo root.
   [string]$ShardCacheDir = 'release-shard-cache',
+  # Empty resolves to <ShardCacheDir>\performance-gate.json.
+  [string]$ShardPerformanceGate = '',
+  # Assemble an unarchived candidate with the exact runner/cache/toolchain so
+  # shard_performance_gate.py can measure it. This mode never emits a ZIP.
+  [switch]$StageForShardPerformanceGate,
   [string]$Gcc = 'C:\msys64\mingw64\bin\gcc.exe',
   [string]$PythonExe = '',
   # Ship without a prebuilt shard cache. Off by default: a cache-less package
@@ -38,6 +43,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
+if ($StageForShardPerformanceGate -and
+    ($AllowNoShardCache -or $SkipOverlayToolchain)) {
+  throw '-StageForShardPerformanceGate requires both the shard cache and bundled TCC toolchain.'
+}
 
 # Directory parameters are documented as repo-root-relative, but an absolute
 # path is the natural thing to pass when the runner or framework lives in a
@@ -398,6 +407,42 @@ then re-run this packager, or pass -AllowNoShardCache to ship without one.
     }
     Set-Content -LiteralPath (Join-Path $stage 'shard-manifest.txt') `
       -Value $manifestLines -Encoding UTF8
+
+    if ($StageForShardPerformanceGate) {
+      Write-Host "Shard performance candidate staged at: $stage"
+      Write-Host 'No ZIP was produced; run the bot-route gate, then package again with -ShardPerformanceGate.'
+      return
+    }
+
+    $performanceGate = if ($ShardPerformanceGate) {
+      Resolve-UnderRoot $ShardPerformanceGate $root
+    } else {
+      Join-Path $shardCache 'performance-gate.json'
+    }
+    if (-not (Test-Path -LiteralPath $performanceGate)) {
+      throw @"
+No shard performance gate at '$performanceGate'. A nonempty DLL inventory does
+not prove that those shards load or receive native hits on the bot-match route.
+Run tools\shard_performance_gate.py run against the exact staged cache and
+runner, then pass -ShardPerformanceGate <performance-gate.json>.
+"@
+    }
+    $runnerSha256 = (Get-FileHash -LiteralPath $runner `
+      -Algorithm SHA256).Hash.ToLowerInvariant()
+    $gatePython = Get-ShardPython -PythonExe $PythonExe
+    $gateExe = $gatePython[0]
+    $gateArgs = @()
+    if ($gatePython.Count -gt 1) {
+      $gateArgs = $gatePython[1..($gatePython.Count - 1)]
+    }
+    & $gateExe @gateArgs (Join-Path $PSScriptRoot 'shard_performance_gate.py') `
+      verify-package --gate $performanceGate --cache $shardDst `
+      --runner-sha256 $runnerSha256
+    if ($LASTEXITCODE -ne 0) {
+      throw 'Prebuilt shard performance gate rejected the release cache.'
+    }
+    Copy-Item -LiteralPath $performanceGate `
+      -Destination (Join-Path $stage 'shard-performance-gate.json')
 
     # Player-facing explanation, both inside the cache folder and appended to
     # the staged README so it is findable without opening the folder. Appended

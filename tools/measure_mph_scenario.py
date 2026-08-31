@@ -36,6 +36,7 @@ runs concurrent sessions of the same executable.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import pathlib
 import shutil
 import subprocess
@@ -200,6 +201,77 @@ ROUTES: dict[str, dict[str, Any]] = {
 }
 
 
+def live_overlay_snapshot(client: Any) -> dict[str, Any] | None:
+    """Return the small, cumulative overlay surface needed by perf gates."""
+    try:
+        status = client.cmd("live_overlay_status")
+    except RuntimeError as error:
+        if str(error).endswith("unknown cmd"):
+            return None
+        raise
+    loaded = status.get("loaded", [])
+    return {
+        "enabled": bool(status.get("enabled", False)),
+        "active": bool(status.get("active", False)),
+        "auto_trigger": bool(status.get("auto_trigger", False)),
+        "initial_cache_scan_done": bool(
+            status.get("initial_cache_scan_done", False)
+        ),
+        "banks_loaded": int(status.get("banks_loaded", len(loaded))),
+        "banks_rejected": int(status.get("banks_rejected", 0)),
+        "registered_banks": sum(
+            1
+            for bank in loaded
+            if bank.get("registered") and not bank.get("superseded")
+        ),
+        "native_hits": sum(int(bank.get("native_hits", 0)) for bank in loaded),
+        "tier3_arm9": int(status.get("tier3_arm9", 0)),
+        "tier3_arm7": int(status.get("tier3_arm7", 0)),
+        "runs_started": int(status.get("runs_started", 0)),
+        "runs_finished": int(status.get("runs_finished", 0)),
+        "runs_failed": int(status.get("runs_failed", 0)),
+        "pending_candidates": int(status.get("pending_candidates", 0)),
+        "busy": bool(status.get("busy", False)),
+        "last_error": str(status.get("last_error", "")),
+    }
+
+
+def attach_live_overlay_delta(
+    result: dict[str, Any],
+    before: dict[str, Any] | None,
+    after: dict[str, Any] | None,
+) -> None:
+    result["live_overlay_before"] = before
+    result["live_overlay_after"] = after
+    if before is None or after is None:
+        result["live_overlay_delta"] = None
+        return
+    result["live_overlay_delta"] = {
+        key: after[key] - before[key]
+        for key in (
+            "banks_loaded",
+            "banks_rejected",
+            "registered_banks",
+            "native_hits",
+            "tier3_arm9",
+            "tier3_arm7",
+            "runs_started",
+            "runs_finished",
+            "runs_failed",
+        )
+    }
+
+
+def sha256_optional(path: pathlib.Path | None) -> str | None:
+    if path is None or not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def measure_to_vblank9(
     client: Any,
     process: subprocess.Popen[bytes],
@@ -209,6 +281,7 @@ def measure_to_vblank9(
     screenshot_path: pathlib.Path | None,
     adaptive_screenshot: bool,
 ) -> dict[str, Any]:
+    before_live = live_overlay_snapshot(client)
     before_front = bench.live_stats(client)
     before_profile = bench.profile_snapshot(client)
     before_counts = client.event_counts()
@@ -224,6 +297,7 @@ def measure_to_vblank9(
     result["vblank9"] = end_counts["vblank9"] - before_counts["vblank9"]
     result["insn9"] = end_counts["insn9"] - before_counts["insn9"]
     bench.finish_phase(client, result, screenshot_path, adaptive_screenshot)
+    attach_live_overlay_delta(result, before_live, live_overlay_snapshot(client))
     print(
         f"{label}: {result['frames']} frames / {result['vblank9']} guest VBlanks "
         f"in {result['seconds']:.3f}s, {result['fps']:.3f} FPS",
@@ -242,6 +316,7 @@ def measure_to_insn9(
     screenshot_path: pathlib.Path | None,
     adaptive_screenshot: bool,
 ) -> dict[str, Any]:
+    before_live = live_overlay_snapshot(client)
     before_front = bench.live_stats(client)
     before_profile = bench.profile_snapshot(client)
     before_counts = client.event_counts()
@@ -257,6 +332,7 @@ def measure_to_insn9(
     result["insn9"] = end_counts["insn9"] - before_counts["insn9"]
     result["vblank9"] = end_counts["vblank9"] - before_counts["vblank9"]
     bench.finish_phase(client, result, screenshot_path, adaptive_screenshot)
+    attach_live_overlay_delta(result, before_live, live_overlay_snapshot(client))
     print(
         f"{label}: {result['insn9']} ARM9 instructions and {result['frames']} "
         f"frames in {result['seconds']:.3f}s, {result['fps']:.3f} FPS",
@@ -467,6 +543,7 @@ def run_repetition(args: argparse.Namespace, repetition: int) -> dict[str, Any]:
 
         run["final_event_counts"] = client.event_counts()
         run["final_framebuffer_sha256"] = bench.framebuffer_digest(client)
+        run["final_live_overlay"] = live_overlay_snapshot(client)
         if args.discover_static_misses:
             run["tier3_coverage"] = client.cmd("tier3_coverage", max=262_144)
         run["valid"] = True
@@ -691,7 +768,9 @@ def main() -> int:
             "executable": str(args.exe),
             "executable_sha256": bench.sha256_file(args.exe),
             "config": str(args.config) if args.config else None,
+            "config_sha256": sha256_optional(args.config),
             "rom": str(args.rom),
+            "rom_sha256": sha256_optional(args.rom),
             "framework_root": str(FRAMEWORK_ROOT),
             "framework_revision": bench.git_revision(FRAMEWORK_ROOT),
             "target_revision": bench.git_revision(TARGET_ROOT),
@@ -703,7 +782,9 @@ def main() -> int:
             "screen_layout": args.screen_layout or "from game.toml",
             "adaptive_widescreen": args.adaptive_widescreen or "from game.toml",
             "save_source": str(args.save_source) if args.save_source else None,
+            "save_source_sha256": sha256_optional(args.save_source),
             "discover_static_misses": args.discover_static_misses,
+            "runner_args": list(args.runner_arg),
         },
         "host": bench.host_description(),
         "runs": [],

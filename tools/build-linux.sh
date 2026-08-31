@@ -21,9 +21,11 @@ DO_PACKAGE=1
 BUILD_FLAVOR="release"
 SDL_BACKEND="${NDS_SDL_BACKEND:-SDL3}"
 SHARD_CACHE="${MPH_RELEASE_SHARD_CACHE:-}"
+SHARD_PERFORMANCE_GATE="${MPH_SHARD_PERFORMANCE_GATE:-}"
 GCC="${CC:-gcc}"
 ALLOW_NO_SHARD_CACHE=0
 SKIP_OVERLAY_TOOLCHAIN=0
+STAGE_FOR_SHARD_PERFORMANCE_GATE=0
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
@@ -42,9 +44,11 @@ while [ $# -gt 0 ]; do
     --build-flavor) BUILD_FLAVOR="$2"; shift 2;;
     --sdl-backend) SDL_BACKEND="$2"; shift 2;;
     --shard-cache) SHARD_CACHE="$2"; shift 2;;
+    --shard-performance-gate) SHARD_PERFORMANCE_GATE="$2"; shift 2;;
     --gcc) GCC="$2"; shift 2;;
     --allow-no-shard-cache) ALLOW_NO_SHARD_CACHE=1; shift;;
     --skip-overlay-toolchain) SKIP_OVERLAY_TOOLCHAIN=1; shift;;
+    --stage-for-shard-performance-gate) STAGE_FOR_SHARD_PERFORMANCE_GATE=1; shift;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
       sed -n '2,14p' "$0"
@@ -64,6 +68,7 @@ RUNNER_BUILD="$FRAMEWORK_ROOT/runner/build-mph-linux-$BUILD_FLAVOR"
 LAUNCHER_BUILD="$REPO/launcher/recomp-ui/build-linux-$BUILD_FLAVOR"
 TITLE_BANK_DIR="$REPO/generated/recomp"
 SHARD_CACHE="${SHARD_CACHE:-$REPO/release-shard-cache-linux}"
+SHARD_PERFORMANCE_GATE="${SHARD_PERFORMANCE_GATE:-$SHARD_CACHE/performance-gate.json}"
 
 cd "$REPO"
 test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
@@ -80,6 +85,11 @@ test -f "$REPO/Metroid Prime Hunters.nds" || {
 }
 if [ "$SKIP_OVERLAY_TOOLCHAIN" = 1 ] && [ "$ALLOW_NO_SHARD_CACHE" != 1 ]; then
   echo "ERROR: --skip-overlay-toolchain requires --allow-no-shard-cache" >&2
+  exit 2
+fi
+if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ] && \
+   { [ "$ALLOW_NO_SHARD_CACHE" = 1 ] || [ "$SKIP_OVERLAY_TOOLCHAIN" = 1 ]; }; then
+  echo "ERROR: --stage-for-shard-performance-gate requires shards and bundled TCC" >&2
   exit 2
 fi
 
@@ -260,6 +270,19 @@ EOF
     STAGE_ARGS+=(--allow-empty)
   fi
   python3 "$REPO/tools/release_shard_common.py" "${STAGE_ARGS[@]}"
+  if [ "$ALLOW_NO_SHARD_CACHE" != 1 ] && \
+     [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" != 1 ]; then
+    test -f "$SHARD_PERFORMANCE_GATE" || {
+      echo "ERROR: no bot-route shard performance gate: $SHARD_PERFORMANCE_GATE" >&2
+      exit 1
+    }
+    python3 "$REPO/tools/shard_performance_gate.py" verify-package \
+      --gate "$SHARD_PERFORMANCE_GATE" \
+      --cache "$APPDIR/usr/bin/prebuilt-live-shard-cache" \
+      --runner-sha256 "$RUNNER_SHA"
+    cp "$SHARD_PERFORMANCE_GATE" \
+      "$APPDIR/usr/bin/shard-performance-gate.json"
+  fi
 
   "$TOOLCHAIN/python/bin/python3" -c \
     'import argparse, hashlib, json, pathlib, subprocess, sysconfig'
@@ -269,6 +292,14 @@ fi
 # Audit trail: the verified bank inventory of the exact runner being shipped.
 bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
   --repo "$REPO" --manifest "$APPDIR/usr/bin/bank-manifest.txt" --quiet
+if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
+  CANDIDATE="$OUT/shard-performance-candidate"
+  rm -rf -- "$CANDIDATE"
+  cp -a "$APPDIR" "$CANDIDATE"
+  echo "Shard performance candidate staged at: $CANDIDATE"
+  echo "No AppImage was produced; run the bot-route gate, then package again with --shard-performance-gate."
+  exit 0
+fi
 
 python3 - "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" <<'PY'
 import struct, sys, zlib

@@ -24,6 +24,8 @@ param(
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
   [string]$ShardCacheDir = 'release-shard-cache',
+  [string]$ShardPerformanceGate = '',
+  [switch]$StageForShardPerformanceGate,
   [string]$Gcc = 'C:\msys64\mingw64\bin\gcc.exe',
   [string]$PythonExe = '',
   [switch]$AllowNoShardCache,
@@ -138,6 +140,8 @@ try {
     -RecompilerBuildDir $RecompilerBuildDir `
     -SdlBackend $SdlBackend `
     -ShardCacheDir $ShardCacheDir `
+    -ShardPerformanceGate $ShardPerformanceGate `
+    -StageForShardPerformanceGate:$StageForShardPerformanceGate `
     -Gcc $Gcc `
     -PythonExe $PythonExe `
     -AllowNoShardCache:$AllowNoShardCache

@@ -68,10 +68,44 @@ def main() -> int:
         raise SystemExit(f"config has no program load_address: {args.config}")
     config_base = int(base_match.group(1), 16)
     target_base = parse_int(overlays[args.overlay_id]["load_address"])
+    target_size = parse_int(overlays[args.overlay_id]["size"])
+    target_limit = target_base + target_size
     if config_base != target_base:
         raise SystemExit(
             f"config base 0x{config_base:08X} does not match overlay "
             f"{args.overlay_id} base 0x{target_base:08X}")
+    size_match = re.search(
+        r"^size\s*=\s*(0x[0-9A-Fa-f]+|[0-9]+)\s*$", header, re.MULTILINE)
+    if not size_match:
+        raise SystemExit(f"config has no program size: {args.config}")
+    config_size = parse_int(size_match.group(1))
+    if config_size != target_size:
+        raise SystemExit(
+            f"config size 0x{config_size:X} does not match overlay "
+            f"{args.overlay_id} size 0x{target_size:X}")
+    identity_match = re.search(
+        r"^\[identity\]\s*\nsha1\s*=\s*\"([0-9A-Fa-f]{40})\"\s*$",
+        config_text, re.MULTILINE)
+    if not identity_match:
+        raise SystemExit(f"config has no overlay SHA-1 identity: {args.config}")
+    config_sha1 = identity_match.group(1).lower()
+    target_sha1 = str(overlays[args.overlay_id].get("sha1", "")).lower()
+    if config_sha1 != target_sha1:
+        raise SystemExit(
+            f"config SHA-1 {config_sha1} does not match overlay "
+            f"{args.overlay_id} SHA-1 {target_sha1}")
+    page_limit = args.page + PAGE_SIZE
+    for root in args.root:
+        if root & 3:
+            raise SystemExit(f"promoted ARM root is not 4-byte aligned: 0x{root:08X}")
+        if not (args.page <= root and root + 4 <= page_limit):
+            raise SystemExit(
+                f"promoted root 0x{root:08X} is outside verified page "
+                f"0x{args.page:08X}-0x{page_limit:08X}")
+        if not (target_base <= root and root + 4 <= target_limit):
+            raise SystemExit(
+                f"promoted root 0x{root:08X} is outside overlay "
+                f"{args.overlay_id} image 0x{target_base:08X}-0x{target_limit:08X}")
     roots = {
         (int(addr, 16), mode)
         for addr, mode in re.findall(

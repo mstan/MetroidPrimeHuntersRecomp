@@ -62,6 +62,24 @@ add_custom_command(
     COMMENT "Verifying AMHE0 and preparing main/overlay code images")
 add_custom_target(mph_prepare DEPENDS ${MPH_PREP_OUTPUTS})
 
+# The bot-match route observed these overlay-0 roots once per generation.
+# Their guest addresses overlap other MPH overlays, so keep the promotion
+# tied to the captured page identity instead of trusting addresses alone.
+add_custom_target(mph_verify_ov000_root_provenance
+    COMMAND "${MPH_PYTHON}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_overlay_root_provenance.py"
+            --config "${CMAKE_CURRENT_SOURCE_DIR}/config/mph_arm9_ov000.toml"
+            --overlays-json "${MPH_INPUT_DIR}/overlays.json"
+            --overlays-dir "${MPH_INPUT_DIR}/overlays"
+            --overlay-id 0
+            --page 0x02131000
+            --page-sha1 bfce0687499c4fa2615da81b193588ba89ba5bd7
+            --root 0x02131A24 --root 0x02131A54 --root 0x02131A5C
+    DEPENDS mph_prepare
+            "${CMAKE_CURRENT_SOURCE_DIR}/config/mph_arm9_ov000.toml"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_overlay_root_provenance.py"
+    COMMENT "Verifying overlay-0 promoted root provenance")
+
 set(MPH_ARM9_SOURCES)
 foreach(shard RANGE 0 15)
     if(shard LESS 10)
@@ -539,6 +557,7 @@ add_custom_target(mph_generate_banks
     DEPENDS "${MPH_ARM9_STAMP}" "${MPH_ARM7_STAMP}"
         ${MPH_ARM7_ALIAS_STAMPS}
         ${MPH_OVERLAY_BANK_STAMPS} ${MPH_RUNTIME_BANK_STAMPS})
+add_dependencies(mph_generate_banks mph_verify_ov000_root_provenance)
 add_library(mph_recompiled_banks STATIC
     ${MPH_ARM9_SOURCES} ${MPH_ARM7_SOURCES} ${MPH_OVERLAY_BANK_SOURCES}
     ${MPH_RUNTIME_BANK_SOURCES})

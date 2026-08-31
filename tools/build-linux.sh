@@ -270,6 +270,13 @@ EOF
     STAGE_ARGS+=(--allow-empty)
   fi
   python3 "$REPO/tools/release_shard_common.py" "${STAGE_ARGS[@]}"
+  if [ "$ALLOW_NO_SHARD_CACHE" = 1 ] && \
+     ! find "$APPDIR/usr/bin/prebuilt-live-shard-cache/gcc" \
+          -maxdepth 1 -type f -name '*.so' -print -quit 2>/dev/null |
+        grep -q .; then
+    rm -rf -- "$APPDIR/usr/bin/prebuilt-live-shard-cache"
+    echo "No prebuilt Linux shard cache staged; bundled TCC remains available."
+  fi
   if [ "$ALLOW_NO_SHARD_CACHE" != 1 ] && \
      [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" != 1 ]; then
     test -f "$SHARD_PERFORMANCE_GATE" || {

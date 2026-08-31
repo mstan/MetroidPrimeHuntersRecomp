@@ -98,13 +98,16 @@ def main() -> int:
             source_index = json.loads((source / "live-index.json").read_text(
                 encoding="utf-8"))
             captures = {}
+            copied_shards: set[pathlib.Path] = set()
             for key, entry in source_index.get("captures", {}).items():
                 relative = pathlib.Path(entry["dll"])
                 if relative.is_absolute() or ".." in relative.parts:
                     raise RuntimeError(f"unsafe packaged shard path: {relative}")
                 target = staging / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source / relative, target)
+                if relative not in copied_shards:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source / relative, target)
+                    copied_shards.add(relative)
                 staged = dict(entry)
                 staged["dll"] = str((cache / relative).resolve())
                 captures[key] = staged

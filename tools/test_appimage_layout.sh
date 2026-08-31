@@ -161,6 +161,11 @@ if [ "$EXPECT_LIVE_SHARDS" = 1 ]; then
     echo "AppRun merged a stale shard cache into the packaged provider" >&2
     exit 1
   }
+else
+  if [ -e "$APPDIR/usr/bin/prebuilt-live-shard-cache" ]; then
+    echo "no-cache AppDir must not seed an empty prebuilt shard marker" >&2
+    exit 1
+  fi
 fi
 
 chmod -R a-w "$APPDIR"

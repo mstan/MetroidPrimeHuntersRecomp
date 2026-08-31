@@ -67,6 +67,8 @@ def main() -> int:
             "captures": {
                 "good": {"provider_id": "wanted-provider",
                          "dll": str(good.resolve()), "cpu": 9},
+                "good-alias": {"provider_id": "wanted-provider",
+                               "dll": str(good.resolve()), "cpu": 9},
                 "stale": {"provider_id": "old-provider",
                           "dll": str(stale.resolve()), "cpu": 9},
             },
@@ -83,7 +85,7 @@ def main() -> int:
             "--extension", ".so", "--rom-sha1", "1" * 40,
             "--runner-sha256", "2" * 64,
         )
-        assert json.loads(output.stdout)["shards"] == 1
+        assert json.loads(output.stdout)["shards"] == 2
         assert (stage / "gcc" / "known.so").read_bytes() == b"known"
         assert not (stage / "gcc" / "stale.so").exists()
         assert not (stage / "gcc" / "partial.stage.so").exists()
@@ -91,6 +93,7 @@ def main() -> int:
             (stage / "live-index.json").read_text(encoding="utf-8"))
         assert staged_index["rom_sha1"] == "1" * 40
         assert staged_index["captures"]["good"]["dll"] == "gcc/known.so"
+        assert staged_index["captures"]["good-alias"]["dll"] == "gcc/known.so"
 
         wrong_rom = run(
             sys.executable, str(COMMON), "stage-cache",
@@ -107,13 +110,20 @@ def main() -> int:
         (external / ".mph-prebuilt-release-id").write_text(
             "old-release\n", encoding="ascii")
         (external / "stale-provider.so").write_bytes(b"stale")
-        run(sys.executable, str(INSTALLER), "--source", str(stage),
-            "--cache", str(external))
+        packaged = stage / "gcc" / "known.so"
+        packaged.chmod(0o555)
+        try:
+            run(sys.executable, str(INSTALLER), "--source", str(stage),
+                "--cache", str(external))
+        finally:
+            packaged.chmod(0o755)
         assert not (external / "stale-provider.so").exists()
         assert (external / "gcc" / "known.so").is_file()
         installed = json.loads(
             (external / "live-index.json").read_text(encoding="utf-8"))
         assert pathlib.Path(installed["captures"]["good"]["dll"]).is_file()
+        assert installed["captures"]["good"]["dll"] == \
+            installed["captures"]["good-alias"]["dll"]
 
         ready = tmp / "lock-ready.txt"
         holder_script = tmp / "hold_install_lock.py"
@@ -202,6 +212,9 @@ def main() -> int:
         'if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]')
     assert package.index('chmod +x "$APPDIR/AppRun"') < stage_exit
     assert stage_exit < package.index('echo "[4/4] package AppImage"')
+    assert "No prebuilt Linux shard cache staged" in package
+    layout = (TOOLS / "test_appimage_layout.sh").read_text(encoding="utf-8")
+    assert "no-cache AppDir must not seed an empty prebuilt shard marker" in layout
     print("Linux release shards: all assertions hold")
     return 0
 

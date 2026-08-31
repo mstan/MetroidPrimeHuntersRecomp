@@ -1470,6 +1470,12 @@ void append_arg(std::wstring& command, const wchar_t* name,
     command += quote(value);
 }
 
+void append_savestate_dir_arg(std::wstring& command,
+                              const std::filesystem::path& data_dir) {
+    append_arg(command, L"--savestate-dir",
+               (data_dir / "savestates").wstring());
+}
+
 void append_binding_args(std::wstring& command, const ModState& mods) {
     for (const BindingOption& option : kBindingOptions) {
         std::wstring flag = L"--mph-bind-";
@@ -1562,6 +1568,12 @@ void append_arg(std::vector<std::string>& args, const std::string& name,
                 const std::string& value) {
     args.push_back(name);
     args.push_back(value);
+}
+
+void append_savestate_dir_arg(std::vector<std::string>& args,
+                              const std::filesystem::path& data_dir) {
+    append_arg(args, "--savestate-dir",
+               (data_dir / "savestates").string());
 }
 
 void append_binding_args(std::vector<std::string>& args,
@@ -1799,6 +1811,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
     append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
+    append_savestate_dir_arg(command, data_dir);
     // beads-yjp.16: the firmware console nickname. Passed only when the
     // player both configured a name and left the identity feature on;
     // otherwise the runner leaves the firmware's own name alone (a retail
@@ -1878,6 +1891,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--firmware-state-path", firmware_state.string());
     append_arg(args, "--diagnostics", mods.diagnostics ? "on" : "off");
     append_arg(args, "--diagnostics-dir", diagnostics_dir.string());
+    append_savestate_dir_arg(args, data_dir);
 
     if (valid_player_name(mods.player_name))
         append_arg(args, "--player-name", mods.player_name);

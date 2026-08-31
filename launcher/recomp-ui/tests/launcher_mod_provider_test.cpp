@@ -904,6 +904,43 @@ int main() {
         std::filesystem::remove(settings_path);
     }
 
+    // beads-q7fj: the title owns only the stable storage root. The runner
+    // appends the exact ROM SHA-1, so the launcher must not duplicate it.
+    // Keep testing the actual platform representation: UTF-16 plus Windows
+    // command-line escaping, or a discrete UTF-8 argv element on POSIX.
+    {
+#ifdef _WIN32
+        const std::filesystem::path data_dir =
+            L"C:\\Users\\Test User\\Saved Games\\Metroid Тest";
+        std::wstring command;
+        append_savestate_dir_arg(command, data_dir);
+        const std::filesystem::path expected = data_dir / "savestates";
+        if (!require(command ==
+                         L" --savestate-dir " + quote(expected.wstring()),
+                     "Windows savestate root is one quoted argument"))
+            return 171;
+        if (!require(command.find(L"90164d1ac127ee5f9815ea4ae7de798c7b5fc629") ==
+                         std::wstring::npos,
+                     "Windows launcher does not append ROM SHA-1"))
+            return 172;
+#else
+        const std::filesystem::path data_dir =
+            std::filesystem::u8path("/tmp/Metroid Test Ω/data");
+        std::vector<std::string> args;
+        append_savestate_dir_arg(args, data_dir);
+        const std::filesystem::path expected = data_dir / "savestates";
+        if (!require(args.size() == 2 && args[0] == "--savestate-dir" &&
+                         args[1] == expected.string(),
+                     "POSIX savestate root is one argv element"))
+            return 171;
+        if (!require(args[1].find(
+                         "90164d1ac127ee5f9815ea4ae7de798c7b5fc629") ==
+                         std::string::npos,
+                     "POSIX launcher does not append ROM SHA-1"))
+            return 172;
+#endif
+    }
+
 #ifdef _WIN32
     // Live-overlay gate. The regression this pins: a shipped extract sitting
     // anywhere near a sibling provider checkout used to be handed that

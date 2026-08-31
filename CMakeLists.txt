@@ -32,7 +32,11 @@ set(MPH_COVERAGE_SEEDS
 set(MPH_ARM7_ALIAS_SEEDS
     "${CMAKE_CURRENT_SOURCE_DIR}/coverage/arm7-alias-entry-points.json")
 
-set(_mph_venv_python "${CMAKE_CURRENT_SOURCE_DIR}/.venv/Scripts/python.exe")
+if(WIN32)
+    set(_mph_venv_python "${CMAKE_CURRENT_SOURCE_DIR}/.venv/Scripts/python.exe")
+else()
+    set(_mph_venv_python "${CMAKE_CURRENT_SOURCE_DIR}/.venv/bin/python3")
+endif()
 if(EXISTS "${_mph_venv_python}")
     set(MPH_PYTHON "${_mph_venv_python}" CACHE FILEPATH
         "Python interpreter with ndspy installed")

@@ -271,6 +271,28 @@ class GateTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "differs"):
                 gate.verify_package(result_path, cache, "provider", "runner")
 
+    def test_package_verifier_accepts_basic_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            cache = root / "cache"
+            (cache / "gcc").mkdir(parents=True)
+            (cache / "gcc" / "one.dll").write_bytes(b"native")
+            (cache / "live-index.json").write_text(json.dumps({
+                "captures": {"one": {"provider_id": "provider"}}
+            }), encoding="utf-8")
+            inventory = gate.cache_inventory(cache)
+            result = {
+                "kind": "mph-shard-basic-validation", "pass": True,
+                "route": "mp_bots_blank",
+                "checks": [{"name": "basic", "pass": True, "detail": ""}],
+                "prebuilt_cache": inventory,
+                "measurement_identity": {"executable_sha256": "runner"},
+            }
+            result_path = root / "basic.json"
+            gate.write_json(result_path, result)
+            self.assertEqual(gate.verify_package(
+                result_path, cache, "provider", "runner"), 0)
+
     def test_package_verifier_rejects_minimal_fabricated_gate_json(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)

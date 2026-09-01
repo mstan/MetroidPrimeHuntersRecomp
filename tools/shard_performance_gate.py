@@ -473,6 +473,182 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
     return result
 
 
+def one_valid_run(report: dict[str, Any]) -> dict[str, Any] | None:
+    runs = report.get("runs", [])
+    valid = [run for run in runs if run.get("valid") and run.get("phases")]
+    return valid[0] if len(runs) == 1 and len(valid) == 1 else None
+
+
+def run_basic(args: argparse.Namespace) -> pathlib.Path:
+    output = args.output.resolve()
+    if output.exists() and any(output.iterdir()):
+        raise RuntimeError(f"output must be absent or empty: {output}")
+    output.mkdir(parents=True, exist_ok=True)
+    source_cache = args.prebuilt_cache.resolve()
+    source_inventory = cache_inventory(source_cache)
+    if source_inventory["native_file_count"] == 0:
+        raise RuntimeError(f"prebuilt cache has no native shards: {source_cache}")
+
+    measure = pathlib.Path(__file__).with_name("measure_mph_scenario.py")
+    legs: list[dict[str, Any]] = []
+    plan = (
+        ("runtime_tcc", output / "cold-runtime-tcc"),
+        ("prebuilt_gcc", output / "warm-prebuilt-gcc"),
+    )
+    for mode, leg_dir in plan:
+        cache = leg_dir / "cache"
+        leg_dir.mkdir(parents=True)
+        if mode == "prebuilt_gcc":
+            shutil.copytree(source_cache, cache)
+        else:
+            cache.mkdir()
+        before = cache_inventory(cache)
+        command = [sys.executable, str(measure), "--route", args.route,
+                   "--exe", str(args.runner), "--bios", str(args.bios),
+                   "--rom", str(args.rom), "--config", str(args.config),
+                   "--output", str(leg_dir / "measurement"),
+                   "--repetitions", "1", "--port", str(args.base_port),
+                   "--threaded", str(args.threaded), "--renderer", args.renderer]
+        if args.save_source:
+            command += ["--save-source", str(args.save_source)]
+        for value in runner_args(mode, cache, args.runtime_tcc_command):
+            command.append(f"--runner-arg={value}")
+        completed = subprocess.run(command, check=False)
+        report_path = leg_dir / "measurement" / "report.json"
+        legs.append({
+            "mode": mode,
+            "report": report_path.relative_to(output).as_posix(),
+            "cache_before": before,
+            "cache_after": cache_inventory(cache),
+            "command": command,
+            "exit_code": completed.returncode,
+        })
+        write_json(output / "basic-validation.partial.json", {
+            "schema": 1,
+            "kind": "mph-shard-basic-validation",
+            "route": args.route,
+            "prebuilt_source": source_inventory,
+            "legs": legs,
+        })
+        args.base_port += 1
+
+    checks: list[dict[str, Any]] = []
+    identities = []
+    reports_by_mode: dict[str, dict[str, Any]] = {}
+    metrics: list[dict[str, Any]] = []
+    for leg in legs:
+        mode = leg["mode"]
+        report_path = output / leg["report"]
+        exists = report_path.is_file()
+        add_check(checks, f"{mode}.report_exists", exists, str(report_path))
+        if not exists:
+            continue
+        report = read_json(report_path)
+        reports_by_mode[mode] = report
+        identities.append(report_identity(report))
+        add_check(checks, f"{mode}.exit_code", int(leg["exit_code"]) == 0,
+                  f"exit_code={leg['exit_code']}")
+        add_check(checks, f"{mode}.configured_bot_route",
+                  report.get("route", {}).get("name") == args.route,
+                  f"route={report.get('route', {}).get('name')!r}")
+        run = one_valid_run(report)
+        add_check(checks, f"{mode}.fresh_process", run is not None,
+                  f"runs={len(report.get('runs', []))}")
+        if run:
+            add_check(checks, f"{mode}.metric_surface",
+                      all(has_required_metrics(phase)
+                          for phase in run["phases"]),
+                      "requires emu attribution, Tier-3, native-hit, dispatch and CRS counters")
+            metrics.extend(phase_metric(mode, 1, phase)
+                           for phase in run["phases"])
+
+    add_check(checks, "same_build_route_host",
+              bool(identities) and all(value == identities[0]
+                                       for value in identities[1:]),
+              "both validations use the same immutable build, ROM, route, settings and host")
+
+    cold = next((leg for leg in legs if leg["mode"] == "runtime_tcc"), None)
+    if cold:
+        status = final_status(reports_by_mode.get("runtime_tcc", {}))
+        before = cold.get("cache_before", {})
+        after = cold.get("cache_after", {})
+        ok = (before.get("native_file_count") == 0
+              and status.get("auto_trigger") is True
+              and int(status.get("runs_started", 0)) > 0
+              and int(status.get("runs_finished", 0)) > 0
+              and int(status.get("runs_failed", 0)) == 0
+              and int(status.get("banks_rejected", 0)) == 0
+              and int(status.get("registered_banks", 0)) > 0
+              and int(status.get("native_hits", 0)) > 0
+              and int(after.get("native_file_count", 0)) > 0
+              and not status.get("busy")
+              and int(status.get("pending_candidates", 0)) == 0)
+        add_check(checks, "cold_runtime_tcc_generates_and_hits", ok,
+                  f"before_files={before.get('native_file_count')} "
+                  f"after_files={after.get('native_file_count')} "
+                  f"runs={status.get('runs_started')}/{status.get('runs_finished')}/"
+                  f"{status.get('runs_failed')} registered={status.get('registered_banks')} "
+                  f"rejected={status.get('banks_rejected')} hits={status.get('native_hits')} "
+                  f"busy={status.get('busy')} pending={status.get('pending_candidates')}")
+
+    warm = next((leg for leg in legs if leg["mode"] == "prebuilt_gcc"), None)
+    warm_inventory = None
+    if warm:
+        status = final_status(reports_by_mode.get("prebuilt_gcc", {}))
+        before = warm.get("cache_before", {})
+        after = warm.get("cache_after", {})
+        same_inventory = (before.get("native_inventory_sha256") ==
+                          after.get("native_inventory_sha256"))
+        warm_inventory = before if same_inventory else None
+        ok = (before.get("native_file_count", 0) > 0
+              and same_inventory
+              and int(status.get("banks_loaded", 0)) > 0
+              and int(status.get("banks_rejected", 0)) == 0
+              and int(status.get("registered_banks", 0)) > 0
+              and int(status.get("native_hits", 0)) > 0)
+        add_check(checks, "warm_prebuilt_gcc_loads_and_hits", ok,
+                  f"files={before.get('native_file_count')} "
+                  f"inventory_stable={same_inventory} loaded={status.get('banks_loaded')} "
+                  f"registered={status.get('registered_banks')} rejected={status.get('banks_rejected')} "
+                  f"hits={status.get('native_hits')}")
+
+    result = {
+        "schema": 1,
+        "kind": "mph-shard-basic-validation",
+        "pass": all(check["pass"] for check in checks),
+        "route": args.route,
+        "checks": checks,
+        "legs": legs,
+        "metrics": metrics,
+        "prebuilt_cache": warm_inventory,
+        "measurement_identity": identities[0] if identities else None,
+    }
+    result_path = output / "basic-validation.json"
+    write_json(result_path, result)
+    (output / "basic-validation.md").write_text(basic_markdown_report(result),
+                                                 encoding="utf-8", newline="\n")
+    (output / "basic-validation.partial.json").unlink(missing_ok=True)
+    return result_path
+
+
+def basic_markdown_report(result: dict[str, Any]) -> str:
+    lines = [
+        f"# MPH shard basic validation: {'PASS' if result['pass'] else 'FAIL'}",
+        "",
+        f"Route: `{result.get('route')}`",
+        "",
+        "| Check | Result | Detail |",
+        "|---|---:|---|",
+    ]
+    for check in result.get("checks", []):
+        detail = str(check.get("detail", "")).replace("|", "\\|")
+        lines.append(
+            f"| `{check['name']}` | {'PASS' if check['pass'] else 'FAIL'} | "
+            f"{detail} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
 def markdown_report(result: dict[str, Any]) -> str:
     lines = [
         f"# MPH shard performance gate: {'PASS' if result['pass'] else 'FAIL'}",
@@ -591,16 +767,18 @@ def verify_package(gate_path: pathlib.Path, cache: pathlib.Path,
                    provider_identity: str | None,
                    runner_sha256: str | None = None) -> int:
     result = read_json(gate_path)
-    if result.get("kind") != "mph-shard-performance-gate" or not result.get("pass"):
-        raise RuntimeError(f"performance gate did not pass: {gate_path}")
+    kind = result.get("kind")
+    if kind not in ("mph-shard-performance-gate",
+                    "mph-shard-basic-validation") or not result.get("pass"):
+        raise RuntimeError(f"shard validation did not pass: {gate_path}")
     checks = result.get("checks")
     if not isinstance(checks, list) or not checks or not all(
             isinstance(check, dict) and check.get("pass") is True
             for check in checks):
-        raise RuntimeError(f"performance gate has no passing check record: {gate_path}")
+        raise RuntimeError(f"shard validation has no passing check record: {gate_path}")
     if result.get("route") not in ("mp_bots", "mp_bots_blank"):
-        raise RuntimeError(f"performance gate route is not a bot route: {gate_path}")
-    if int(result.get("repetitions", 0)) < 3:
+        raise RuntimeError(f"shard validation route is not a bot route: {gate_path}")
+    if kind == "mph-shard-performance-gate" and int(result.get("repetitions", 0)) < 3:
         raise RuntimeError(f"performance gate has fewer than three repetitions: {gate_path}")
     expected = result.get("prebuilt_cache") or {}
     actual = cache_inventory(cache)
@@ -613,7 +791,7 @@ def verify_package(gate_path: pathlib.Path, cache: pathlib.Path,
     measured_runner = (result.get("measurement_identity") or {}).get(
         "executable_sha256")
     if not measured_runner:
-        raise RuntimeError(f"performance gate does not record a measured runner: {gate_path}")
+        raise RuntimeError(f"shard validation does not record a measured runner: {gate_path}")
     if runner_sha256 and measured_runner != runner_sha256:
         raise RuntimeError(
             f"gate measured runner {measured_runner}, package has {runner_sha256}")
@@ -640,6 +818,19 @@ def parse_args() -> argparse.Namespace:
     run.add_argument("--threaded", type=int, choices=(0, 1), default=1)
     run.add_argument("--renderer", choices=("auto", "soft", "compute"),
                      default="auto")
+    basic = sub.add_parser("basic")
+    for name in ("runner", "bios", "rom", "config", "prebuilt-cache", "output"):
+        basic.add_argument(f"--{name}", type=pathlib.Path, required=True)
+    basic.add_argument("--runtime-tcc-command", default="@bundled",
+                       help="full command, or @bundled to exercise the "
+                            "toolchain beside the runner")
+    basic.add_argument("--route", choices=("mp_bots", "mp_bots_blank"),
+                       default="mp_bots_blank")
+    basic.add_argument("--save-source", type=pathlib.Path)
+    basic.add_argument("--base-port", type=int, default=20100)
+    basic.add_argument("--threaded", type=int, choices=(0, 1), default=1)
+    basic.add_argument("--renderer", choices=("auto", "soft", "compute"),
+                       default="auto")
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("--manifest", type=pathlib.Path, required=True)
     evaluate.add_argument("--output", type=pathlib.Path)
@@ -661,6 +852,13 @@ def main() -> int:
         gate = run_matrix(args)
         result = read_json(gate)
         print(gate)
+        return 0 if result["pass"] else 1
+    if args.command == "basic":
+        if not args.runtime_tcc_command.strip():
+            raise ValueError("--runtime-tcc-command must not be empty")
+        result_path = run_basic(args)
+        result = read_json(result_path)
+        print(result_path)
         return 0 if result["pass"] else 1
     if args.command == "evaluate":
         result = evaluate_manifest(args.manifest.resolve())

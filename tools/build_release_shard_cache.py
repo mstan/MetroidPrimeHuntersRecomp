@@ -43,6 +43,8 @@ def status_line(tag: str, status: dict, shards: int) -> None:
         f"loaded={status['banks_loaded']} rejected={status['banks_rejected']} "
         f"registered={sum(1 for b in status['loaded'] if b['registered'])} "
         f"tier3_9={status['tier3_arm9']} tier3_7={status['tier3_arm7']} "
+        f"pending={status['pending_candidates']} "
+        f"triggers={status['trigger_requests']} "
         f"runs={status['runs_started']}/{status['runs_finished']}"
         f"/{status['runs_failed']} "
         f"native_hits={sum(b['native_hits'] for b in status['loaded'])} "
@@ -144,6 +146,28 @@ def main() -> int:
                 if hold:
                     client.cmd("keys", mask=bench.KEYS_RELEASED)
 
+        pre_drain = client.cmd("live_overlay_status")
+        if pre_drain["tier3_arm9"] or pre_drain["tier3_arm7"]:
+            triggered = client.cmd("live_overlay_trigger")
+            status = triggered.get("status", pre_drain)
+            status_line("trigger", status,
+                        len(shard_paths(args.cache, args.backend)))
+            if not triggered.get("ok", False):
+                summary["status"] = status
+                summary["shards_before"] = before
+                summary["shards_after"] = len(shard_paths(args.cache,
+                                                          args.backend))
+                summary["shards_added"] = (summary["shards_after"] -
+                                           summary["shards_before"])
+                summary_path = args.log_dir / f"{args.route}.summary.json"
+                summary_path.write_text(json.dumps(summary, indent=2),
+                                        encoding="utf-8")
+                print(f"FATAL: explicit live-overlay trigger failed during "
+                      f"release-cache route {args.route!r}; "
+                      f"summary: {summary_path}",
+                      file=sys.stderr, flush=True)
+                return 1
+
         # ---- drain the compiler backlog ------------------------------------
         idle = 0
         rounds = 0
@@ -167,11 +191,15 @@ def main() -> int:
         summary["shards_after"] = len(shard_paths(args.cache, args.backend))
         summary["shards_added"] = summary["shards_after"] - before
         status_line("FINAL", final, summary["shards_after"])
-        (args.log_dir / f"{args.route}.summary.json").write_text(
-            json.dumps(summary, indent=2), encoding="utf-8")
+        summary_path = args.log_dir / f"{args.route}.summary.json"
+        summary_path.write_text(json.dumps(summary, indent=2),
+                                encoding="utf-8")
         if final["runs_failed"]:
-            print(f"WARNING: {final['runs_failed']} autocompile run(s) failed; "
-                  f"last error: {final['last_error']}", flush=True)
+            print(f"FATAL: {final['runs_failed']} autocompile run(s) failed "
+                  f"during release-cache route {args.route!r}; "
+                  f"last error: {final['last_error']!r}; "
+                  f"summary: {summary_path}", file=sys.stderr, flush=True)
+            return 1
     finally:
         if client:
             try:

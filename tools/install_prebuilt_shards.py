@@ -11,6 +11,15 @@ import tempfile
 import time
 
 
+def remove_tree(path: pathlib.Path) -> None:
+    def clear_readonly(function, item, exc_info) -> None:
+        del exc_info
+        os.chmod(item, 0o700)
+        function(item)
+
+    shutil.rmtree(path, onerror=clear_readonly)
+
+
 class CacheInstallLock:
     def __init__(self, cache: pathlib.Path) -> None:
         self.path = cache.parent / f".{cache.name}.install.lock"
@@ -121,11 +130,11 @@ def main() -> int:
             (staging / marker.name).write_text(
                 release_id + "\n", encoding="ascii")
             if cache.exists():
-                shutil.rmtree(cache)
+                remove_tree(cache)
             os.replace(staging, cache)
         finally:
             if staging.exists():
-                shutil.rmtree(staging)
+                remove_tree(staging)
     return 0
 
 

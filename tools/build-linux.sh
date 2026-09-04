@@ -26,6 +26,7 @@ GCC="${CC:-gcc}"
 ALLOW_NO_SHARD_CACHE=0
 SKIP_OVERLAY_TOOLCHAIN=0
 STAGE_FOR_SHARD_PERFORMANCE_GATE=0
+PACKAGE_EXISTING=0
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
@@ -49,6 +50,7 @@ while [ $# -gt 0 ]; do
     --allow-no-shard-cache) ALLOW_NO_SHARD_CACHE=1; shift;;
     --skip-overlay-toolchain) SKIP_OVERLAY_TOOLCHAIN=1; shift;;
     --stage-for-shard-performance-gate) STAGE_FOR_SHARD_PERFORMANCE_GATE=1; shift;;
+    --package-existing) PACKAGE_EXISTING=1; shift;;
     --no-package) DO_PACKAGE=0; shift;;
     -h|--help)
       sed -n '2,14p' "$0"
@@ -93,31 +95,36 @@ if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ] && \
   exit 2
 fi
 
-echo "[1/4] configure title banks"
-cmake -S "$REPO" -B "$GAME_BUILD" -G "Unix Makefiles" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT"
-echo "[2/4] build title banks"
-cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
+if [ "$PACKAGE_EXISTING" != 1 ]; then
+  echo "[1/4] configure title banks"
+  cmake -S "$REPO" -B "$GAME_BUILD" -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
+    -DMPH_PYTHON="$(command -v python3)"
+  echo "[2/4] build title banks"
+  cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
 
-echo "[3/4] configure runner"
-cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DNDS_SDL_BACKEND="$SDL_BACKEND" \
-  -DNDS_BOOTSTRAP_FIRMWARE=ON \
-  -DNDS_TITLE_BANK_DIR="$TITLE_BANK_DIR" \
-  -DNDS_TITLE_ROM_SHA1="$ROM_SHA1"
-echo "      build runner"
-cmake --build "$RUNNER_BUILD" -j"$JOBS"
+  echo "[3/4] configure runner"
+  cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DNDS_SDL_BACKEND="$SDL_BACKEND" \
+    -DNDS_BOOTSTRAP_FIRMWARE=ON \
+    -DNDS_TITLE_BANK_DIR="$TITLE_BANK_DIR" \
+    -DNDS_TITLE_ROM_SHA1="$ROM_SHA1"
+  echo "      build runner"
+  cmake --build "$RUNNER_BUILD" -j"$JOBS"
 
-echo "      configure Linux launcher"
-cmake -S "$REPO/launcher/recomp-ui" -B "$LAUNCHER_BUILD" -G "Unix Makefiles" \
-  -DCMAKE_BUILD_TYPE=Release \
-  -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
-  -DRECOMP_UI_ROOT="$RECOMP_UI_ROOT" \
-  -DMPH_LAUNCHER_SDL_BACKEND="$SDL_BACKEND"
-echo "      build Linux launcher"
-cmake --build "$LAUNCHER_BUILD" --target "$LAUNCHER_NAME" -j"$JOBS"
+  echo "      configure Linux launcher"
+  cmake -S "$REPO/launcher/recomp-ui" -B "$LAUNCHER_BUILD" -G "Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
+    -DRECOMP_UI_ROOT="$RECOMP_UI_ROOT" \
+    -DMPH_LAUNCHER_SDL_BACKEND="$SDL_BACKEND"
+  echo "      build Linux launcher"
+  cmake --build "$LAUNCHER_BUILD" --target "$LAUNCHER_NAME" -j"$JOBS"
+else
+  echo "[1/4] package-existing: using existing title, runner, and launcher builds"
+fi
 
 BIN="$RUNNER_BUILD/$RUNNER_NAME"
 LAUNCHER_BIN="$LAUNCHER_BUILD/$LAUNCHER_NAME"

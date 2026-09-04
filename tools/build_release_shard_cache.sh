@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Warm the Linux gcc shard cache over the committed benchmark routes.
+# Warm the Linux gcc shard cache over the small release route set.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +13,7 @@ BIOS="${NDS_BIOS_DIR:-$FRAMEWORK_ROOT/bios}"
 GCC="${CC:-gcc}"
 BASE_PORT=19910
 CLEAN=0
-ROUTES=(adventure attract mp_bots mp_bots_blank)
+ROUTES=(adventure mp_bots_blank)
 
 while [ $# -gt 0 ]; do
   case "$1" in

@@ -189,7 +189,7 @@ int main() {
         return 5;
     }
     if (!require(feature.enabled == 1, "feature enabled default")) return 6;
-    if (!require(feature.option_count == 51, "feature option count")) return 7;
+    if (!require(feature.option_count == 52, "feature option count")) return 7;
 
     feature = {};
     if (!require(provider.feature_get(provider.ctx, 3, &feature),
@@ -374,6 +374,26 @@ int main() {
                  "pad-scan-visor option id")) return 28;
     if (!require(std::strcmp(option.value, "Pad R3") == 0,
                  "pad-scan-visor default value")) return 28;
+    option = {};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-prime-controls", "prime-controls", 36,
+            &option), "pad-ui-left option get")) {
+        return 28;
+    }
+    if (!require(std::strcmp(option.id, "pad-ui-left") == 0,
+                 "pad-ui-left option id")) return 28;
+    if (!require(std::strcmp(option.value, "None") == 0,
+                 "pad-ui-left default keeps D-pad native")) return 28;
+    option = {};
+    if (!require(provider.feature_option_get(
+            provider.ctx, "mph-prime-controls", "prime-controls", 37,
+            &option), "pad-ui-right option get")) {
+        return 28;
+    }
+    if (!require(std::strcmp(option.id, "pad-ui-right") == 0,
+                 "pad-ui-right option id")) return 28;
+    if (!require(std::strcmp(option.value, "None") == 0,
+                 "pad-ui-right default keeps D-pad native")) return 28;
     if (!require(provider.feature_set_option(
             provider.ctx, "mph-prime-controls", "prime-controls",
             "pad-scan-visor", "Pad L3"), "set pad-scan-visor")) return 28;
@@ -388,6 +408,26 @@ int main() {
                  "pad choice get R3")) return 28;
     if (!require(std::strcmp(pad_choice.value, "Pad R3") == 0,
                  "pad choice value R3")) return 28;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-ui-left", "Pad Left"), "set pad-ui-left")) return 28;
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "pad-aim-sensitivity", "150"), "set pad aim before reset")) {
+        return 28;
+    }
+    if (!require(provider.feature_set_option(
+            provider.ctx, "mph-prime-controls", "prime-controls",
+            "restore-gamepad-defaults", "true"),
+            "restore gamepad defaults")) {
+        return 28;
+    }
+    if (!require(state.pad_scan_visor == "Pad R3",
+                 "reset restores pad-scan-visor")) return 28;
+    if (!require(state.pad_ui_left == "None",
+                 "reset restores pad-ui-left")) return 28;
+    if (!require(state.pad_aim_sensitivity == 100,
+                 "reset restores pad aim sensitivity")) return 28;
 
     if (!require(provider.feature_set_option(
             provider.ctx, "mph-prime-controls", "prime-controls",
@@ -696,6 +736,7 @@ int main() {
         saved.window_scale = 5;
         saved.display_layout = 0;
         saved.fullscreen = 2;
+        saved.linear_filter = true;
         saved.supersampling = 4;
         saved.antialiasing = 8;
         saved.renderer_type = "compute";
@@ -714,6 +755,8 @@ int main() {
                      "display layout round trip")) return 95;
         if (!require(loaded.fullscreen == 2,
                      "fullscreen round trip")) return 96;
+        if (!require(loaded.linear_filter,
+                     "linear filter round trip")) return 150;
         if (!require(loaded.supersampling == 4,
                      "supersampling round trip")) return 102;
         if (!require(loaded.antialiasing == 8,
@@ -732,6 +775,7 @@ int main() {
         applied.window_scale = 3;
         applied.display_layout = 1;
         applied.fullscreen = 0;
+        applied.linear_filter = 0;
         applied.supersampling = 1;
         applied.antialiasing = 0;
         applied.renderer = 0;
@@ -744,6 +788,8 @@ int main() {
                      "saved display layout applied")) return 108;
         if (!require(applied.fullscreen == 2,
                      "saved fullscreen applied")) return 109;
+        if (!require(applied.linear_filter == 1,
+                     "saved linear filter applied")) return 151;
         if (!require(applied.supersampling == 4,
                      "saved supersampling applied")) return 110;
         if (!require(applied.antialiasing == 8,
@@ -762,6 +808,7 @@ int main() {
         applied.window_scale = 2;
         applied.display_layout = 1;
         applied.fullscreen = 1;
+        applied.linear_filter = 0;
         applied.supersampling = 3;
         applied.antialiasing = 4;
         applied.renderer = 2;
@@ -776,6 +823,8 @@ int main() {
                      "changed display layout captured")) return 116;
         if (!require(loaded.fullscreen == 1,
                      "changed fullscreen captured")) return 117;
+        if (!require(!loaded.linear_filter,
+                     "changed linear filter captured")) return 152;
         if (!require(loaded.supersampling == 3,
                      "changed supersampling captured")) return 118;
         if (!require(loaded.antialiasing == 4,
@@ -803,6 +852,7 @@ int main() {
                     "window_scale=0\n"
                     "display_layout=99\n"
                     "fullscreen=-1\n"
+                    "linear_filter=maybe\n"
                     "supersampling=9\n"
                     "antialiasing=6\n"
                     "volume=101\n"
@@ -818,6 +868,8 @@ int main() {
                      "invalid display layout keeps default")) return 99;
         if (!require(invalid.fullscreen == 0,
                      "invalid fullscreen keeps default")) return 100;
+        if (!require(!invalid.linear_filter,
+                     "invalid linear filter keeps default")) return 153;
         if (!require(invalid.supersampling == 1,
                      "invalid supersampling keeps default")) return 124;
         if (!require(invalid.antialiasing == 0,

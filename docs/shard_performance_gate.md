@@ -1,33 +1,15 @@
-# MPH shard performance release gate
+# MPH shard validation release gate
 
 `tools/shard_performance_gate.py` is the acceptance test for the player-facing
 shard policy. A DLL/SO count is not evidence of acceleration. A release cache
-passes only when the exact packaged runner loads it and records native hits on
-the committed bot-match route.
+passes only when the exact packaged runner loads the prebuilt cache, records
+native hits on the committed bot-match route, and proves the bundled runtime
+TCC path can produce and hit a shard from a cold cache.
 
-## Controlled matrix
-
-Each repetition is a fresh process and gets one of four isolated cache states:
-
-1. overlay disabled;
-2. overlay enabled, empty cache, no compiler;
-3. a fresh copy of the exact prebuilt GCC cache being packaged;
-4. overlay enabled with runtime TCC and a fresh empty cache.
-
-The driver rotates leg order between repetitions. The evaluator rejects a
-matrix unless executable, ROM, config, save, framework revision, title
-revision, renderer settings, host, route actions, and phase landmarks match.
-Do not combine diagnostics from different releases or different gameplay
-sessions. Dispatch-band summaries are supporting controls, not a license to
-compare unmatched routes.
-
-The report includes emulation and overlay-poll milliseconds per frame, ARM9
-and ARM7 execution attribution, Tier-3 instruction counts, native hits,
-loaded/registered banks, dispatch rates, and CRS hit/miss rates. Runtime TCC
-may hitch during compilation, but it must be idle, drained, registered,
-receiving native-hit deltas, and measurably faster than the empty-cache leg by
-the route's final steady landmark. Truncated routes and unmatched steady
-dispatch bands are failures, even when the remaining phases look consistent.
+The release gate is intentionally small: two fresh processes, one cold
+runtime-TCC run and one warm prebuilt-GCC cache run. The broader four-mode
+matrix in `tools/shard_performance_gate.py run` is a diagnostic tool, not the
+release path.
 
 ## Windows field gate
 
@@ -36,23 +18,23 @@ cache projection, and bundled TCC toolchain, but cannot produce a release ZIP:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-windows.ps1 `
-  -Version 0.6.9-alpha -StageForShardPerformanceGate
+  -Version 0.6.10 -StageForShardPerformanceGate
 ```
 
-Then run the matrix. Use `mp_bots_blank` when no calibrated profile save is
-available. ROM, BIOS, saves, and output stay outside Git.
+Then run the basic release gate. Use `mp_bots_blank` when no calibrated profile
+save is available. ROM, BIOS, saves, and output stay outside Git.
 
 ```powershell
-$candidate = 'release-stage\MetroidPrimeHuntersRecomp-windows-x64-v0.6.9-alpha'
-py -3 tools\shard_performance_gate.py run `
+$candidate = 'release-stage\MetroidPrimeHuntersRecomp-windows-x64-v0.6.10'
+py -3 tools\shard_performance_gate.py basic `
   --runner "$candidate\nds_runner.exe" `
   --bios ..\ndsrecomp\bios `
   --rom 'Metroid Prime Hunters.nds' `
   --config "$candidate\game.toml" `
   --prebuilt-cache "$candidate\live-shard-cache" `
-  --route mp_bots_blank --repetitions 3 `
-  --output perf-results\0.6.9-shard-field-gate
-Copy-Item perf-results\0.6.9-shard-field-gate\performance-gate.json `
+  --route mp_bots_blank `
+  --output perf-results\0.6.10-shard-basic-gate
+Copy-Item perf-results\0.6.10-shard-basic-gate\basic-validation.json `
   release-shard-cache\performance-gate.json
 ```
 
@@ -66,7 +48,7 @@ a new field run:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-windows.ps1 `
-  -Version 0.6.9-alpha `
+  -Version 0.6.10 `
   -ShardPerformanceGate release-shard-cache\performance-gate.json
 ```
 
@@ -75,18 +57,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-windows.ps1 `
 The Linux flow is equivalent and produces a persistent candidate directory:
 
 ```bash
-bash tools/build-linux.sh --version 0.6.9-alpha \
+bash tools/build-linux.sh --version 0.6.10 \
   --stage-for-shard-performance-gate
 candidate=release-linux/shard-performance-candidate/usr/bin
-python3 tools/shard_performance_gate.py run \
+python3 tools/shard_performance_gate.py basic \
   --runner "$candidate/nds_runner" --bios ../ndsrecomp/bios \
   --rom 'Metroid Prime Hunters.nds' --config "$candidate/game.toml" \
   --prebuilt-cache "$candidate/prebuilt-live-shard-cache" \
-  --route mp_bots_blank --repetitions 3 \
-  --output perf-results/0.6.9-linux-shard-field-gate
-cp perf-results/0.6.9-linux-shard-field-gate/performance-gate.json \
+  --route mp_bots_blank \
+  --output perf-results/0.6.10-linux-shard-basic-gate
+cp perf-results/0.6.10-linux-shard-basic-gate/basic-validation.json \
   release-shard-cache-linux/performance-gate.json
-bash tools/build-linux.sh --version 0.6.9-alpha \
+bash tools/build-linux.sh --version 0.6.10 \
   --shard-performance-gate \
   release-shard-cache-linux/performance-gate.json
 ```

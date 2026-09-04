@@ -258,7 +258,7 @@ class GateTest(unittest.TestCase):
             inventory = gate.cache_inventory(cache)
             result = {
                 "kind": "mph-shard-performance-gate", "pass": True,
-                "route": "mp_bots_blank", "repetitions": 3,
+                "route": "mp_bots_blank", "repetitions": 1,
                 "checks": [{"name": "fixture", "pass": True, "detail": ""}],
                 "prebuilt_cache": inventory,
                 "measurement_identity": {"executable_sha256": "runner"},

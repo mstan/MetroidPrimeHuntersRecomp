@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 import time
@@ -101,13 +102,14 @@ def main() -> int:
         "--live-overlay-auto-cooldown-ms", "1000",
     ]
     env = {"NDS_LIVE_OVERLAY_BACKEND": args.backend}
+    renderer = os.environ.get("NDS_3D_RENDERER", "auto")
 
     process, out_log, err_log = bench.launch_runtime(
         args.runner, args.bios, args.rom, args.port,
         args.log_dir / f"{args.route}.stdout.log",
         args.log_dir / f"{args.route}.stderr.log",
         config=args.config, save_path=None, startup_mode="automatic",
-        threaded=True, renderer="auto", extra_args=extra, env_overrides=env,
+        threaded=True, renderer=renderer, extra_args=extra, env_overrides=env,
     )
     print(f"route={args.route} pid={process.pid} port={args.port} "
           f"cache={args.cache}", flush=True)

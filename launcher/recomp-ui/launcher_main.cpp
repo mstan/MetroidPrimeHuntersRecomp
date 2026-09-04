@@ -41,6 +41,7 @@ struct ModState {
     int window_scale = 3;
     int display_layout = 1;
     int fullscreen = 0;
+    bool linear_filter = false;
     int supersampling = 1;
     int antialiasing = 0;
     int volume = 100;
@@ -89,8 +90,8 @@ struct ModState {
     std::string pad_morph_ball = "Pad B";
     std::string pad_boost_zoom = "Pad RB";
     std::string pad_scan_visor = "Pad R3";
-    std::string pad_ui_left = "Pad Left";
-    std::string pad_ui_right = "Pad Right";
+    std::string pad_ui_left = "None";
+    std::string pad_ui_right = "None";
     std::string pad_ui_ok = "Pad Y";
     std::string pad_shoot = "Pad RT";
     std::string pad_scan_shoot = "Pad LT";
@@ -295,9 +296,9 @@ constexpr std::array<BindingOption, 23> kPadBindingOptions{{
     {"pad-scan-visor", "Scan visor", "Gamepad",
         &ModState::pad_scan_visor, "Pad R3"},
     {"pad-ui-left", "UI left", "Gamepad",
-        &ModState::pad_ui_left, "Pad Left"},
+        &ModState::pad_ui_left, "None"},
     {"pad-ui-right", "UI right", "Gamepad",
-        &ModState::pad_ui_right, "Pad Right"},
+        &ModState::pad_ui_right, "None"},
     {"pad-ui-ok", "UI OK", "Gamepad",
         &ModState::pad_ui_ok, "Pad Y"},
     {"pad-shoot", "Shoot", "Gamepad",
@@ -479,6 +480,13 @@ bool is_widescreen_feature(const char* package_id, const char* feature_id) {
              std::strcmp(feature_id, "adaptive-widescreen") == 0));
 }
 
+void reset_prime_gamepad_defaults(ModState* state) {
+    if (!state) return;
+    state->pad_aim_sensitivity = 100;
+    for (const BindingOption& option : kPadBindingOptions)
+        state->*(option.member) = option.default_value;
+}
+
 const WidescreenChoice& widescreen_choice(const ModState& state) {
     for (const WidescreenChoice& choice : kWidescreenChoices) {
         if (state.widescreen_mode == choice.value) return choice;
@@ -610,6 +618,11 @@ void load_mod_state(ModState& state) {
             const long parsed = std::strtol(value.c_str(), &end, 10);
             if (end && *end == 0 && parsed >= 0 && parsed <= 2)
                 state.fullscreen = static_cast<int>(parsed);
+        } else if (key == "linear_filter") {
+            if (value == "true" || value == "1")
+                state.linear_filter = true;
+            else if (value == "false" || value == "0")
+                state.linear_filter = false;
         } else if (key == "supersampling") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -734,7 +747,7 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=11\n"
+        file << "settings_version=12\n"
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "widescreen_mode=" << widescreen_choice(state).value << '\n'
@@ -747,6 +760,8 @@ bool save_mod_state(ModState& state) {
              << "window_scale=" << state.window_scale << '\n'
              << "display_layout=" << state.display_layout << '\n'
              << "fullscreen=" << state.fullscreen << '\n'
+             << "linear_filter="
+             << (state.linear_filter ? "true" : "false") << '\n'
              << "supersampling=" << state.supersampling << '\n'
              << "antialiasing=" << state.antialiasing << '\n'
              << "volume=" << state.volume << '\n'
@@ -906,7 +921,7 @@ int mod_feature_get(void* context, int index,
         output->enabled = state->prime_controls ? 1 : 0;
         output->option_count =
             5 + static_cast<int>(kBindingOptions.size()) +
-            static_cast<int>(kPadBindingOptions.size());
+            static_cast<int>(kPadBindingOptions.size()) + 1;
         output->camera_controls = 1;
     }
     return 1;
@@ -1015,7 +1030,7 @@ int mod_feature_option_get(void* context, const char* package_id,
     if (std::strcmp(package_id, "mph-prime-controls") != 0 ||
         std::strcmp(feature_id, "prime-controls") != 0 ||
         index >= 5 + static_cast<int>(kBindingOptions.size()) +
-                     static_cast<int>(kPadBindingOptions.size())) {
+                     static_cast<int>(kPadBindingOptions.size()) + 1) {
         return 0;
     }
     const auto* state = static_cast<const ModState*>(context);
@@ -1087,6 +1102,20 @@ int mod_feature_option_get(void* context, const char* package_id,
     }
     const bool pad_row =
         index >= 5 + static_cast<int>(kBindingOptions.size());
+    if (pad_row &&
+        index == 5 + static_cast<int>(kBindingOptions.size()) +
+                     static_cast<int>(kPadBindingOptions.size())) {
+        copy_text(output->id, "restore-gamepad-defaults");
+        copy_text(output->label, "Restore gamepad defaults");
+        copy_text(output->description,
+                  "Reset all Prime Controls gamepad bindings and gamepad aim "
+                  "sensitivity to their shipped defaults.");
+        copy_text(output->group, "Gamepad");
+        copy_text(output->value, "false");
+        copy_text(output->default_value, "false");
+        output->type = RECOMP_MOD_OPTION_BOOLEAN;
+        return 1;
+    }
     const BindingOption& option = pad_row
         ? kPadBindingOptions[static_cast<size_t>(
               index - 5 - static_cast<int>(kBindingOptions.size()))]
@@ -1166,7 +1195,8 @@ int mod_feature_choice_get(void*, const char* package_id,
         return 1;
     }
     if (std::strcmp(option_id, "invert-y") == 0 ||
-        std::strcmp(option_id, "cross-window-mouse-capture") == 0) {
+        std::strcmp(option_id, "cross-window-mouse-capture") == 0 ||
+        std::strcmp(option_id, "restore-gamepad-defaults") == 0) {
         return 0;
     }
     for (const BindingOption& option : kPadBindingOptions) {
@@ -1264,6 +1294,12 @@ int mod_feature_set_option(void* context, const char* package_id,
         else if (std::strcmp(value, "false") == 0)
             state->cross_window_mouse_capture = false;
         else return 0;
+        return 1;
+    }
+    if (std::strcmp(option_id, "restore-gamepad-defaults") == 0) {
+        if (std::strcmp(value, "false") == 0) return 1;
+        if (std::strcmp(value, "true") != 0) return 0;
+        reset_prime_gamepad_defaults(state);
         return 1;
     }
     for (const BindingOption& option : kPadBindingOptions) {
@@ -1946,6 +1982,7 @@ void apply_saved_launcher_settings(
     settings->window_scale = state.window_scale;
     settings->display_layout = state.display_layout;
     settings->fullscreen = state.fullscreen;
+    settings->linear_filter = state.linear_filter ? 1 : 0;
     settings->supersampling = state.supersampling;
     settings->antialiasing = state.antialiasing;
     settings->renderer =
@@ -1962,6 +1999,7 @@ void capture_launcher_settings(
     state->window_scale = settings.window_scale;
     state->display_layout = settings.display_layout;
     state->fullscreen = settings.fullscreen;
+    state->linear_filter = settings.linear_filter != 0;
     state->supersampling = settings.supersampling;
     state->antialiasing = settings.antialiasing;
     state->renderer_type = settings_index_to_renderer_type(settings.renderer);

@@ -41,16 +41,10 @@ USAGE
       -RecompilerBuildDir recompiler\build-tier2
 #>
 param(
-  # Routes replayed, in order. Add new ones here (and to
-  # measure_mph_scenario.py's ROUTES) to widen release coverage.
-  # mp_bots_blank is not redundant with mp_bots, which is what beads-yjp.50
-  # made it look like. Measured 2026-08-27 on a clean cache: adventure alone
-  # produced 38 shards, attract added 0, mp_bots added 0, and mp_bots_blank
-  # added 21 -- 59 total over 34 distinct guest pages against the 30 the
-  # previous release cache reached. Reaching the same Battle from a BLANK save
-  # walks the nickname and file-creation code that the pre-made save skips, so
-  # it is the only committed route that visits those pages.
-  [string[]]$Routes = @('adventure', 'attract', 'mp_bots', 'mp_bots_blank'),
+  # Routes replayed, in order. Keep the release cache warmup intentionally
+  # small: one single-player route and one Wi-Fi/bot route. Broader route
+  # sweeps belong in diagnostics, not the default release package path.
+  [string[]]$Routes = @('adventure', 'mp_bots_blank'),
   [string]$CacheDir = 'release-shard-cache',
   # Relative to the repo root; '' auto-pairs this worktree with its framework
   # worktree the way tools/measure_mph_scenario.py does.

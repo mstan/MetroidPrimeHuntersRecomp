@@ -423,7 +423,7 @@ then re-run this packager, or pass -AllowNoShardCache to ship without one.
       throw @"
 No shard performance gate at '$performanceGate'. A nonempty DLL inventory does
 not prove that those shards load or receive native hits on the bot-match route.
-Run tools\shard_performance_gate.py run against the exact staged cache and
+Run tools\shard_performance_gate.py basic against the exact staged cache and
 runner, then pass -ShardPerformanceGate <performance-gate.json>.
 "@
     }

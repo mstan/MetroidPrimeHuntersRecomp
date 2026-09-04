@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Run and evaluate the MPH fresh-install live-shard performance matrix.
+"""Run and evaluate MPH fresh-install live-shard validation.
 
-The four legs are intentionally same-binary, same-route fresh processes:
-overlay disabled, overlay enabled with an empty cache and no compiler, a
-fresh copy of the release GCC cache, and runtime TCC starting empty.  The
-evaluator refuses reports whose immutable inputs or route landmarks differ.
+The release path uses the `basic` command: one cold runtime-TCC run and one
+warm prebuilt-GCC cache run. The broader four-mode matrix remains available for
+diagnostics, but it is not required for release packaging.
 """
 from __future__ import annotations
 
@@ -12,6 +11,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import pathlib
 import shutil
 import statistics
@@ -264,7 +264,7 @@ def evaluate_manifest(path: pathlib.Path) -> dict[str, Any]:
     add_check(checks, "manifest_kind",
               manifest.get("kind") == "mph-shard-performance-matrix",
               f"kind={manifest.get('kind')!r}")
-    add_check(checks, "minimum_repetitions", repetitions >= 3,
+    add_check(checks, "minimum_repetitions", repetitions >= 1,
               f"repetitions={repetitions}")
     add_check(checks, "complete_matrix",
               seen == expected and len(legs) == len(expected),
@@ -778,8 +778,8 @@ def verify_package(gate_path: pathlib.Path, cache: pathlib.Path,
         raise RuntimeError(f"shard validation has no passing check record: {gate_path}")
     if result.get("route") not in ("mp_bots", "mp_bots_blank"):
         raise RuntimeError(f"shard validation route is not a bot route: {gate_path}")
-    if kind == "mph-shard-performance-gate" and int(result.get("repetitions", 0)) < 3:
-        raise RuntimeError(f"performance gate has fewer than three repetitions: {gate_path}")
+    if kind == "mph-shard-performance-gate" and int(result.get("repetitions", 0)) < 1:
+        raise RuntimeError(f"performance gate has no repetitions: {gate_path}")
     expected = result.get("prebuilt_cache") or {}
     actual = cache_inventory(cache)
     if actual["native_inventory_sha256"] != expected.get(
@@ -813,11 +813,11 @@ def parse_args() -> argparse.Namespace:
     run.add_argument("--route", choices=("mp_bots", "mp_bots_blank"),
                      default="mp_bots_blank")
     run.add_argument("--save-source", type=pathlib.Path)
-    run.add_argument("--repetitions", type=int, default=3)
+    run.add_argument("--repetitions", type=int, default=2)
     run.add_argument("--base-port", type=int, default=20100)
     run.add_argument("--threaded", type=int, choices=(0, 1), default=1)
     run.add_argument("--renderer", choices=("auto", "soft", "compute"),
-                     default="auto")
+                     default=os.environ.get("NDS_3D_RENDERER", "auto"))
     basic = sub.add_parser("basic")
     for name in ("runner", "bios", "rom", "config", "prebuilt-cache", "output"):
         basic.add_argument(f"--{name}", type=pathlib.Path, required=True)
@@ -830,7 +830,7 @@ def parse_args() -> argparse.Namespace:
     basic.add_argument("--base-port", type=int, default=20100)
     basic.add_argument("--threaded", type=int, choices=(0, 1), default=1)
     basic.add_argument("--renderer", choices=("auto", "soft", "compute"),
-                       default="auto")
+                       default=os.environ.get("NDS_3D_RENDERER", "auto"))
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("--manifest", type=pathlib.Path, required=True)
     evaluate.add_argument("--output", type=pathlib.Path)

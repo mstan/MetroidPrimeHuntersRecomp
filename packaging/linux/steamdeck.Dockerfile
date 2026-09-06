@@ -36,6 +36,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss-dev \
     libxtst-dev \
     ninja-build \
+    patchelf \
     pkg-config \
     python3 \
     python3-pip \

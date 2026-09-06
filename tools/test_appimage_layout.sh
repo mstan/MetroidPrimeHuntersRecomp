@@ -36,6 +36,45 @@ if [ "$EXPECT_LIVE_TOOLCHAIN" = 1 ]; then
     echo "tcc provider wrapper does not identify its support files" >&2
     exit 1
   }
+  require_runpath() {
+    local elf="$1" needle="$2"
+    readelf -d "$elf" | grep -F "$needle" >/dev/null || {
+      echo "missing AppDir-relative RPATH in $elf" >&2
+      exit 1
+    }
+  }
+  app_lib_origin() {
+    local elf="$1" rel
+    rel="$(realpath --relative-to="$(dirname "$elf")" "$APPDIR/usr/lib")"
+    printf '$ORIGIN/%s' "$rel"
+  }
+  require_runpath "$TOOLCHAIN/nds_recompile" \
+    "$(app_lib_origin "$TOOLCHAIN/nds_recompile")"
+  require_runpath "$TOOLCHAIN/python/bin/python3-runtime" \
+    "$(app_lib_origin "$TOOLCHAIN/python/bin/python3-runtime")"
+  require_runpath "$TOOLCHAIN/tcc/tcc-runtime" \
+    "$(app_lib_origin "$TOOLCHAIN/tcc/tcc-runtime")"
+  while IFS= read -r -d '' extension; do
+    require_runpath "$extension" "$(app_lib_origin "$extension")"
+  done < <(find "$TOOLCHAIN/python/lib" -type f -name '*.so' -print0)
+  env -u LD_LIBRARY_PATH "$TOOLCHAIN/python/bin/python3" - <<'PY'
+import argparse
+import bz2
+import ctypes
+import hashlib
+import json
+import lzma
+import pathlib
+import readline
+import sqlite3
+import ssl
+import subprocess
+import sysconfig
+import zlib
+import _curses
+
+subprocess.run(["/bin/sh", "-c", "true"], check=True)
+PY
   "$TOOLCHAIN/python/bin/python3" "$TOOLCHAIN/compile_live_shards.py" \
     --help >/dev/null
   "$TOOLCHAIN/nds_recompile" --codegen-identity >/dev/null
@@ -112,6 +151,7 @@ cat > "$probe_appdir/usr/bin/mph-recomp-ui" <<'EOF'
   printf 'RECOMP_APPIMAGE_PATH=%s\n' "${RECOMP_APPIMAGE_PATH:-}"
   printf 'RECOMP_UI_BUILTIN_FILE_PICKER=%s\n' "${RECOMP_UI_BUILTIN_FILE_PICKER:-}"
   printf 'RECOMP_DISC_HINT=%s\n' "${RECOMP_DISC_HINT:-}"
+  printf 'LD_LIBRARY_PATH=%s\n' "${LD_LIBRARY_PATH:-}"
 } > "$MPH_RECOMP_PROBE"
 EOF
 chmod +x "$probe_appdir/usr/bin/mph-recomp-ui"
@@ -140,6 +180,18 @@ grep -Fx "RECOMP_UI_BUILTIN_FILE_PICKER=1" "$probe_state/env.txt" >/dev/null || 
 grep -Fx "RECOMP_DISC_HINT=$probe_state/Metroid Prime Hunters.nds" "$probe_state/env.txt" >/dev/null || {
   echo "AppRun did not hint the adjacent ROM to recomp-ui" >&2
   cat "$probe_state/env.txt" >&2
+  exit 1
+}
+if grep -F "$probe_appdir/usr/lib" "$probe_state/env.txt" >/dev/null; then
+  echo "AppRun leaked AppImage LD_LIBRARY_PATH into the launcher environment" >&2
+  cat "$probe_state/env.txt" >&2
+  exit 1
+fi
+APPIMAGE="$probe_state/MetroidPrimeHuntersRecomp.AppImage" \
+  "$APPDIR/AppRun" --help > "$tmp/apprun-help.txt" 2>&1
+grep -q "usage:" "$tmp/apprun-help.txt" || {
+  echo "AppRun --help did not reach the runner CLI" >&2
+  cat "$tmp/apprun-help.txt" >&2
   exit 1
 }
 if [ "$EXPECT_LIVE_SHARDS" = 1 ]; then

@@ -242,24 +242,9 @@ EOF
   }
   cp "$TCC_SYSTEM" "$TOOLCHAIN/tcc/tcc-runtime"
   cp -a "$TCC_SUPPORT/." "$TOOLCHAIN/tcc/lib/tcc/"
-  write_tcc_wrapper() {
-    local runtime_sha tree_sha
-    runtime_sha="$(sha256sum "$TOOLCHAIN/tcc/tcc-runtime" | awk '{print $1}')"
-    tree_sha="$(cd "$TOOLCHAIN/tcc" && \
-      find tcc-runtime lib -type f -print0 | LC_ALL=C sort -z | \
-      xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-    printf '#!/bin/sh\n# tcc-runtime-sha256=%s\n# tcc-toolchain-sha256=%s\n' \
-      "$runtime_sha" "$tree_sha" > "$TOOLCHAIN/tcc/tcc"
-    cat >> "$TOOLCHAIN/tcc/tcc" <<'EOF'
-HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-exec "$HERE/tcc-runtime" -B"$HERE/lib/tcc" "$@"
-EOF
-    chmod 0755 "$TOOLCHAIN/tcc/tcc"
-  }
-  write_tcc_wrapper
   chmod 0755 "$TOOLCHAIN/nds_recompile" "$TOOLCHAIN/python/bin/python3" \
-    "$TOOLCHAIN/python/bin/python3-runtime" "$TOOLCHAIN/tcc/tcc" \
-    "$TOOLCHAIN/tcc/tcc-runtime"
+    "$TOOLCHAIN/python/bin/python3-runtime" "$TOOLCHAIN/tcc/tcc-runtime"
+  bash "$REPO/tools/fix_linux_appdir_runtime.sh" "$APPDIR"
 
   command -v "$GCC" >/dev/null 2>&1 || {
     echo "ERROR: release-cache gcc not found: $GCC" >&2; exit 1;
@@ -332,7 +317,6 @@ EOF
 cat > "$APPDIR/AppRun" <<'EOF'
 #!/bin/sh
 HERE="$(dirname "$(readlink -f "$0")")"
-export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 export SDL_JOYSTICK_HIDAPI_STEAM=1
 export SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
 export SDL_GAMEPAD_ALLOW_STEAM_VIRTUAL_GAMEPAD=1
@@ -369,6 +353,7 @@ EOF
 chmod +x "$APPDIR/AppRun" \
   "$APPDIR/usr/bin/$RUNNER_NAME" \
   "$APPDIR/usr/bin/$LAUNCHER_NAME"
+bash "$REPO/tools/fix_linux_appdir_runtime.sh" "$APPDIR"
 
 if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
   CANDIDATE="$OUT/shard-performance-candidate"
@@ -397,9 +382,9 @@ fi
   --desktop-file "$APPDIR/usr/share/applications/$APP_NAME.desktop" \
   --icon-file "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" >/dev/null
 if [ -n "$TOOLCHAIN" ]; then
-  # linuxdeploy may rewrite ELF RPATHs. Refresh the wrapper identity against
-  # the bytes that actually enter the AppImage.
-  write_tcc_wrapper
+  # linuxdeploy may rewrite ELF RPATHs. Restore the relocatable nested-tool
+  # RPATHs and refresh the wrapper identity against the packaged bytes.
+  bash "$REPO/tools/fix_linux_appdir_runtime.sh" "$APPDIR"
 fi
 
 APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"

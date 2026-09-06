@@ -24,15 +24,17 @@ Click the image to watch the gameplay preview on YouTube.
 
 ## Current Release
 
-Latest release:
-**[v0.6.10-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.6.10-alpha)**.
+Current downloads:
 
-Downloads:
-
-- Windows:
+- Windows: [v0.6.10-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.6.10-alpha)
   `MetroidPrimeHuntersRecomp-windows-x64-v0.6.10.zip`
-- Linux:
-  `MetroidPrimeHuntersRecomp-linux-v0.6.10-x86_64.AppImage`
+- Linux: [v0.6.10-linux.1](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.6.10-linux.1)
+  `MetroidPrimeHuntersRecomp-linux-v0.6.10-linux.1-x86_64.AppImage`
+
+The Linux packaging patch fixes the SteamOS startup failure involving
+`rl_trim_arg_from_keyseq` ([#43](https://github.com/mstan/MetroidPrimeHuntersRecomp/issues/43)).
+It retains the v0.6.10 game binaries and prebuilt shards. Windows users should
+continue using v0.6.10-alpha.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
@@ -98,7 +100,7 @@ Windows:
 
 Linux:
 
-1. Download the `v0.6.10-alpha` AppImage.
+1. Download the `v0.6.10-linux.1` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

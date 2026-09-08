@@ -101,7 +101,7 @@ if [ "$PACKAGE_EXISTING" != 1 ]; then
     -DNDSRECOMP_ROOT="$FRAMEWORK_ROOT" \
     -DMPH_PYTHON="$(command -v python3)"
   echo "[2/4] build title banks"
-  cmake --build "$GAME_BUILD" --target "$TITLE_TARGET" -j"$JOBS"
+  cmake --build "$GAME_BUILD" --target mph_generate_banks mph_romcheck -j"$JOBS"
 
   echo "[3/4] configure runner"
   cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \

@@ -21,7 +21,7 @@ DO_PACKAGE=1
 BUILD_FLAVOR="release"
 SDL_BACKEND="${NDS_SDL_BACKEND:-SDL3}"
 SHARD_CACHE="${MPH_RELEASE_SHARD_CACHE:-}"
-SHARD_PERFORMANCE_GATE="${MPH_SHARD_PERFORMANCE_GATE:-}"
+SHARD_PERFORMANCE_GATE="${MPH_SHARD_PERFORMANCE_GATE:-}" # deprecated: performance gates are not release policy
 GCC="${CC:-gcc}"
 ALLOW_NO_SHARD_CACHE=0
 SKIP_OVERLAY_TOOLCHAIN=0
@@ -89,9 +89,8 @@ if [ "$SKIP_OVERLAY_TOOLCHAIN" = 1 ] && [ "$ALLOW_NO_SHARD_CACHE" != 1 ]; then
   echo "ERROR: --skip-overlay-toolchain requires --allow-no-shard-cache" >&2
   exit 2
 fi
-if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ] && \
-   { [ "$ALLOW_NO_SHARD_CACHE" = 1 ] || [ "$SKIP_OVERLAY_TOOLCHAIN" = 1 ]; }; then
-  echo "ERROR: --stage-for-shard-performance-gate requires shards and bundled TCC" >&2
+if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
+  echo "ERROR: --stage-for-shard-performance-gate is disabled by project validation policy." >&2
   exit 2
 fi
 
@@ -269,18 +268,8 @@ EOF
     rm -rf -- "$APPDIR/usr/bin/prebuilt-live-shard-cache"
     echo "No prebuilt Linux shard cache staged; bundled TCC remains available."
   fi
-  if [ "$ALLOW_NO_SHARD_CACHE" != 1 ] && \
-     [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" != 1 ]; then
-    test -f "$SHARD_PERFORMANCE_GATE" || {
-      echo "ERROR: no bot-route shard performance gate: $SHARD_PERFORMANCE_GATE" >&2
-      exit 1
-    }
-    python3 "$REPO/tools/shard_performance_gate.py" verify-package \
-      --gate "$SHARD_PERFORMANCE_GATE" \
-      --cache "$APPDIR/usr/bin/prebuilt-live-shard-cache" \
-      --runner-sha256 "$RUNNER_SHA"
-    cp "$SHARD_PERFORMANCE_GATE" \
-      "$APPDIR/usr/bin/shard-performance-gate.json"
+  if [ -n "$SHARD_PERFORMANCE_GATE" ]; then
+    echo "WARNING: --shard-performance-gate is ignored by project validation policy; performance gate JSON is not required or copied." >&2
   fi
 
   "$TOOLCHAIN/python/bin/python3" -c \
@@ -356,12 +345,8 @@ chmod +x "$APPDIR/AppRun" \
 bash "$REPO/tools/fix_linux_appdir_runtime.sh" "$APPDIR"
 
 if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
-  CANDIDATE="$OUT/shard-performance-candidate"
-  rm -rf -- "$CANDIDATE"
-  cp -a "$APPDIR" "$CANDIDATE"
-  echo "Shard performance candidate staged at: $CANDIDATE"
-  echo "No AppImage was produced; run the bot-route gate, then package again with --shard-performance-gate."
-  exit 0
+  echo "ERROR: --stage-for-shard-performance-gate is disabled by project validation policy." >&2
+  exit 2
 fi
 
 echo "[4/4] package AppImage"

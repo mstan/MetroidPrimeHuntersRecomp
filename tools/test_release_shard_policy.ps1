@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$NdsrecompRoot = ''
 )
 
@@ -195,14 +195,20 @@ print("ok: root-only manifest qualifies only when include_roots is set")
   }
   $makeRelease = Get-Content -LiteralPath (Join-Path $PSScriptRoot `
     'make_release.ps1') -Raw
-  Require ($makeRelease.Contains('shard_performance_gate.py')) `
-    'Windows packager verifies the measured shard performance gate'
-  Require ($makeRelease.Contains('verify-package')) `
-    'Windows packager binds the gate to the staged shard inventory'
+  Require (-not $makeRelease.Contains('verify-package --gate')) `
+    'Windows packager does not require benchmark gate verification by default'
+  Require ($makeRelease.Contains('Assert-ReleaseShardCacheUsable')) `
+    'Windows packager still filters shard cache files by provider identity'
+  Require ($makeRelease.Contains('verify_bank_inventory.ps1')) `
+    'Windows packager still verifies the full bank inventory'
   $buildLinux = Get-Content -LiteralPath (Join-Path $PSScriptRoot `
     'build-linux.sh') -Raw
-  Require ($buildLinux.Contains('shard_performance_gate.py')) `
-    'Linux packager verifies the measured shard performance gate'
+  Require (-not $buildLinux.Contains('verify-package')) `
+    'Linux packager does not require benchmark gate verification by default'
+  Require ($buildLinux.Contains('release_shard_common.py')) `
+    'Linux packager still stages shard cache files through provider identity checks'
+  Require ($buildLinux.Contains('verify_bank_inventory.sh')) `
+    'Linux packager still verifies the full bank inventory'
 } finally {
   $tmpFull = [IO.Path]::GetFullPath($tmp)
   $systemTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())

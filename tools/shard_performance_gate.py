@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Run and evaluate MPH fresh-install live-shard validation.
+"""Run and evaluate historical MPH live-shard diagnostics.
 
-The release path uses the `basic` command: one cold runtime-TCC run and one
-warm prebuilt-GCC cache run. The broader four-mode matrix remains available for
-diagnostics, but it is not required for release packaging.
+This tool is not routine release evidence. Do not run performance matrices,
+cold/warm benchmark legs, or multi-repetition validation for routine releases
+unless the user explicitly requests that diagnostic work.
 """
 from __future__ import annotations
 

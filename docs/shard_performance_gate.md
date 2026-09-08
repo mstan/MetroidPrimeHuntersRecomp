@@ -1,84 +1,17 @@
-# MPH shard validation release gate
+# MPH shard performance gate status
 
-`tools/shard_performance_gate.py` is the acceptance test for the player-facing
-shard policy. A DLL/SO count is not evidence of acceleration. A release cache
-passes only when the exact packaged runner loads the prebuilt cache, records
-native hits on the committed bot-match route, and proves the bundled runtime
-TCC path can produce and hit a shard from a cold cache.
+This workflow is deprecated for routine validation and releases.
 
-The release gate is intentionally small: two fresh processes, one cold
-runtime-TCC run and one warm prebuilt-GCC cache run. The broader four-mode
-matrix in `tools/shard_performance_gate.py run` is a diagnostic tool, not the
-release path.
+The user has set a permanent validation policy: do not run performance or validation matrices, multi-route runs, multi-repetition runs, cold/warm benchmark legs, or per-platform benchmark legs for routine validation or release qualification.
 
-## Windows field gate
+Gameplay validation is limited to one multiplayer run and one campaign run total unless the user explicitly requests another run. Existing user-confirmed manual runs count toward that limit. Do not rerun gameplay to satisfy a previous matrix or gate requirement.
 
-First build an unarchived candidate. It contains the exact runner, selected
-cache projection, and bundled TCC toolchain, but cannot produce a release ZIP:
+Release packaging should continue to run artifact checks that do not play the game:
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-windows.ps1 `
-  -Version 0.6.10 -StageForShardPerformanceGate
-```
+- verify the exact packaged runner contains the expected bank inventory;
+- verify staged native shard cache files match the current provider identity when a cache is shipped;
+- verify bundled runtime/toolchain files and required licenses are present;
+- verify release archives exclude ROMs, BIOS/firmware, saves, raw captures, generated source, and other private payloads;
+- verify version metadata, release notes, checksums, and artifact names.
 
-Then run the basic release gate. Use `mp_bots_blank` when no calibrated profile
-save is available. ROM, BIOS, saves, and output stay outside Git.
-
-```powershell
-$candidate = 'release-stage\MetroidPrimeHuntersRecomp-windows-x64-v0.6.10'
-py -3 tools\shard_performance_gate.py basic `
-  --runner "$candidate\nds_runner.exe" `
-  --bios ..\ndsrecomp\bios `
-  --rom 'Metroid Prime Hunters.nds' `
-  --config "$candidate\game.toml" `
-  --prebuilt-cache "$candidate\live-shard-cache" `
-  --route mp_bots_blank `
-  --output perf-results\0.6.10-shard-basic-gate
-Copy-Item perf-results\0.6.10-shard-basic-gate\basic-validation.json `
-  release-shard-cache\performance-gate.json
-```
-
-The default `--runtime-tcc-command @bundled` exercises the packaged toolchain
-beside `nds_runner.exe`. Do not substitute a developer GCC command for that
-leg. A nonzero exit means the release candidate failed.
-
-Package only after the gate passes. The packager verifies both the runner hash
-and native shard inventory hash, so a rebuilt runner or changed cache requires
-a new field run:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools\build-windows.ps1 `
-  -Version 0.6.10 `
-  -ShardPerformanceGate release-shard-cache\performance-gate.json
-```
-
-## Linux field gate
-
-The Linux flow is equivalent and produces a persistent candidate directory:
-
-```bash
-bash tools/build-linux.sh --version 0.6.10 \
-  --stage-for-shard-performance-gate
-candidate=release-linux/shard-performance-candidate/usr/bin
-python3 tools/shard_performance_gate.py basic \
-  --runner "$candidate/nds_runner" --bios ../ndsrecomp/bios \
-  --rom 'Metroid Prime Hunters.nds' --config "$candidate/game.toml" \
-  --prebuilt-cache "$candidate/prebuilt-live-shard-cache" \
-  --route mp_bots_blank \
-  --output perf-results/0.6.10-linux-shard-basic-gate
-cp perf-results/0.6.10-linux-shard-basic-gate/basic-validation.json \
-  release-shard-cache-linux/performance-gate.json
-bash tools/build-linux.sh --version 0.6.10 \
-  --shard-performance-gate \
-  release-shard-cache-linux/performance-gate.json
-```
-
-Run the Windows and Linux gates separately. Native shard binaries and runner
-hashes are platform-specific; a Windows pass cannot authorize an AppImage.
-
-## Kanden gate
-
-The bot route is the immediate release gate because it is committed and
-automatable. Kanden campaign combat remains a second required field scenario
-once the full save-state route exists. Do not relabel bot-route results as
-Kanden coverage.
+Historical `tools/shard_performance_gate.py` outputs may be useful for diagnostics, but they are not required release evidence. Do not fabricate passing performance-gate JSON for packaging.

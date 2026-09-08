@@ -1,4 +1,4 @@
-<#
+﻿<#
 Build and package the Metroid Prime Hunters Recomp Windows release.
 
 This script builds the title banks, the sibling ndsrecomp runner, and the
@@ -24,7 +24,9 @@ param(
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
   [string]$ShardCacheDir = 'release-shard-cache',
+  # Deprecated: routine releases no longer use shard performance gate JSON.
   [string]$ShardPerformanceGate = '',
+  # Deprecated: make_release.ps1 rejects this by project validation policy.
   [switch]$StageForShardPerformanceGate,
   [string]$Gcc = 'C:\msys64\mingw64\bin\gcc.exe',
   [string]$PythonExe = '',
@@ -148,3 +150,4 @@ try {
 } finally {
   Pop-Location
 }
+

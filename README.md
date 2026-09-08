@@ -26,15 +26,14 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows: [v0.6.10-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.6.10-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.6.10.zip`
-- Linux: [v0.6.10-linux.1](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.6.10-linux.1)
-  `MetroidPrimeHuntersRecomp-linux-v0.6.10-linux.1-x86_64.AppImage`
+- Windows: [v0.7.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.0-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.0.zip`
+- Linux: [v0.7.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.0-alpha)
+  `MetroidPrimeHuntersRecomp-linux-v0.7.0-x86_64.AppImage`
 
-The Linux packaging patch fixes the SteamOS startup failure involving
-`rl_trim_arg_from_keyseq` ([#43](https://github.com/mstan/MetroidPrimeHuntersRecomp/issues/43)).
-It retains the v0.6.10 game binaries and prebuilt shards. Windows users should
-continue using v0.6.10-alpha.
+The v0.7.0 release fixes multiplayer mouse and keyboard settings: players
+joining a lobby retain their controls, including mouse aiming. It builds on
+ndsrecomp framework commit `bfd7358f31460ee54dfa15935b8e958ae1a85bdf`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
@@ -43,8 +42,10 @@ still be treated as an alpha test build rather than a polished game release.
 
 New in v0.6.10: the Linear filter launcher setting now saves between sessions,
 Prime Controls leaves D-pad left/right available for normal menu navigation by
-default, the Mods page has a gamepad-default reset action, and diagnostic
-coverage/performance outputs use the same run timestamp.
+default, the Mods page has a gamepad-default reset action, diagnostic
+coverage/performance outputs use the same run timestamp, and the Linux
+packaging patch fixes the SteamOS startup failure involving
+`rl_trim_arg_from_keyseq` ([#43](https://github.com/mstan/MetroidPrimeHuntersRecomp/issues/43)).
 
 Also new since v0.5.0: Widescreen has been overhauled. The launcher now exposes a
 `Widescreen` display option with `Dynamic` as the default plus fixed
@@ -93,14 +94,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.6.10-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.0-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.6.10-linux.1` AppImage.
+1. Download the `v0.7.0-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

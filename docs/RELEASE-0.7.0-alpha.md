@@ -11,12 +11,10 @@ This release fixes a multiplayer Prime Controls bug reported after v0.6.10.
 
 - Windows package version: `0.7.0`
 - GitHub release tag: `v0.7.0-alpha`
-- Framework pin: `bfd7358`
-- The release package must pass the bank inventory gate and the lean shard
-  basic validation before archiving.
+- Framework pin: `bfd7358f31460ee54dfa15935b8e958ae1a85bdf`
+- The release package must pass the bank inventory gate before archiving.
 - Prebuilt native shards are staged only when their provider identity matches
-  the shipped runner, recompiler, headers, compiler policy, and performance
-  gate.
+  the shipped runner, recompiler, headers, and compiler policy.
 
 ## Upgrade Notes
 

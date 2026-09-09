@@ -269,6 +269,11 @@ The original code in this repository is MIT licensed. Metroid Prime Hunters,
 Nintendo DS firmware/BIOS images, ROMs, saves, and all derived game data remain
 the property of their respective copyright holders and are not distributed.
 
+Release binaries are a **GPL-3.0-or-later** combined work, because the
+`ndsrecomp` runner they link vendors melonDS device models; see
+[`LICENSE-GPL`](LICENSE-GPL). Distributing a build means shipping that
+license text and making the corresponding source available.
+
 ---
 
 <p align="center">

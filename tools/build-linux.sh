@@ -189,6 +189,9 @@ cp -a "$LAUNCHER_BUILD/assets" "$APPDIR/usr/bin/assets"
 cp "$REPO/game.toml" "$APPDIR/usr/bin/game.toml"
 cp "$REPO/README.md" "$APPDIR/usr/bin/README.md"
 cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
+# The runner links vendored melonDS, so the shipped executable is a
+# GPL-3.0-or-later combined work and the release must carry the GPL text.
+cp "$REPO/LICENSE-GPL" "$APPDIR/usr/bin/LICENSE-GPL"
 cp "$REPO/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
 
 # The live compiler and cache are a release unit. The cache is filtered

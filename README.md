@@ -26,14 +26,17 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows: [v0.7.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.0-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.0.zip`
-- Linux: [v0.7.0-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.0-alpha)
-  `MetroidPrimeHuntersRecomp-linux-v0.7.0-x86_64.AppImage`
+- Windows: [v0.7.1-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.1-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.1.zip`
+- Linux: [v0.7.1-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.1-alpha)
+  `MetroidPrimeHuntersRecomp-linux-v0.7.1-x86_64.AppImage`
 
-The v0.7.0 release fixes multiplayer mouse and keyboard settings: players
-joining a lobby retain their controls, including mouse aiming. It builds on
-ndsrecomp framework commit `bfd7358f31460ee54dfa15935b8e958ae1a85bdf`.
+The v0.7.1 release fixes multiplayer aiming when another player enters morph
+ball; each client now checks its own player state. It also fixes scan visor
+and weapon hotkey aiming interruptions, and includes the v0.7.0 multiplayer
+mouse and keyboard settings fix for players joining a lobby. It builds on
+ndsrecomp framework commit
+`5cefd9f557ceb4c9656b3dfdcf7f0c5e3e3d74fe`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
@@ -94,14 +97,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.7.0-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.1-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.7.0-alpha` AppImage.
+1. Download the `v0.7.1-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

@@ -1847,6 +1847,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
     append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
+    append_arg(command, L"--runtime-settings-path",
+               mods.settings_path.wstring());
     append_savestate_dir_arg(command, data_dir);
     // beads-yjp.16: the firmware console nickname. Passed only when the
     // player both configured a name and left the identity feature on;
@@ -1927,6 +1929,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--firmware-state-path", firmware_state.string());
     append_arg(args, "--diagnostics", mods.diagnostics ? "on" : "off");
     append_arg(args, "--diagnostics-dir", diagnostics_dir.string());
+    append_arg(args, "--runtime-settings-path",
+               mods.settings_path.string());
     append_savestate_dir_arg(args, data_dir);
 
     if (valid_player_name(mods.player_name))

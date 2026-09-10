@@ -280,9 +280,6 @@ EOF
   "$TOOLCHAIN/tcc/tcc" -v -E /dev/null >/dev/null 2>&1
 fi
 
-# Audit trail: the verified bank inventory of the exact runner being shipped.
-bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
-  --repo "$REPO" --manifest "$APPDIR/usr/bin/bank-manifest.txt" --quiet
 python3 - "$APPDIR/usr/share/icons/hicolor/256x256/apps/$APP_NAME.png" <<'PY'
 import struct, sys, zlib
 out = sys.argv[1]
@@ -374,6 +371,12 @@ if [ -n "$TOOLCHAIN" ]; then
   # RPATHs and refresh the wrapper identity against the packaged bytes.
   bash "$REPO/tools/fix_linux_appdir_runtime.sh" "$APPDIR"
 fi
+
+# Audit trail: the verified bank inventory of the exact runner being shipped.
+# linuxdeploy can rewrite staged ELF metadata, so this must run after the final
+# AppDir runtime fix and before appimagetool snapshots the directory.
+bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
+  --repo "$REPO" --manifest "$APPDIR/usr/bin/bank-manifest.txt" --quiet
 
 APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
 rm -f "$APP"

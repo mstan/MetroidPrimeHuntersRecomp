@@ -26,19 +26,19 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows: [v0.7.2-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.2-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.2.zip`
-- Linux: [v0.7.2-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.2-alpha)
-  `MetroidPrimeHuntersRecomp-linux-v0.7.2-x86_64.AppImage`
+- Windows: [v0.7.3-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.3-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.3.zip`
+- Linux: [v0.7.3-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.3-alpha)
+  `MetroidPrimeHuntersRecomp-linux-v0.7.3-x86_64.AppImage`
 
-The v0.7.2 release adds an in-game Escape settings menu for Prime Controls
-mouse sensitivity, with 1% steps and persistence through the launcher settings
-file. It builds on v0.7.1's multiplayer aiming fix when another player enters
-morph ball; each client now checks its own player state. v0.7.1 also fixes
-scan visor and weapon hotkey aiming interruptions, and includes the v0.7.0
-multiplayer mouse and keyboard settings fix for players joining a lobby. It
-builds on ndsrecomp framework commit
-`5fc0d076d005cd4c03cc0d7b90e1e42ab92ae85e`.
+The v0.7.3 release restores alternate-form mouse camera control for all hunters
+while preserving Samus boost charging, and fixes Imperialist
+sniper zoom near walls so it keeps the selected widescreen aspect instead of
+falling back to the narrow low-polygon scene layout. It retains the v0.7.2
+in-game Escape settings menu for Prime Controls mouse sensitivity, the v0.7.1
+multiplayer aiming fixes, and the v0.7.0 multiplayer mouse and keyboard
+settings fix for players joining a lobby. It builds on ndsrecomp framework
+commit `56ed6c964e1ec3be0991116ff7f4abd296d6c457`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
@@ -99,14 +99,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.7.2-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.3-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.7.2-alpha` AppImage.
+1. Download the `v0.7.3-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

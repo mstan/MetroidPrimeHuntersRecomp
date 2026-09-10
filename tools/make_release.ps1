@@ -169,7 +169,7 @@ $systemDlls = @(
   'comdlg32.dll','bcrypt.dll','crypt32.dll','shlwapi.dll','dbghelp.dll',
   'ncrypt.dll','secur32.dll','winhttp.dll','wldap32.dll','normaliz.dll',
   'rpcrt4.dll','psapi.dll','userenv.dll','netapi32.dll','wsock32.dll',
-  'propsys.dll'
+  'propsys.dll','d2d1.dll','dwrite.dll'
 )
 $objdump = Join-Path $RuntimeBinDir 'objdump.exe'
 if (Test-Path -LiteralPath $objdump) {

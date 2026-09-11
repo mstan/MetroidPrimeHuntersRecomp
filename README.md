@@ -28,14 +28,15 @@ Current downloads:
 
 - Windows: [v0.7.4-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.4-alpha)
   `MetroidPrimeHuntersRecomp-windows-x64-v0.7.4.zip`
-- Linux: [v0.7.3-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.3-alpha)
-  `MetroidPrimeHuntersRecomp-linux-v0.7.3-x86_64.AppImage`
+- Linux: [v0.7.4-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.4-alpha)
+  `MetroidPrimeHuntersRecomp-linux-v0.7.4-x86_64.AppImage`
 
-The v0.7.4 Windows release refreshes the launcher UI's controller stack for
-Xbox Bluetooth pads such as the Elite Series 2, requiring an SDL3 runtime new
-enough to carry the corrected button descriptors and logging the detected
-controller mapping for follow-up reports. It also keeps the in-game Escape
-settings menu's controller navigation on the usual A/B select/cancel layout.
+The v0.7.4 release refreshes the launcher UI's controller diagnostics for Xbox
+Bluetooth pads such as the Elite Series 2, with Windows shipping an SDL3
+runtime new enough to carry the corrected button descriptors and all platforms
+logging the detected controller mapping for follow-up reports. It also keeps
+the in-game Escape settings menu's controller navigation on the usual A/B
+select/cancel layout.
 It retains the v0.7.3 alternate-form mouse camera and Imperialist widescreen
 fixes, the v0.7.2 in-game Prime Controls sensitivity menu, the v0.7.1
 multiplayer aiming fixes, and the v0.7.0 multiplayer mouse and keyboard
@@ -102,14 +103,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.7.3-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.4-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.7.3-alpha` AppImage.
+1. Download the `v0.7.4-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

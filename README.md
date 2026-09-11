@@ -26,19 +26,22 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows: [v0.7.3-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.3-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.3.zip`
+- Windows: [v0.7.4-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.4-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.4.zip`
 - Linux: [v0.7.3-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.3-alpha)
   `MetroidPrimeHuntersRecomp-linux-v0.7.3-x86_64.AppImage`
 
-The v0.7.3 release restores alternate-form mouse camera control for all hunters
-while preserving Samus boost charging, and fixes Imperialist
-sniper zoom near walls so it keeps the selected widescreen aspect instead of
-falling back to the narrow low-polygon scene layout. It retains the v0.7.2
-in-game Escape settings menu for Prime Controls mouse sensitivity, the v0.7.1
+The v0.7.4 Windows release refreshes the launcher UI's controller stack for
+Xbox Bluetooth pads such as the Elite Series 2, requiring an SDL3 runtime new
+enough to carry the corrected button descriptors and logging the detected
+controller mapping for follow-up reports. It also keeps the in-game Escape
+settings menu's controller navigation on the usual A/B select/cancel layout.
+It retains the v0.7.3 alternate-form mouse camera and Imperialist widescreen
+fixes, the v0.7.2 in-game Prime Controls sensitivity menu, the v0.7.1
 multiplayer aiming fixes, and the v0.7.0 multiplayer mouse and keyboard
 settings fix for players joining a lobby. It builds on ndsrecomp framework
-commit `56ed6c964e1ec3be0991116ff7f4abd296d6c457`.
+commit `db7e8370babecda2570642a159bf95488e20c5a8` and recomp-ui commit
+`e45e1f3062731abc188e351cad3608730b01fa12`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,

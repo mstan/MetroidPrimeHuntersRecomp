@@ -10,7 +10,11 @@ set(MPH_LAUNCHER_SDL_BACKEND "SDL3" CACHE STRING
 set_property(CACHE MPH_LAUNCHER_SDL_BACKEND PROPERTY STRINGS SDL3 SDL2)
 
 if(MPH_LAUNCHER_SDL_BACKEND STREQUAL "SDL3")
-    find_package(SDL3 CONFIG REQUIRED)
+    # SDL 3.4 contains the Xbox Bluetooth report-descriptor fixes needed for
+    # controllers such as the Xbox Elite Series 2. Older SDL3 runtimes can
+    # expose a valid gamepad whose face/menu buttons are semantically shuffled,
+    # which breaks ImGui launcher navigation before the game starts.
+    find_package(SDL3 3.4 CONFIG REQUIRED)
     set(MPH_LAUNCHER_SDL_TARGET SDL3::SDL3)
 elseif(MPH_LAUNCHER_SDL_BACKEND STREQUAL "SDL2")
     find_package(SDL2 CONFIG REQUIRED)

@@ -3294,6 +3294,12 @@ kind = "runtime_observed"
 # hits = 65
 
 [[entry_point]]
+addr = 0x02115A74
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
 addr = 0x02115A90
 mode = "arm"
 kind = "runtime_observed"

@@ -1,0 +1,1529 @@
+{
+  "schema": 1,
+  "rom_sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
+  "date": "2026-10-03",
+  "manifest_sha256": "1379afff08c7532d2d39c22afa982473c2a6985acbcb83e675fa4c7018b575de",
+  "note": "Room-entry evidence and observed weapon indices; not exhaustive action or branch coverage. Counters are pre-promotion visit deltas, not normalized benchmarks.",
+  "rooms": [
+    {
+      "room": 27,
+      "name": "Alinos - Alinos Gateway",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 23,
+        "tier3_entries7": 0,
+        "tier3_insns9": 217,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 28,
+      "name": "Alinos - Echo Hall",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 15817,
+        "tier3_entries7": 0,
+        "tier3_insns9": 124870,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 29,
+      "name": "Alinos - High Ground",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 219905,
+        "tier3_entries7": 0,
+        "tier3_insns9": 3076217,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 30,
+      "name": "Alinos - Magma Drop",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 7,
+        "tier3_entries7": 0,
+        "tier3_insns9": 7,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 31,
+      "name": "Alinos - Elder Passage",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 7723,
+        "tier3_entries7": 0,
+        "tier3_insns9": 143043,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 32,
+      "name": "Alinos - Alimbic Cannon Control Room",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 104,
+        "tier3_entries7": 0,
+        "tier3_insns9": 918,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 33,
+      "name": "Alinos - Combat Hall",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 17150,
+        "tier3_entries7": 0,
+        "tier3_insns9": 136003,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 34,
+      "name": "Alinos - Boss Entrance (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2665,
+        "tier3_entries7": 0,
+        "tier3_insns9": 42782,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 35,
+      "name": "Alinos - Boss Room (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 79852,
+        "tier3_entries7": 0,
+        "tier3_insns9": 1020124,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 36,
+      "name": "Alinos - Alimbic Gardens",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 80775,
+        "tier3_entries7": 0,
+        "tier3_insns9": 1026437,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 37,
+      "name": "Alinos - Thermal Vast",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 6262,
+        "tier3_entries7": 0,
+        "tier3_insns9": 141597,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 38,
+      "name": "Alinos - Piston Cave",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 7,
+        "tier3_entries7": 0,
+        "tier3_insns9": 7,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 39,
+      "name": "Alinos - Alinos Perch",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 103341,
+        "tier3_entries7": 0,
+        "tier3_insns9": 1161162,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 40,
+      "name": "Alinos - Council Chamber",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 19143,
+        "tier3_entries7": 0,
+        "tier3_insns9": 302821,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 41,
+      "name": "Alinos - Processor Core",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2458,
+        "tier3_entries7": 0,
+        "tier3_insns9": 40934,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 42,
+      "name": "Alinos - Crash Site",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 14087,
+        "tier3_entries7": 0,
+        "tier3_insns9": 170216,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 43,
+      "name": "Alinos - Boss Entrance (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2664,
+        "tier3_entries7": 0,
+        "tier3_insns9": 42782,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 44,
+      "name": "Alinos - Boss Room (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3649,
+        "tier3_entries7": 0,
+        "tier3_insns9": 67967,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 45,
+      "name": "Celestial Archives - Celestial Gateway",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 1963,
+        "tier3_entries7": 0,
+        "tier3_insns9": 35840,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 46,
+      "name": "Celestial Archives - Helm Room",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2528,
+        "tier3_entries7": 0,
+        "tier3_insns9": 42082,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 47,
+      "name": "Celestial Archives - Meditation Room",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3572,
+        "tier3_entries7": 0,
+        "tier3_insns9": 66384,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 48,
+      "name": "Celestial Archives - Data Shrine 01",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2334,
+        "tier3_entries7": 0,
+        "tier3_insns9": 40432,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 49,
+      "name": "Celestial Archives - Fan Room Alpha",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2413,
+        "tier3_entries7": 0,
+        "tier3_insns9": 40474,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 50,
+      "name": "Celestial Archives - Data Shrine 02",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 8617,
+        "tier3_entries7": 0,
+        "tier3_insns9": 96494,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 51,
+      "name": "Celestial Archives - Fan Room Beta",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2289,
+        "tier3_entries7": 0,
+        "tier3_insns9": 39286,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 52,
+      "name": "Celestial Archives - Data Shrine 03",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3308,
+        "tier3_entries7": 0,
+        "tier3_insns9": 60217,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 53,
+      "name": "Celestial Archives - Synergy Core",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2410,
+        "tier3_entries7": 0,
+        "tier3_insns9": 38316,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 54,
+      "name": "Celestial Archives - Boss Entrance (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2419,
+        "tier3_entries7": 0,
+        "tier3_insns9": 37601,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 55,
+      "name": "Celestial Archives - Boss Room (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3226,
+        "tier3_entries7": 0,
+        "tier3_insns9": 59668,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 56,
+      "name": "Celestial Archives - Tetra Vista",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3299,
+        "tier3_entries7": 0,
+        "tier3_insns9": 60218,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 57,
+      "name": "Celestial Archives - New Arrival Registration",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2408,
+        "tier3_entries7": 0,
+        "tier3_insns9": 38902,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 58,
+      "name": "Celestial Archives - Transfer Lock",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 22760,
+        "tier3_entries7": 0,
+        "tier3_insns9": 399338,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 59,
+      "name": "Celestial Archives - Incubation Vault 01",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 22640,
+        "tier3_entries7": 0,
+        "tier3_insns9": 380462,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 60,
+      "name": "Celestial Archives - Incubation Vault 02",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 21614,
+        "tier3_entries7": 0,
+        "tier3_insns9": 338055,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 61,
+      "name": "Celestial Archives - Incubation Vault 03",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 22775,
+        "tier3_entries7": 0,
+        "tier3_insns9": 403419,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 62,
+      "name": "Celestial Archives - Docking Bay",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 11708,
+        "tier3_entries7": 0,
+        "tier3_insns9": 188249,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 63,
+      "name": "Celestial Archives - Boss Entrance (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2413,
+        "tier3_entries7": 0,
+        "tier3_insns9": 37601,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 64,
+      "name": "Celestial Archives - Boss Room (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 77475,
+        "tier3_entries7": 0,
+        "tier3_insns9": 1015460,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 65,
+      "name": "Vesper Defense Outpost - VDO Gateway",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 1746,
+        "tier3_entries7": 0,
+        "tier3_insns9": 32071,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 66,
+      "name": "Vesper Defense Outpost - Bioweaponry Lab",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 6480,
+        "tier3_entries7": 0,
+        "tier3_insns9": 171150,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 67,
+      "name": "Vesper Defense Outpost - Cortex CPU",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 4403,
+        "tier3_entries7": 0,
+        "tier3_insns9": 48347,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 68,
+      "name": "Vesper Defense Outpost - Weapons Complex",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 18638,
+        "tier3_entries7": 0,
+        "tier3_insns9": 274102,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 69,
+      "name": "Vesper Defense Outpost - Compression Chamber",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 14037,
+        "tier3_entries7": 0,
+        "tier3_insns9": 245868,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 70,
+      "name": "Vesper Defense Outpost - Boss Entrance (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2509,
+        "tier3_entries7": 0,
+        "tier3_insns9": 38690,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 71,
+      "name": "Vesper Defense Outpost - Boss Room (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3428,
+        "tier3_entries7": 0,
+        "tier3_insns9": 62101,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 72,
+      "name": "Vesper Defense Outpost - Ascension",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2290,
+        "tier3_entries7": 0,
+        "tier3_insns9": 37180,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 73,
+      "name": "Vesper Defense Outpost - Fuel Stack",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 7766,
+        "tier3_entries7": 0,
+        "tier3_insns9": 142848,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 74,
+      "name": "Vesper Defense Outpost - Stasis Bunker",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 41742,
+        "tier3_entries7": 0,
+        "tier3_insns9": 734273,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 75,
+      "name": "Vesper Defense Outpost - Boss Entrance (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2501,
+        "tier3_entries7": 0,
+        "tier3_insns9": 38690,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 76,
+      "name": "Vesper Defense Outpost - Boss Room (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 76814,
+        "tier3_entries7": 0,
+        "tier3_insns9": 959466,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 77,
+      "name": "Arcterra - Arcterra Gateway",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 71174,
+        "tier3_entries7": 0,
+        "tier3_insns9": 899369,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 78,
+      "name": "Arcterra - Ice Hive",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 115737,
+        "tier3_entries7": 0,
+        "tier3_insns9": 948618,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 79,
+      "name": "Arcterra - Sic Transit",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 73876,
+        "tier3_entries7": 0,
+        "tier3_insns9": 796682,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 80,
+      "name": "Arcterra - Frost Labyrinth",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 61148,
+        "tier3_entries7": 0,
+        "tier3_insns9": 879713,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 81,
+      "name": "Arcterra - Boss Entrance (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2565,
+        "tier3_entries7": 0,
+        "tier3_insns9": 39436,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 82,
+      "name": "Arcterra - Boss Room (Slench)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 73623,
+        "tier3_entries7": 0,
+        "tier3_insns9": 968695,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 83,
+      "name": "Arcterra - Drip Moat",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 34197,
+        "tier3_entries7": 0,
+        "tier3_insns9": 473074,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 84,
+      "name": "Arcterra - Subterranean",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2411,
+        "tier3_entries7": 0,
+        "tier3_insns9": 38742,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 85,
+      "name": "Arcterra - Santorus",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 49882,
+        "tier3_entries7": 0,
+        "tier3_insns9": 404145,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 86,
+      "name": "Arcterra - Fault Line",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 393207,
+        "tier3_entries7": 0,
+        "tier3_insns9": 7234610,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 87,
+      "name": "Arcterra - Boss Entrance (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2542,
+        "tier3_entries7": 0,
+        "tier3_insns9": 39366,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 88,
+      "name": "Arcterra - Boss Room (Cretaphid)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 13835,
+        "tier3_entries7": 0,
+        "tier3_insns9": 120817,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 89,
+      "name": "Oubliette - Oubliette Entrance",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 3425,
+        "tier3_entries7": 0,
+        "tier3_insns9": 61678,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 90,
+      "name": "Oubliette - Teleportation Room",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 2375,
+        "tier3_entries7": 0,
+        "tier3_insns9": 38186,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed"
+    },
+    {
+      "room": 91,
+      "name": "Oubliette - Boss Room (Gorea Phase #1)",
+      "weapons_observed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 267844,
+        "tier3_entries7": 0,
+        "tier3_insns9": 6004688,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed",
+      "additional_actions": [
+        "first form",
+        "arm-severed transformation",
+        "second form",
+        "native bad-ending path"
+      ]
+    },
+    {
+      "room": 92,
+      "name": "Oubliette - Boss Room (Gorea Phase #2)",
+      "weapons_observed": [
+        0,
+        1,
+        2
+      ],
+      "fallback_delta": {
+        "tier3_entries9": 51131,
+        "tier3_entries7": 0,
+        "tier3_insns9": 928408,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      },
+      "verification": "native room visible; screenshot reviewed",
+      "additional_actions": [
+        "Omega equip and firing",
+        "shortcut loss and locked-slot return",
+        "native good-ending path"
+      ]
+    }
+  ]
+}

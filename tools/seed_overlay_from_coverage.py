@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 from pathlib import Path
 
@@ -38,6 +39,26 @@ PAGE = 4096
 # exact resident generation, so they are safe inputs to the recompiler's
 # generated interior-entry switch rather than ambiguous session-wide PCs.
 GOOD_KINDS = {"root", "call", "indirect"}
+
+
+def span_starts(points):
+    """One entry per contiguous interpreted run, with ARM/Thumb kept apart.
+
+    Call only with roots from pages matched to ONE overlay image. The generic
+    ingest's session-wide address map can combine different overlays at the
+    same address and must not determine overlay-generation provenance.
+    """
+    by_mode = {"arm": set(), "thumb": set()}
+    for point in points:
+        if point.get("kind") == "root":
+            by_mode[point["mode"]].add(int(point["addr"], 16))
+    for mode, addresses in by_mode.items():
+        previous = None
+        stride = 2 if mode == "thumb" else 4
+        for addr in sorted(addresses):
+            if previous is None or addr != previous + stride:
+                yield addr, mode
+            previous = addr
 
 
 def expand_root_bits(page):
@@ -100,6 +121,10 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--include-roots", action="store_true",
                         help="compatibility no-op; schema-3 roots are included")
+    parser.add_argument("--span-starts", action="store_true",
+                        help="also seed the start of each contiguous interpreted "
+                             "run in pages proven to belong to this overlay; "
+                             "use with --kinds call,indirect to avoid dense roots")
     parser.add_argument(
         "--kinds", default=",".join(sorted(GOOD_KINDS)),
         help="comma-separated entry kinds to emit. Defaults to all three for "
@@ -124,6 +149,8 @@ def main() -> int:
     if len(image) != int(entry["size"]):
         raise SystemExit(f"{entry['file']} is {len(image)} bytes, "
                          f"overlays.json says {entry['size']}")
+    if hashlib.sha1(image).hexdigest() != entry["sha1"]:
+        raise SystemExit("overlay image SHA-1 does not match overlays.json")
     lo, hi = base, base + len(image)
     print(f"overlay {args.overlay_id}: 0x{lo:08X}-0x{hi:08X} "
           f"({len(image)} bytes) sha1 {entry['sha1']}")
@@ -148,6 +175,8 @@ def main() -> int:
             if not (lo <= addr < hi):
                 continue
             raw = base64.b64decode(page["data"])
+            if hashlib.sha1(raw).hexdigest() != page["sha1"]:
+                raise SystemExit(f"{path}: captured page SHA-1 mismatch at {addr:#x}")
             off = addr - lo
             if image[off:off + len(raw)] == raw:
                 resident.add(addr)
@@ -183,10 +212,20 @@ def main() -> int:
         key = (addr, "thumb" if point.get("mode") == "thumb" else "arm")
         seeds[key] = seeds.get(key, 0) + int(point.get("hits", 0))
 
+    span_added = 0
+    if args.span_starts:
+        for key in span_starts(points):
+            if not lo <= key[0] < hi or (key[0] & ~(PAGE - 1)) not in resident:
+                continue
+            if key not in seeds:
+                seeds[key] = 1
+                span_added += 1
+
     print(f"entry points in span, dropped as unproven generation: "
           f"{dropped_unproven}")
     print(f"entry points dropped by kind filter                 : {dropped_kind}")
     print(f"SEEDS EMITTED                                       : {len(seeds)}")
+    print(f"generation-proven span starts added                 : {span_added}")
     if not seeds:
         raise SystemExit("no seeds survived; capture a route that runs this overlay")
 

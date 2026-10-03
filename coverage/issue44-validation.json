@@ -1,0 +1,197 @@
+{
+  "kind": "ndsrecomp-coverage-investigation",
+  "date": "2026-10-03",
+  "rom_sha1": "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
+  "tested_build_id": "f6f1367-dirty",
+  "tested_runner_sha256": "8de1f399e1a2c898c50e4078120912fbc104908178daf8b1a535ef47232dcc68",
+  "disclaimer": "Assisted room traversal and focused boss checks, not exhaustive gameplay coverage or a performance gate.",
+  "room_ids": [
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92
+  ],
+  "discovery": {
+    "tier3_entries9": 3117112,
+    "tier3_entries7": 0,
+    "tier3_insns9": 49700886,
+    "tier3_insns7": 0,
+    "clean_ram_rejects9": 0,
+    "clean_ram_rejects7": 0
+  },
+  "pages": {
+    "captured": 94,
+    "dropped": 0,
+    "replaced": 0,
+    "bytes": 385024,
+    "revisits": 7867280,
+    "page_size": 4096,
+    "caller_cap": 4
+  },
+  "promoted": {
+    "overlay_seeds_added": 2641,
+    "main_seeds_added": 115,
+    "new_runtime_page_banks": 13,
+    "final_extra_runtime_seeds": 3
+  },
+  "final_coverage_checks": [
+    {
+      "state": "gorea1-active.state",
+      "frames": 388,
+      "delta": {
+        "tier3_entries9": 0,
+        "tier3_entries7": 0,
+        "tier3_insns9": 0,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      }
+    },
+    {
+      "state": "gorea1-transformed.state",
+      "frames": 294,
+      "delta": {
+        "tier3_entries9": 0,
+        "tier3_entries7": 0,
+        "tier3_insns9": 0,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      }
+    },
+    {
+      "state": "omega-active.state",
+      "frames": 417,
+      "delta": {
+        "tier3_entries9": 0,
+        "tier3_entries7": 0,
+        "tier3_insns9": 0,
+        "tier3_insns7": 0,
+        "clean_ram_rejects9": 0,
+        "clean_ram_rejects7": 0
+      }
+    }
+  ],
+  "verified_bank_count": 266,
+  "profile": {
+    "note": "One active Omega window before the final five seed additions; headless native-width compute rendering on Ryzen 7 9800X3D / RTX 3080 Ti; no frontend FPS or before/after speedup claim.",
+    "frames": 4969,
+    "seconds": 22.375,
+    "fallback_delta": {
+      "tier3_entries9": 1241,
+      "tier3_entries7": 0,
+      "tier3_insns9": 4455,
+      "tier3_insns7": 0,
+      "clean_ram_rejects9": 0,
+      "clean_ram_rejects7": 0
+    },
+    "self_samples_by_category": {
+      "arm interpreter": 1,
+      "audio": 42,
+      "bus/memory": 346,
+      "devices (dma/timer/irq)": 323,
+      "dispatch": 482,
+      "generated": 1778,
+      "gpu driver": 131,
+      "gpu2d": 64,
+      "gpu3d": 619,
+      "io/MMIO": 113,
+      "libc/alloc": 12,
+      "libc/memory": 32,
+      "live_overlay": 5,
+      "network": 45,
+      "os": 262,
+      "other": 261,
+      "runtime_arm (cycles/helpers)": 615,
+      "scheduler/sync": 297,
+      "wait/idle": 166
+    },
+    "emu_time_estimate_seconds": 25.171974231073065,
+    "estimator_overstatement_percent": 12.50044349082935,
+    "raw_record_sha256": "a24a5322ba5646792c77c59da09c76876fcd19ba752535f7f519362e9d26b59a"
+  },
+  "lle_check": {
+    "frames": 42,
+    "delta": {
+      "tier3_entries9": 73979,
+      "tier3_entries7": 35127,
+      "tier3_insns9": 3522579,
+      "tier3_insns7": 1036330,
+      "clean_ram_rejects9": 0,
+      "clean_ram_rejects7": 0
+    }
+  },
+  "validation": {
+    "unit_tests": [
+      "title_patches_test",
+      "savestate_test",
+      "network_savestate_guard_test",
+      "video_savestate_test",
+      "dispatch_lookup_test"
+    ],
+    "debug_protocol_cases": 13,
+    "overlay_seeder_tests": 2
+  }
+}

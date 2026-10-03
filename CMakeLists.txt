@@ -228,6 +228,10 @@ set(MPH_OVERLAY_BANKS
     "mph_arm9_ov009:16:009"
     "mph_arm9_ov010:16:010"
     "mph_arm9_ov011:4:011"
+    # Issue 44 room sweep proved both Gorea overlays resident. Their virtual
+    # addresses overlap other bosses; retain the usual live-byte guards.
+    "mph_arm9_ov012:8:012"
+    "mph_arm9_ov013:4:013"
     "mph_arm9_ov015:8:015")
 set(MPH_OVERLAY_BANK_SOURCES)
 set(MPH_OVERLAY_BANK_STAMPS)

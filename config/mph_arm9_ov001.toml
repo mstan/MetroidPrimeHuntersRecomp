@@ -414,10 +414,34 @@ kind = "runtime_observed"
 # hits = 8
 
 [[entry_point]]
+addr = 0x02103B08
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x02103B38
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
 addr = 0x02103B58
 mode = "arm"
 kind = "runtime_observed"
 # hits = 15233
+
+[[entry_point]]
+addr = 0x02103BE8
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
+
+[[entry_point]]
+addr = 0x02103BF4
+mode = "arm"
+kind = "runtime_observed"
+# hits = 1
 
 [[entry_point]]
 addr = 0x02103C04

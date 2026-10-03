@@ -62,7 +62,7 @@ ENTRY_BLOCK = re.compile(
     r"kind\s*=\s*\"(\w+)\"\s*\n"
     r"(?:#\s*hits\s*=\s*(\d+)(?:,\s*seen as ([\w/]+))?\s*\n)?", re.M)
 
-OVERLAY_IDS = (0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 15)
+OVERLAY_IDS = (0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13, 15)
 
 
 def read_entry_toml(path: Path) -> dict[tuple[int, str], dict]:

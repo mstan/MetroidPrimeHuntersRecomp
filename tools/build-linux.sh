@@ -20,6 +20,7 @@ JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 BUILD_FLAVOR="release"
 SDL_BACKEND="${NDS_SDL_BACKEND:-SDL3}"
+MATH_IMPLEMENTATION="HLE" # Developer build choice, not a runtime setting.
 SHARD_CACHE="${MPH_RELEASE_SHARD_CACHE:-}"
 SHARD_PERFORMANCE_GATE="${MPH_SHARD_PERFORMANCE_GATE:-}" # deprecated: performance gates are not release policy
 GCC="${CC:-gcc}"
@@ -44,6 +45,7 @@ while [ $# -gt 0 ]; do
     --recomp-ui-root) RECOMP_UI_ROOT="$(cd "$2" && pwd)"; shift 2;;
     --build-flavor) BUILD_FLAVOR="$2"; shift 2;;
     --sdl-backend) SDL_BACKEND="$2"; shift 2;;
+    --math-implementation) MATH_IMPLEMENTATION="$2"; shift 2;;
     --shard-cache) SHARD_CACHE="$2"; shift 2;;
     --shard-performance-gate) SHARD_PERFORMANCE_GATE="$2"; shift 2;;
     --gcc) GCC="$2"; shift 2;;
@@ -63,6 +65,10 @@ done
 case "$SDL_BACKEND" in
   SDL3|SDL2) ;;
   *) echo "ERROR: --sdl-backend must be SDL3 or SDL2." >&2; exit 2;;
+esac
+case "$MATH_IMPLEMENTATION" in
+  HLE|LLE) ;;
+  *) echo "ERROR: --math-implementation must be HLE or LLE." >&2; exit 2;;
 esac
 
 GAME_BUILD="$REPO/build-linux-$BUILD_FLAVOR"
@@ -107,6 +113,7 @@ if [ "$PACKAGE_EXISTING" != 1 ]; then
   cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
     -DNDS_SDL_BACKEND="$SDL_BACKEND" \
+    -DNDS_MPH_MATH_IMPLEMENTATION="$MATH_IMPLEMENTATION" \
     -DNDS_BOOTSTRAP_FIRMWARE=ON \
     -DNDS_TITLE_BANK_DIR="$TITLE_BANK_DIR" \
     -DNDS_TITLE_ROM_SHA1="$ROM_SHA1"

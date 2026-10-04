@@ -26,10 +26,16 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows: [v0.7.5-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.5-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.5.zip`
-- Linux: [v0.7.5-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.5-alpha)
-  `MetroidPrimeHuntersRecomp-linux-v0.7.5-x86_64.AppImage`
+- Windows: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.6.zip`
+- Linux: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
+  `MetroidPrimeHuntersRecomp-linux-v0.7.6-x86_64.AppImage`
+
+The v0.7.6 release adds native HLE shortcuts for three frequently used vector
+math operations. Focused campaign checks, including Gorea phase 2, and an
+offline three-bot combat check exercised the replacements without a crash or
+visible gameplay problem. This is an initial optimization; a large overall
+frame-rate improvement has not been established.
 
 The v0.7.5 release adds compiled coverage harvested across all 66 campaign
 rooms, including previously missing Gorea boss code and ending paths. Focused
@@ -43,7 +49,7 @@ pads, the v0.7.3 alternate-form mouse camera and Imperialist widescreen
 fixes, the v0.7.2 in-game Prime Controls sensitivity menu, the v0.7.1
 multiplayer aiming fixes, and the v0.7.0 multiplayer mouse and keyboard
 settings fix for players joining a lobby. It builds on ndsrecomp framework
-commit `13213eeb336fa45eb79264f9dcea8274acec54fb` and recomp-ui commit
+commit `74efebb5a462e11f2e7eb42f54037d81fa056243` and recomp-ui commit
 `e45e1f3062731abc188e351cad3608730b01fa12`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very

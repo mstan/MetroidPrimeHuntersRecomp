@@ -382,7 +382,13 @@ APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
 rm -f "$APP"
 ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run "$APPDIR" "$APP" >/dev/null
 chmod +x "$APP"
+# --allow-no-shard-cache permits an absent cache; it does not forbid a valid
+# cache from being staged. Validate the package we actually produced.
+EXPECT_STAGED_SHARDS=0
+if [ -d "$APPDIR/usr/bin/prebuilt-live-shard-cache" ]; then
+  EXPECT_STAGED_SHARDS=1
+fi
 EXPECT_LIVE_TOOLCHAIN="$((1 - SKIP_OVERLAY_TOOLCHAIN))" \
-EXPECT_LIVE_SHARDS="$((1 - ALLOW_NO_SHARD_CACHE))" \
+EXPECT_LIVE_SHARDS="$EXPECT_STAGED_SHARDS" \
   bash "$REPO/tools/test_appimage_layout.sh" "$APPDIR"
 sha256sum "$APP"

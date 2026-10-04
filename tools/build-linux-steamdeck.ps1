@@ -17,6 +17,8 @@ param(
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompUiRoot = '..\recomp-ui',
   [string]$ShardCacheDir = 'release-shard-cache-linux',
+  [ValidateSet('HLE', 'LLE')]
+  [string]$MathImplementation = 'HLE',
   [switch]$AllowNoShardCache,
   [switch]$SkipOverlayToolchain,
   [switch]$NoPackage,
@@ -77,6 +79,7 @@ $buildArgs = @(
   'bash', 'tools/build-linux.sh',
   '--version', $Version,
   '--jobs', [string]$Jobs,
+  '--math-implementation', $MathImplementation,
   '--out', "/work/mph/$Out",
   '--ndsrecomp-root', '/work/ndsrecomp',
   '--recomp-ui-root', '/work/recomp-ui',

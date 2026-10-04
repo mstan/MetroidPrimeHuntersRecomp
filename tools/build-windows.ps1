@@ -23,6 +23,9 @@ param(
   [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
+  # Developer build choice; there is no player-facing runtime switch.
+  [ValidateSet('HLE', 'LLE')]
+  [string]$MathImplementation = 'HLE',
   [string]$ShardCacheDir = 'release-shard-cache',
   # Deprecated: routine releases no longer use shard performance gate JSON.
   [string]$ShardPerformanceGate = '',
@@ -74,6 +77,7 @@ try {
     '-G', $Generator, '-S', "$frameworkRoot\runner", '-B', $runnerBuild,
     '-DCMAKE_BUILD_TYPE=Release',
     "-DNDS_SDL_BACKEND=$SdlBackend",
+    "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
     '-DNDS_BOOTSTRAP_FIRMWARE=ON',
     "-DNDS_TITLE_BANK_DIR=$titleBankDir",
     "-DNDS_TITLE_ROM_SHA1=$romSha1")

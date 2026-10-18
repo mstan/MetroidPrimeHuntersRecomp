@@ -26,6 +26,9 @@ param(
   # Developer build choice; there is no player-facing runtime switch.
   [ValidateSet('HLE', 'LLE')]
   [string]$MathImplementation = 'HLE',
+  # Experimental until the measured submission candidate is qualified.
+  [ValidateSet('HLE', 'LLE')]
+  [string]$SubmitImplementation = 'LLE',
   [string]$ShardCacheDir = 'release-shard-cache',
   # Deprecated: routine releases no longer use shard performance gate JSON.
   [string]$ShardPerformanceGate = '',
@@ -78,6 +81,7 @@ try {
     '-DCMAKE_BUILD_TYPE=Release',
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
+    "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
     '-DNDS_BOOTSTRAP_FIRMWARE=ON',
     "-DNDS_TITLE_BANK_DIR=$titleBankDir",
     "-DNDS_TITLE_ROM_SHA1=$romSha1")

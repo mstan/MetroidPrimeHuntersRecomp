@@ -4,6 +4,7 @@ project(mph_recomp_ui_launcher C CXX)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(MPH_NATIVE_GL_PREVIEW "Package native GL capabilities in the Windows preview" OFF)
 
 set(MPH_LAUNCHER_SDL_BACKEND "SDL3" CACHE STRING
     "Launcher SDL backend: SDL3 or SDL2")
@@ -54,6 +55,10 @@ target_include_directories(mph-mod-provider-test PRIVATE
     "${RECOMP_UI_ROOT}/src/common")
 target_compile_definitions(mph-mod-provider-test PRIVATE
     MPH_RECOMP_UI_NO_MAIN)
+if(MPH_NATIVE_GL_PREVIEW)
+    target_compile_definitions(mph-recomp-ui PRIVATE MPH_NATIVE_GL_PREVIEW=1)
+    target_compile_definitions(mph-mod-provider-test PRIVATE MPH_NATIVE_GL_PREVIEW=1)
+endif()
 
 set(SNESRECOMP_SDL_BACKEND "${MPH_LAUNCHER_SDL_BACKEND}" CACHE STRING
     "SDL backend consumed by recomp-ui" FORCE)

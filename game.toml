@@ -83,8 +83,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "13213eeb336fa45eb79264f9dcea8274acec54fb"
-branch = "main"
+pin = "f5f529b4a747e3b265db6f17bddb6f24d39d1297"
+branch = "release/mph-native-gl-0.7.7"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

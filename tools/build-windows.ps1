@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.1.0',
+  [string]$Version = '0.7.7',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
@@ -26,9 +26,11 @@ param(
   # Developer build choice; there is no player-facing runtime switch.
   [ValidateSet('HLE', 'LLE')]
   [string]$MathImplementation = 'HLE',
-  # Experimental until the measured submission candidate is qualified.
+  # Preview includes the measured submission implementation; LLE stays available.
   [ValidateSet('HLE', 'LLE')]
-  [string]$SubmitImplementation = 'LLE',
+  [string]$SubmitImplementation = 'HLE',
+  [ValidateSet('OPENGL', 'COMPUTE')]
+  [string]$AcceleratedRenderer = 'OPENGL',
   [string]$ShardCacheDir = 'release-shard-cache',
   # Deprecated: routine releases no longer use shard performance gate JSON.
   [string]$ShardPerformanceGate = '',
@@ -82,6 +84,8 @@ try {
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
+    "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",
+    "-DNDS_TITLE_VERSION=v$Version-alpha",
     '-DNDS_BOOTSTRAP_FIRMWARE=ON',
     "-DNDS_TITLE_BANK_DIR=$titleBankDir",
     "-DNDS_TITLE_ROM_SHA1=$romSha1")
@@ -136,6 +140,7 @@ try {
     -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     "-DMPH_LAUNCHER_SDL_BACKEND=$SdlBackend" `
+    "-DMPH_NATIVE_GL_PREVIEW=$($AcceleratedRenderer -eq 'OPENGL')" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
   & $cmakePath --build $launcherBuild -j $Jobs

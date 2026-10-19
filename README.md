@@ -26,31 +26,38 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.6.zip`
-- Linux: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
+- Windows native GL preview: [v0.7.7-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.7-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.7.zip`
+- Linux / Steam Deck: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
   `MetroidPrimeHuntersRecomp-linux-v0.7.6-x86_64.AppImage`
 
-The v0.7.6 release adds native HLE shortcuts for three frequently used vector
-math operations. Focused campaign checks, including Gorea phase 2, and an
-offline three-bot combat check exercised the replacements without a crash or
-visible gameplay problem. This is an initial optimization; a large overall
-frame-rate improvement has not been established.
+The Windows v0.7.7 preview uses melonDS's native OpenGL rasterizer. It keeps
+DS geometry execution, guest timing and networking under the existing device
+models, and uses the portable integer renderer for graphics captured into
+guest VRAM. Settings -> Display -> OpenGL selects the new renderer; Software
+remains available for graphics troubleshooting.
 
-The v0.7.5 release adds compiled coverage harvested across all 66 campaign
-rooms, including previously missing Gorea boss code and ending paths. Focused
-Gorea checks completed without interpreter fallback. It also fixes Prime
-Controls special-weapon shortcuts discarding the Omega Cannon during the
-second Gorea fight. Room coverage does not mean every possible action or
-encounter has been tested; the game remains an alpha.
+One matched 600-vblank uncapped Gorea sample on an i5-4670 / GTX 760 measured
+89.7 to 98.7 vblanks/second (+10.0% throughput), with 16.1% less process CPU
+time. Gameplay state, guest event counts and HLE call counts matched. This
+single sample does not establish whole-game performance or online stability.
+The connected CPU-region experiment was flat and is excluded.
 
-It retains the v0.7.4 controller diagnostics and SDL3 fixes for Xbox Bluetooth
-pads, the v0.7.3 alternate-form mouse camera and Imperialist widescreen
-fixes, the v0.7.2 in-game Prime Controls sensitivity menu, the v0.7.1
-multiplayer aiming fixes, and the v0.7.0 multiplayer mouse and keyboard
-settings fix for players joining a lobby. It builds on ndsrecomp framework
-commit `74efebb5a462e11f2e7eb42f54037d81fa056243` and recomp-ui commit
-`e45e1f3062731abc188e351cad3608730b01fa12`.
+The preview also includes the measured MPH submission v3 and expanded native
+math services, while retaining the previous campaign coverage, controls,
+controller fixes and experimental Wiimmfi support. Developers can build the
+math/submission reference paths with `-MathImplementation LLE
+-SubmitImplementation LLE`, and the compute renderer with
+`-AcceleratedRenderer COMPUTE`. No extra gameplay or online qualification is
+claimed for this pre-release; friends' feedback is the next practical check.
+
+HD internal resolution is supported. Texture upscaling is unavailable with
+this native GL preview and its control is hidden. Extract the preview into a
+fresh directory; it contains no ROM, retail BIOS/firmware, saves or private
+captures. Existing save files should be backed up before testing an alpha.
+
+Framework: `f5f529b4a747e3b265db6f17bddb6f24d39d1297`.
+Shared UI: `41c88ffea852b970af8d50312620b17404e455ad`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
@@ -111,14 +118,14 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.7.4-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.7-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.7.4-alpha` AppImage.
+1. Download the `v0.7.6-alpha` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.

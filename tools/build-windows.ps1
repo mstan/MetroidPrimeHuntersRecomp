@@ -56,14 +56,14 @@ if (-not (Test-Path -LiteralPath $cmakePath)) {
   throw "CMake not found: $cmakePath"
 }
 
-if ([IO.Path]::IsPathRooted($NdsrecompRoot)) {
-  $frameworkRoot = [IO.Path]::GetFullPath($NdsrecompRoot)
-} else {
-  $frameworkRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+function Resolve-BuildPath([string]$value) {
+  if ([IO.Path]::IsPathRooted($value)) { return [IO.Path]::GetFullPath($value) }
+  return [IO.Path]::GetFullPath((Join-Path $root $value))
 }
-$gameBuild = [IO.Path]::GetFullPath((Join-Path $root $GameBuildDir))
-$runnerBuild = [IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))
-$launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
+$frameworkRoot = Resolve-BuildPath $NdsrecompRoot
+$gameBuild = Resolve-BuildPath $GameBuildDir
+$runnerBuild = Resolve-BuildPath $RunnerBuildDir
+$launcherBuild = Resolve-BuildPath $LauncherBuildDir
 $titleBankDir = [IO.Path]::GetFullPath((Join-Path $root 'generated\recomp'))
 $romSha1 = '90164d1ac127ee5f9815ea4ae7de798c7b5fc629'
 
@@ -153,6 +153,7 @@ try {
     -RuntimeBinDir $RuntimeBinDir `
     -NdsrecompRoot $NdsrecompRoot `
     -RecompilerBuildDir $RecompilerBuildDir `
+    -RecompUiRoot $RecompUiRoot `
     -SdlBackend $SdlBackend `
     -ShardCacheDir $ShardCacheDir `
     -ShardPerformanceGate $ShardPerformanceGate `

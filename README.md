@@ -26,38 +26,42 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows native GL preview: [v0.7.7-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.7-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.7.zip`
+- Windows native GL preview: [v0.7.8-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.8-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.8.zip`
 - Linux / Steam Deck: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
   `MetroidPrimeHuntersRecomp-linux-v0.7.6-x86_64.AppImage`
 
-The Windows v0.7.7 preview uses melonDS's native OpenGL rasterizer. It keeps
-DS geometry execution, guest timing and networking under the existing device
-models, and uses the portable integer renderer for graphics captured into
-guest VRAM. Settings -> Display -> OpenGL selects the new renderer; Software
-remains available for graphics troubleshooting.
+The Windows v0.7.8 update reduces default diagnostic sampling and reuses
+unchanged immutable texture/palette capture views. Guest timing, geometry FIFO
+execution, interrupts, Wi-Fi behavior and software-rendered guest graphics
+readbacks retain their existing contracts. Native OpenGL and the existing MPH
+HLE services remain enabled, with Software available for troubleshooting.
 
-One matched 600-vblank uncapped Gorea sample on an i5-4670 / GTX 760 measured
-89.7 to 98.7 vblanks/second (+10.0% throughput), with 16.1% less process CPU
-time. Gameplay state, guest event counts and HLE call counts matched. This
-single sample does not establish whole-game performance or online stability.
-The connected CPU-region experiment was flat and is excluded.
+One matched 600-vblank uncapped Gorea sample on an i5-4670 / GTX 760 used
+5.1% less process CPU time and 1.3% less elapsed time (104.8 to 106.2
+vblanks/second). Private committed memory was about 65 MiB lower, and capture
+snapshot copying fell from 375 MiB to 2.5 MiB in that scene. Both screens,
+recent audio, semantic guest state and event counts matched the reference.
+This is a small targeted sample, not sustained presented 60-FPS qualification
+or a whole-game performance guarantee. The CPU span and deadline-cache probes
+were rejected and are excluded.
 
-The preview also includes the measured MPH submission v3 and expanded native
-math services, while retaining the previous campaign coverage, controls,
-controller fixes and experimental Wiimmfi support. Developers can build the
-math/submission reference paths with `-MathImplementation LLE
--SubmitImplementation LLE`, and the compute renderer with
-`-AcceleratedRenderer COMPUTE`. No extra gameplay or online qualification is
-claimed for this pre-release; friends' feedback is the next practical check.
+The owner confirmed the desktop presentation looks fine. No new real-peer
+Wiimmfi match was performed for this update; online play remains experimental.
+Current-build save/load checks pass. Native in-game saves are preserved;
+execution save states remain build-specific. This update is Windows-only.
+
+Developers retain the LLE math/submission choices and the original host paths:
+`-MathImplementation LLE -SubmitImplementation LLE`, `-LeanDiagnostics OFF`,
+and `-CaptureViewReuse OFF`. Software rendering remains available in Settings.
 
 HD internal resolution is supported. Texture upscaling is unavailable with
 this native GL preview and its control is hidden. Extract the preview into a
 fresh directory; it contains no ROM, retail BIOS/firmware, saves or private
 captures. Existing save files should be backed up before testing an alpha.
 
-Framework: `f5f529b4a747e3b265db6f17bddb6f24d39d1297`.
-Shared UI: `41c88ffea852b970af8d50312620b17404e455ad`.
+Framework: `6721d74cc168564373839510fa93df0ce2be090d`.
+Shared UI: `2e8532811f85922e844bdbed9ede02566c01f17a`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
@@ -118,7 +122,7 @@ your GPU.
 
 Windows:
 
-1. Download and fully extract the `v0.7.7-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.8-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
@@ -224,7 +228,7 @@ Keyboard, mouse, and gamepad bindings are editable from the launcher Mods page.
 
 Nintendo WFC / Wiimmfi support is experimental, but it does work: the game
 authenticates against the live Wiimmfi servers over the real internet, and a
-**complete online match has been played end to end** — two consoles in one
+**complete online match has been played end to end** â€” two consoles in one
 Friends and Rivals game, both players in the arena and visibly moving, with
 player state streaming between them for the duration of the match.
 
@@ -236,7 +240,7 @@ and friends added to your roster persist across restarts.
 **What is not yet validated: playing against someone on a different machine.**
 The match above was two instances on one computer. Because they shared a public
 IP address, the DS's own matchmaking took its same-network shortcut and never
-performed NAT negotiation — the step real internet play between two households
+performed NAT negotiation â€” the step real internet play between two households
 depends on. Expect remote play to need more work.
 
 The launcher keeps the console firmware profile in
@@ -296,7 +300,7 @@ license text and making the corresponding source available.
 ---
 
 <p align="center">
-  <sub><b>R.A.I.D. — Retro AI Development</b> · a Discord for AI-assisted retro reverse-engineering, decomp &amp; recomp</sub>
+  <sub><b>R.A.I.D. â€” Retro AI Development</b> Â· a Discord for AI-assisted retro reverse-engineering, decomp &amp; recomp</sub>
 </p>
 
 <p align="center">

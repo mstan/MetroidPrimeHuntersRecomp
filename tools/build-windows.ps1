@@ -1,4 +1,4 @@
-﻿<#
+ï»¿<#
 Build and package the Metroid Prime Hunters Recomp Windows release.
 
 This script builds the title banks, the sibling ndsrecomp runner, and the
@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.7.7',
+  [string]$Version = '0.7.8',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
@@ -31,6 +31,10 @@ param(
   [string]$SubmitImplementation = 'HLE',
   [ValidateSet('OPENGL', 'COMPUTE')]
   [string]$AcceleratedRenderer = 'OPENGL',
+  [ValidateSet('ON', 'OFF')]
+  [string]$LeanDiagnostics = 'ON',
+  [ValidateSet('ON', 'OFF')]
+  [string]$CaptureViewReuse = 'ON',
   [string]$ShardCacheDir = 'release-shard-cache',
   # Deprecated: routine releases no longer use shard performance gate JSON.
   [string]$ShardPerformanceGate = '',
@@ -86,6 +90,8 @@ try {
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
     "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",
     "-DNDS_TITLE_VERSION=v$Version-alpha",
+    "-DNDS_LEAN_DIAGNOSTICS=$LeanDiagnostics",
+    "-DNDS_CAPTURE_VIEW_REUSE=$CaptureViewReuse",
     '-DNDS_BOOTSTRAP_FIRMWARE=ON',
     "-DNDS_TITLE_BANK_DIR=$titleBankDir",
     "-DNDS_TITLE_ROM_SHA1=$romSha1")

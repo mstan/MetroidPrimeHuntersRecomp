@@ -293,7 +293,7 @@ if (-not $SkipOverlayToolchain) {
   # directory ships whole rather than cherry-picked.
   $tccTmp = Join-Path $dlCache 'tcc_extract'
   if (Test-Path -LiteralPath $tccTmp) {
-    Remove-Item -LiteralPath $tccTmp -Recurse -Force
+    Remove-Item -LiteralPath $tccTmp -Recurse -ErrorAction Stop
   }
   Expand-Archive -LiteralPath (Join-Path $dlCache 'tcc-0.9.27-win64-bin.zip') `
     -DestinationPath $tccTmp -Force

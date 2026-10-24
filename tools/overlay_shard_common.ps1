@@ -205,7 +205,7 @@ sys.stdout.write(mod.provider_identity(args))
     }
     return ([string]$identity).Trim()
   } finally {
-    Remove-Item -LiteralPath $script -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $script -ErrorAction SilentlyContinue
   }
 }
 

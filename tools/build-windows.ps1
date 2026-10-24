@@ -1,4 +1,4 @@
-﻿<#
+ï»¿<#
 Build and package the Metroid Prime Hunters Recomp Windows release.
 
 This script builds the title banks, the sibling ndsrecomp runner, and the
@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.1.0',
+  [string]$Version = '0.7.8',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
@@ -26,6 +26,15 @@ param(
   # Developer build choice; there is no player-facing runtime switch.
   [ValidateSet('HLE', 'LLE')]
   [string]$MathImplementation = 'HLE',
+  # Preview includes the measured submission implementation; LLE stays available.
+  [ValidateSet('HLE', 'LLE')]
+  [string]$SubmitImplementation = 'HLE',
+  [ValidateSet('OPENGL', 'COMPUTE')]
+  [string]$AcceleratedRenderer = 'OPENGL',
+  [ValidateSet('ON', 'OFF')]
+  [string]$LeanDiagnostics = 'ON',
+  [ValidateSet('ON', 'OFF')]
+  [string]$CaptureViewReuse = 'ON',
   [string]$ShardCacheDir = 'release-shard-cache',
   # Deprecated: routine releases no longer use shard performance gate JSON.
   [string]$ShardPerformanceGate = '',
@@ -51,14 +60,14 @@ if (-not (Test-Path -LiteralPath $cmakePath)) {
   throw "CMake not found: $cmakePath"
 }
 
-if ([IO.Path]::IsPathRooted($NdsrecompRoot)) {
-  $frameworkRoot = [IO.Path]::GetFullPath($NdsrecompRoot)
-} else {
-  $frameworkRoot = [IO.Path]::GetFullPath((Join-Path $root $NdsrecompRoot))
+function Resolve-BuildPath([string]$value) {
+  if ([IO.Path]::IsPathRooted($value)) { return [IO.Path]::GetFullPath($value) }
+  return [IO.Path]::GetFullPath((Join-Path $root $value))
 }
-$gameBuild = [IO.Path]::GetFullPath((Join-Path $root $GameBuildDir))
-$runnerBuild = [IO.Path]::GetFullPath((Join-Path $root $RunnerBuildDir))
-$launcherBuild = [IO.Path]::GetFullPath((Join-Path $root $LauncherBuildDir))
+$frameworkRoot = Resolve-BuildPath $NdsrecompRoot
+$gameBuild = Resolve-BuildPath $GameBuildDir
+$runnerBuild = Resolve-BuildPath $RunnerBuildDir
+$launcherBuild = Resolve-BuildPath $LauncherBuildDir
 $titleBankDir = [IO.Path]::GetFullPath((Join-Path $root 'generated\recomp'))
 $romSha1 = '90164d1ac127ee5f9815ea4ae7de798c7b5fc629'
 
@@ -78,6 +87,11 @@ try {
     '-DCMAKE_BUILD_TYPE=Release',
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
+    "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
+    "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",
+    "-DNDS_TITLE_VERSION=v$Version-alpha",
+    "-DNDS_LEAN_DIAGNOSTICS=$LeanDiagnostics",
+    "-DNDS_CAPTURE_VIEW_REUSE=$CaptureViewReuse",
     '-DNDS_BOOTSTRAP_FIRMWARE=ON',
     "-DNDS_TITLE_BANK_DIR=$titleBankDir",
     "-DNDS_TITLE_ROM_SHA1=$romSha1")
@@ -132,6 +146,7 @@ try {
     -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     "-DMPH_LAUNCHER_SDL_BACKEND=$SdlBackend" `
+    "-DMPH_NATIVE_GL_PREVIEW=$($AcceleratedRenderer -eq 'OPENGL')" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
   & $cmakePath --build $launcherBuild -j $Jobs
@@ -144,6 +159,7 @@ try {
     -RuntimeBinDir $RuntimeBinDir `
     -NdsrecompRoot $NdsrecompRoot `
     -RecompilerBuildDir $RecompilerBuildDir `
+    -RecompUiRoot $RecompUiRoot `
     -SdlBackend $SdlBackend `
     -ShardCacheDir $ShardCacheDir `
     -ShardPerformanceGate $ShardPerformanceGate `

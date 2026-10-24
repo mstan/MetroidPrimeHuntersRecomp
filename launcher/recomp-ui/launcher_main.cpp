@@ -23,6 +23,12 @@ extern char **environ;
 
 namespace {
 
+#if defined(MPH_NATIVE_GL_PREVIEW)
+constexpr bool kNativeGlPreview = true;
+#else
+constexpr bool kNativeGlPreview = false;
+#endif
+
 struct ModState {
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
@@ -852,18 +858,22 @@ int mod_feature_get(void* context, int index,
         copy_text(output->author, "ndsrecomp");
         copy_text(
             output->description,
-            "Renders the 3D engine above one sample per DS pixel and "
+            kNativeGlPreview
+            ? "Renders the 3D engine at higher internal resolution. The "
+              "2D layers stay at the DS resolution."
+            : "Renders the 3D engine above one sample per DS pixel and "
             "filters decoded textures, so the widescreen image gains detail "
             "instead of just area. The 2D layers stay native, exactly as the "
             "hardware draws them.");
-        copy_text(output->source_name, "Hyllian xBR-lv2 (MIT)");
+        copy_text(output->source_name, kNativeGlPreview ? "melonDS" : "Hyllian xBR-lv2 (MIT)");
         copy_text(output->source_url,
-                  "https://github.com/libretro/glsl-shaders");
+                  kNativeGlPreview ? "https://github.com/melonDS-emu/melonDS"
+                                   : "https://github.com/libretro/glsl-shaders");
         copy_text(output->group, "Display enhancements");
         copy_text(output->status,
                   state->hd_rendering ? "Enabled" : "Disabled");
         output->enabled = state->hd_rendering ? 1 : 0;
-        output->option_count = 2;
+        output->option_count = kNativeGlPreview ? 1 : 2;
     } else if (index == 4) {
         copy_text(output->id, "frame-interpolation");
         copy_text(output->package_id, "mph-frame-interpolation");
@@ -994,7 +1004,7 @@ int mod_feature_option_get(void* context, const char* package_id,
     }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
-        if (index > 1) return 0;
+        if (index > (kNativeGlPreview ? 0 : 1)) return 0;
         const auto* hd = static_cast<const ModState*>(context);
         std::memset(output, 0, sizeof(*output));
         if (index == 0) {
@@ -1165,6 +1175,7 @@ int mod_feature_choice_get(void*, const char* package_id,
             return 1;
         }
         if (std::strcmp(option_id, "texture-upscale") == 0) {
+            if (kNativeGlPreview) return 0;
             if (index >= static_cast<int>(kTextureUpscaleChoices.size()))
                 return 0;
             std::memset(output, 0, sizeof(*output));
@@ -1252,6 +1263,7 @@ int mod_feature_set_option(void* context, const char* package_id,
             return 0;
         }
         if (std::strcmp(option_id, "texture-upscale") == 0) {
+            if (kNativeGlPreview) return 0;
             for (const HdChoice& choice : kTextureUpscaleChoices) {
                 if (choice.value != hd_parsed) continue;
                 hd_state->texture_upscale = static_cast<int>(hd_parsed);
@@ -1809,7 +1821,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         L" --internal-resolution " +
         std::to_wstring(mods.hd_rendering ? mods.internal_resolution : 1) +
         L" --texture-upscale " +
-        std::to_wstring(mods.hd_rendering ? mods.texture_upscale : 1) +
+        std::to_wstring(!kNativeGlPreview && mods.hd_rendering ? mods.texture_upscale : 1) +
         // Explicit both ways: a player who never opens the Mods page gets
         // the untouched 60 Hz frame train, not whatever a stale game.toml
         // or environment variable happens to say.
@@ -1900,7 +1912,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                std::to_string(mods.hd_rendering
                                   ? mods.internal_resolution : 1));
     append_arg(args, "--texture-upscale",
-               std::to_string(mods.hd_rendering
+               std::to_string(!kNativeGlPreview && mods.hd_rendering
                                   ? mods.texture_upscale : 1));
     append_arg(args, "--frame-interpolation",
                mods.frame_interpolation ? "blend" : "off");

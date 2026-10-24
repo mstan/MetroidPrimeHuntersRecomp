@@ -626,7 +626,13 @@ int main() {
         if (!require(std::strcmp(hd.package_id, "mph-hd-rendering") == 0,
                      "hd package id")) return 62;
         if (!require(hd.enabled == 0, "hd disabled by default")) return 63;
-        if (!require(hd.option_count == 2, "hd option count")) return 64;
+        if (!require(hd.option_count == (kNativeGlPreview ? 1 : 2), "hd option count")) return 64;
+        if (kNativeGlPreview) {
+            RecompLauncherCModOption hidden{};
+            if (!require(!provider.feature_option_get(provider.ctx,
+                    "mph-hd-rendering", "hd-rendering", 1, &hidden),
+                    "native preview hides unavailable texture upscaling")) return 64;
+        }
 
         // Both options must reject values outside their choice list, so a
         // hand-edited mods.ini cannot hand the runner a scale it refuses.
@@ -644,7 +650,7 @@ int main() {
                      "hd texture upscale rejects 3")) return 67;
         if (!require(provider.feature_set_option(
                          provider.ctx, "mph-hd-rendering", "hd-rendering",
-                         "texture-upscale", "4") == 1,
+                         "texture-upscale", "4") == (kNativeGlPreview ? 0 : 1),
                      "hd texture upscale accepts 4")) return 68;
 
         ModState hd_saved{};

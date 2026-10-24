@@ -23,6 +23,7 @@ param(
   # Inputs for the bundled live-overlay (tcc) toolchain. $NdsrecompRoot is
   # relative to the repo root; $RecompilerBuildDir is relative to that.
   [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
   [string]$RecompilerBuildDir = 'recompiler\build',
   [switch]$SkipOverlayToolchain,
   # Developer-built native shard cache produced by
@@ -129,8 +130,43 @@ Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination $stage
 # The runner links vendored melonDS, so the shipped executable is a
 # GPL-3.0-or-later combined work and the release must carry the GPL text.
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE-GPL') -Destination $stage
+# Keep notices with the binary, including licenses embedded in vendored headers.
+# Read/write runtime license files so MSYS symlinks become ordinary portable text.
+$licenseRoot = Join-Path $stage 'licenses'
+$ndsLicenseRoot = Resolve-UnderRoot $NdsrecompRoot $root
+$uiLicenseRoot = Resolve-UnderRoot $RecompUiRoot $root
+$noticeFiles = [ordered]@{
+  'ndsrecomp-LICENSE.txt' = Join-Path $ndsLicenseRoot 'LICENSE'
+  'ndsrecomp-MIT.txt' = Join-Path $ndsLicenseRoot 'LICENSE-MIT'
+  'ndsrecomp-ATTRIBUTION.md' = Join-Path $ndsLicenseRoot 'THIRD_PARTY_ATTRIBUTION.md'
+  'arm-recomp-core.txt' = Join-Path $ndsLicenseRoot 'external\arm-recomp-core\LICENSE'
+  'freebios.txt' = Join-Path $ndsLicenseRoot 'third_party\freebios\LICENSE.txt'
+  'libslirp.txt' = Join-Path $ndsLicenseRoot 'runner\vendor\melonds\net\libslirp\COPYRIGHT'
+  'xxhash-header.txt' = Join-Path $ndsLicenseRoot 'runner\vendor\melonds\xxhash\xxhash.h'
+  'khrplatform-header.txt' = Join-Path $ndsLicenseRoot 'runner\vendor\melonds\glad\khrplatform.h'
+  'recomp-ui.txt' = Join-Path $uiLicenseRoot 'LICENSE'
+  'imgui.txt' = Join-Path $uiLicenseRoot 'src\third_party\imgui\LICENSE.txt'
+  'fonts.md' = Join-Path $uiLicenseRoot 'assets\common\fonts\NOTICE.md'
+  'images.md' = Join-Path $uiLicenseRoot 'assets\common\img\NOTICE.md'
+}
+New-Item -ItemType Directory -Path $licenseRoot -Force | Out-Null
+foreach ($notice in $noticeFiles.GetEnumerator()) {
+  [IO.File]::WriteAllBytes((Join-Path $licenseRoot $notice.Key),
+    [IO.File]::ReadAllBytes($notice.Value))
+}
+foreach ($runtimePackage in @($SdlBackend, 'gcc-libs', 'libiconv', 'libwinpthread')) {
+  $runtimeLicenses = Join-Path (Split-Path -Parent $RuntimeBinDir) "share\licenses\$runtimePackage"
+  foreach ($notice in (Get-ChildItem -LiteralPath $runtimeLicenses -File -Recurse)) {
+    $relative = $notice.FullName.Substring($runtimeLicenses.TrimEnd('\').Length + 1)
+    $destination = Join-Path $licenseRoot "$runtimePackage\$relative"
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    [IO.File]::WriteAllBytes($destination, [IO.File]::ReadAllBytes($notice.FullName))
+  }
+}
 Copy-Item -LiteralPath (Join-Path $root 'packaging\BIOS_README.txt') `
   -Destination (Join-Path $stage 'bios\README.txt')
+Copy-Item -LiteralPath (Join-Path $root 'packaging\SOURCE_README.txt') `
+  -Destination (Join-Path $stage 'SOURCE.txt')
 
 # Audit trail: the verified bank inventory of the exact runner being shipped.
 Test-MphBankInventory -Runner (Join-Path $stage 'nds_runner.exe') `
@@ -393,9 +429,8 @@ then re-run this packager, or pass -AllowNoShardCache to ship without one.
       "",
       "provider_identity : $shardIdentity",
       "backend           : $($namespaces -join ', ')",
-      "source_cache      : $shardCache",
-      "recompiler_queried: $identityRecompiler",
-      "headers_hashed    : $identityInclude",
+      "recompiler_queried: overlay_toolchain\nds_recompile.exe",
+      "headers_hashed    : overlay_toolchain\include",
       "staged_at         : live-shard-cache\<backend>\",
       "shard_count       : $($shards.Count)",
       ("total_bytes       : {0}" -f $shardBytes),
@@ -436,7 +471,8 @@ $forbidden = @(Get-ChildItem -LiteralPath $stage -File -Recurse |
   Where-Object {
     $_.Extension -in @('.nds', '.rom', '.sav', '.bin', '.gpr') -or
     $_.Name -in @('biosnds9.rom', 'biosnds7.rom', 'firmware.bin') -or
-    $_.FullName -match '[\\/]generated[\\/]'
+    $_.FullName -match '[\\/]generated[\\/]' -or
+    $_.FullName -match 'psx\.enhancement\.(cd-speed|fast-loading)'
   })
 if ($forbidden.Count -ne 0) {
   throw "Release stage contains forbidden private/derived material: $($forbidden.FullName -join ', ')"
@@ -480,7 +516,8 @@ try {
     [IO.Path]::GetExtension($_.FullName) -in
       @('.nds', '.rom', '.sav', '.bin', '.gpr') -or
     [IO.Path]::GetFileName($_.FullName) -in
-      @('biosnds9.rom', 'biosnds7.rom', 'firmware.bin')
+      @('biosnds9.rom', 'biosnds7.rom', 'firmware.bin') -or
+    $_.FullName -match 'psx\.enhancement\.(cd-speed|fast-loading)'
   })
   if ($badEntries.Count -ne 0) {
     throw "ZIP contains unsafe entry names."

@@ -1,13 +1,13 @@
-Metroid Prime Hunters Recomp v0.7.8-alpha - source and build notes
+Metroid Prime Hunters Recomp v0.7.9-alpha - source and build notes
 ================================================================
 
-The matching source bundle is attached to the v0.7.8-alpha GitHub release:
-https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.8-alpha
+The matching source bundle is attached to the v0.7.9-alpha GitHub release:
+https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.9-alpha
 
 Public source revisions:
-  Title/launcher: mstan/MetroidPrimeHuntersRecomp tag v0.7.8-alpha
+  Title/launcher: mstan/MetroidPrimeHuntersRecomp tag v0.7.9-alpha
   Engine: RetroPortingToolKit/ndsrecomp
-    6721d74cc168564373839510fa93df0ce2be090d
+    88ca4616848f67521ebfc675ee0f5b9e9a65277a
   Shared UI: mstan/recomp-ui
     2e8532811f85922e844bdbed9ede02566c01f17a
   ARM core: the engine's external/arm-recomp-core submodule
@@ -36,7 +36,7 @@ Release runner settings (normal Release optimization; no PGO):
   NDS_CAPTURE_VIEW_REUSE=ON
   NDS_PGO_MODE=OFF
   NDS_BOOTSTRAP_FIRMWARE=ON
-  NDS_TITLE_VERSION=v0.7.8-alpha
+  NDS_TITLE_VERSION=v0.7.9-alpha
   NDS_TITLE_BANK_DIR=<your generated title banks>
   NDS_TITLE_ROM_SHA1=<SHA-1 above>
   NDS_RECOMP_UI_ROOT=<shared UI source>

@@ -83,8 +83,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "6721d74cc168564373839510fa93df0ce2be090d"
-branch = "release/mph-hostwork-0.7.8"
+pin = "88ca4616848f67521ebfc675ee0f5b9e9a65277a"
+branch = "main"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

@@ -111,10 +111,10 @@ if (-not $stageFull.StartsWith($outFull,
 }
 
 if (Test-Path -LiteralPath $stage) {
-  Remove-Item -LiteralPath $stage -Recurse -Force
+  throw "Release stage already exists: $stage"
 }
 if (Test-Path -LiteralPath $zip) {
-  Remove-Item -LiteralPath $zip -Force
+  throw "Release archive already exists: $zip"
 }
 New-Item -ItemType Directory -Path $stage -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $stage 'bios') -Force |

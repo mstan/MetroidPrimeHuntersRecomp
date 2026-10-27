@@ -154,6 +154,17 @@ foreach ($notice in $noticeFiles.GetEnumerator()) {
   [IO.File]::WriteAllBytes((Join-Path $licenseRoot $notice.Key),
     [IO.File]::ReadAllBytes($notice.Value))
 }
+# Keep the optional native SDK's complete dependency notice bundle with the
+# Windows runner. These small repository-owned copies also package cleanly
+# when building the portable Faithful configuration without an SDK checkout.
+$sdkNoticeRoot = Join-Path $root 'packaging\dynarmic-notices'
+$sdkNoticeDestination = Join-Path $licenseRoot 'dynarmic'
+New-Item -ItemType Directory -Path $sdkNoticeDestination | Out-Null
+foreach ($name in @('Boost.txt', 'Dynarmic.txt', 'fmt.txt', 'mcl.txt',
+                    'robin-map.txt', 'xbyak.txt', 'Zycore.txt', 'Zydis.txt')) {
+  [IO.File]::WriteAllBytes((Join-Path $sdkNoticeDestination $name),
+    [IO.File]::ReadAllBytes((Join-Path $sdkNoticeRoot $name)))
+}
 foreach ($runtimePackage in @($SdlBackend, 'gcc-libs', 'libiconv', 'libwinpthread')) {
   $runtimeLicenses = Join-Path (Split-Path -Parent $RuntimeBinDir) "share\licenses\$runtimePackage"
   foreach ($notice in (Get-ChildItem -LiteralPath $runtimeLicenses -File -Recurse)) {

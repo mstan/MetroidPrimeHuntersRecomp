@@ -61,7 +61,8 @@ Developers retain the LLE math/submission choices and the original host paths:
 `-MathImplementation LLE -SubmitImplementation LLE`, `-LeanDiagnostics OFF`,
 and `-CaptureViewReuse OFF`. Software rendering remains available in Settings.
 
-HD internal resolution is supported. Texture upscaling is unavailable with
+HD defaults to 4x internal resolution with 8-sample SSAA. Native resolution
+and AA Off remain available under Mods / HD Rendering. Texture upscaling is unavailable with
 this native GL preview and its control is hidden. Extract the preview into a
 fresh directory; it contains no ROM, retail BIOS/firmware, saves or private
 captures. Existing save files should be backed up before testing an alpha.

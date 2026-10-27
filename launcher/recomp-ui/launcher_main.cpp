@@ -71,14 +71,13 @@ constexpr bool kNativeGlPreview = false;
 struct ModState {
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
-    // HD rendering. Off by default: it costs GPU time and VRAM, and the
-    // faithful native output stays the reference. internal_resolution
+    // Owner-selected HD default. internal_resolution
     // multiplies 3D sample density; texture_upscale filters each decoded DS
     // texture once on a cache miss. Both are inert when hd_rendering is off.
-    bool hd_rendering = false;
-    int internal_resolution = 2;
+    bool hd_rendering = true;
+    int internal_resolution = 4;
     int texture_upscale = 2;
-    int hd_antialiasing = 0;
+    int hd_antialiasing = 8;
     // Frame interpolation. Off by default: it is experimental, presentation
     // only, and it can ghost fast motion, so the untouched 60 Hz frame train
     // stays the reference. The runner makes it inert on its own on <100 Hz
@@ -1060,7 +1059,7 @@ int mod_feature_option_get(void* context, const char* package_id,
             copy_text(output->label, "Anti-aliasing (SSAA)");
             copy_text(output->description, "Smooths 3D edges using the higher-resolution image. Use 4x internal resolution for best results; HUD text stays sharp. Restart the game to apply.");
             std::snprintf(output->value, sizeof(output->value), "%d", hd->hd_antialiasing);
-            copy_text(output->default_value, "0");
+            copy_text(output->default_value, "8");
             output->type = RECOMP_MOD_OPTION_CHOICE;
             output->choice_count = static_cast<int>(kAntialiasingChoices.size());
             return 1;
@@ -1074,7 +1073,7 @@ int mod_feature_option_get(void* context, const char* package_id,
             copy_text(output->group, "Resolution");
             std::snprintf(output->value, sizeof(output->value), "%d",
                           hd->internal_resolution);
-            copy_text(output->default_value, "2");
+            copy_text(output->default_value, "4");
             output->type = RECOMP_MOD_OPTION_CHOICE;
             output->choice_count =
                 static_cast<int>(kInternalResolutionChoices.size());

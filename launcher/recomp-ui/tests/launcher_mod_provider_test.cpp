@@ -637,8 +637,7 @@ int main() {
         std::filesystem::remove(saved.settings_path);
     }
 
-    // HD rendering: off by default, so a player who never opens the Mods
-    // page gets the faithful native output.
+    // HD rendering uses the owner-selected quality defaults.
     {
         RecompLauncherCModFeature hd{};
         if (!require(provider.feature_get(provider.ctx, 2, &hd),
@@ -647,7 +646,8 @@ int main() {
                      "hd feature id")) return 61;
         if (!require(std::strcmp(hd.package_id, "mph-hd-rendering") == 0,
                      "hd package id")) return 62;
-        if (!require(hd.enabled == 0, "hd disabled by default")) return 63;
+        if (!require(hd.enabled == 1 && state.internal_resolution == 4 &&
+                     state.hd_antialiasing == 8, "HD 4x/8-sample defaults")) return 63;
         if (!require(hd.option_count == (kNativeGlPreview ? 2 : 3), "hd option count")) return 64;
         if (kNativeGlPreview) {
             RecompLauncherCModOption hidden{};

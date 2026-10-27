@@ -14,7 +14,8 @@ sha256 = "7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855"
 # from the beginning, matching the established SM64DS host layout.
 screen_layout = "separate"
 supersampling = 1
-antialiasing = 0
+internal_resolution = 4
+antialiasing = 8
 
 # The shared host-side adaptive renderer expands only the upper 3D viewport to
 # 21:9. The lower touchscreen remains native 256x192 and independently

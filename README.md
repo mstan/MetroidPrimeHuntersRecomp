@@ -18,7 +18,7 @@ ROM-derived source is distributed.
 
 ## Current Windows update
 
-Windows **v0.7.10-alpha**: see [release notes](docs/RELEASE-0.7.10-alpha.md).
+Windows **v0.7.11-alpha**: see [release notes](docs/RELEASE-0.7.11-alpha.md).
 Retains the supported MPH execution configuration; MKDS's title-specific CPU
 backend is not enabled. Linux delivery is unchanged.
 
@@ -32,8 +32,8 @@ Click the image to watch the gameplay preview on YouTube.
 
 Current downloads:
 
-- Windows native GL preview: [v0.7.10-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.10-alpha)
-  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.10.zip`
+- Windows native GL preview: [v0.7.11-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.11-alpha)
+  `MetroidPrimeHuntersRecomp-windows-x64-v0.7.11.zip`
 - Linux / Steam Deck: [v0.7.6-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.6-alpha)
   `MetroidPrimeHuntersRecomp-linux-v0.7.6-x86_64.AppImage`
 

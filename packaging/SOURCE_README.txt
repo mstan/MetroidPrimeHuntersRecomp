@@ -1,13 +1,13 @@
-Metroid Prime Hunters Recomp v0.7.10-alpha - source and build notes
+Metroid Prime Hunters Recomp v0.7.11-alpha - source and build notes
 ================================================================
 
 Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
-The matching title version is v0.7.10-alpha; the exact engine revision is below.
+The matching title version is v0.7.11-alpha; the exact engine revision is below.
 
 Public source revisions:
-  Title/launcher: mstan/MetroidPrimeHuntersRecomp tag v0.7.10-alpha
+  Title/launcher: mstan/MetroidPrimeHuntersRecomp tag v0.7.11-alpha
   Engine: RetroPortingToolKit/ndsrecomp
-    cd12dadd030d5fe2c28110f735805b6d15e128f2
+    2d9f4f3cb33daa78a724a1c17fdbcc2048580c2c
   Shared UI: mstan/recomp-ui
     2e8532811f85922e844bdbed9ede02566c01f17a
   ARM core: the engine's external/arm-recomp-core submodule
@@ -36,7 +36,7 @@ Release runner settings (normal Release optimization; no PGO):
   NDS_CAPTURE_VIEW_REUSE=ON
   NDS_PGO_MODE=OFF
   NDS_BOOTSTRAP_FIRMWARE=ON
-  NDS_TITLE_VERSION=v0.7.10-alpha
+  NDS_TITLE_VERSION=v0.7.11-alpha
   NDS_TITLE_BANK_DIR=<your generated title banks>
   NDS_TITLE_ROM_SHA1=<SHA-1 above>
   NDS_RECOMP_UI_ROOT=<shared UI source>
@@ -64,3 +64,8 @@ NDS_NATIVE_PRECISE_WRITES=ON, NDS_ARM9_DYNARMIC_ROOT=<pinned SDK>.
 Dynarmic a41c380246d3d9f9874f0f792d234dc0cc17c180 uses the engine
 runner/cmake/dynarmic-readonly-pages.patch; dependency licenses are included.
 Adaptive BOX_TEST follows the expanded render clip volume.
+
+Graphics defaults: 4x internal 3D resolution and 8-sample supersample AA.
+The HD presenter preserves native HUD/window masks and native-aspect output.
+Native resolution and AA Off remain selectable in Mods. No new performance
+measurement or high-resolution replacement texture assets are claimed.

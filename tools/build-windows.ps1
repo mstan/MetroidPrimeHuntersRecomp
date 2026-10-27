@@ -31,6 +31,12 @@ param(
   [string]$SubmitImplementation = 'HLE',
   [ValidateSet('ON', 'OFF')]
   [string]$PerformanceBackend = 'ON',
+  [ValidateSet('ON', 'OFF')]
+  [string]$Arm7Native = 'ON',
+  [ValidateSet('ON', 'OFF')]
+  [string]$NativeControl = 'ON',
+  [ValidateSet('ON', 'OFF')]
+  [string]$NativePreciseWrites = 'ON',
   # Pinned SDK source with runner/cmake/dynarmic-readonly-pages.patch applied.
   [string]$DynarmicRoot = '',
   [ValidateSet('OPENGL', 'COMPUTE')]
@@ -61,7 +67,9 @@ $ErrorActionPreference = 'Stop'
 if ($PerformanceBackend -eq 'ON' -and -not $DynarmicRoot) {
   throw 'Performance requires -DynarmicRoot <patched pinned SDK source>. Use -PerformanceBackend OFF for the portable Faithful build.'
 }
-if ($PerformanceBackend -eq 'OFF') { $DynarmicRoot = '' }
+if ($PerformanceBackend -eq 'OFF') {
+  $DynarmicRoot = ''; $Arm7Native = 'OFF'; $NativeControl = 'OFF'
+}
 $root = Split-Path -Parent $PSScriptRoot
 $cmakePath = [IO.Path]::GetFullPath($CMake)
 if (-not (Test-Path -LiteralPath $cmakePath)) {
@@ -101,7 +109,9 @@ try {
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
     "-DNDS_MPH_PERFORMANCE=$PerformanceBackend",
     "-DNDS_ARM9_DYNARMIC_ROOT=$DynarmicRoot",
-    '-DNDS_ARM7_NATIVE=OFF',
+    "-DNDS_ARM7_NATIVE=$Arm7Native",
+    "-DNDS_NATIVE_CONTROL=$NativeControl",
+    "-DNDS_NATIVE_PRECISE_WRITES=$NativePreciseWrites",
     '-DNDS_GX_COMMAND_CACHE=ON',
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
     "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",

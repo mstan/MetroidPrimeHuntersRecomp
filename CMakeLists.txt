@@ -1,4 +1,4 @@
-ï»¿cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.20)
 project(MetroidPrimeHuntersRecomp VERSION 0.7.9 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)

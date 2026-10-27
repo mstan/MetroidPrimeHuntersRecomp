@@ -19,9 +19,48 @@ extern char **environ;
 #include <fstream>
 #include <initializer_list>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
+
+#if defined(_WIN32) && defined(MPH_NATIVE_PERFORMANCE)
+constexpr bool kNativePerformance = true;
+#else
+constexpr bool kNativePerformance = false;
+#endif
+const char* runner_execution_model_arg() {
+    return kNativePerformance ? "performance" : "faithful";
+}
+
+#ifdef _WIN32
+// Fix the qualified host profile only while creating the child process, then
+// restore the launcher's environment. Portable builds do not import an SDK or
+// request a native execution model; no player-facing backend switch is needed.
+struct ScopedNativeEnv {
+    struct Previous {std::wstring name,value;bool present;};
+    std::vector<Previous> previous;
+    ScopedNativeEnv() {
+        if(!kNativePerformance)return;
+        for(const auto& setting:std::initializer_list<std::pair<const wchar_t*,const wchar_t*>>{
+            {L"NDS_ARM9_DIRECT_READS",L"1"},{L"NDS_ARM9_BATCH_WRITES",L"1"},
+            {L"NDS_ARM9_LONG_BLOCKS",L"0"},{L"NDS_ARM9_DATA_HANDOFFS",L"0"},
+            {L"NDS_ARM9_GX_BATCH",L"0"},{L"NDS_ARM9_EVENT_WINDOWS",L"0"}}) {
+            SetLastError(ERROR_SUCCESS);
+            const DWORD size=GetEnvironmentVariableW(setting.first,nullptr,0);
+            const bool present=size||GetLastError()!=ERROR_ENVVAR_NOT_FOUND;
+            std::wstring value(size,L'\0');
+            if(size)value.resize(GetEnvironmentVariableW(setting.first,value.data(),size));
+            previous.push_back({setting.first,std::move(value),present});
+            SetEnvironmentVariableW(setting.first,setting.second);
+        }
+    }
+    ~ScopedNativeEnv() {
+        for(const auto& old:previous)
+            SetEnvironmentVariableW(old.name.c_str(),old.present?old.value.c_str():nullptr);
+    }
+};
+#endif
 
 #if defined(MPH_NATIVE_GL_PREVIEW)
 constexpr bool kNativeGlPreview = true;
@@ -1856,6 +1895,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         L" --network on --wfc on --wfc-provider wiimmfi";
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
+    append_arg(command, L"--execution-model", widen(runner_execution_model_arg()));
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
     append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
@@ -1877,6 +1917,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_live_overlay_args(command, game_dir);
 
     ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
+    ScopedNativeEnv native_env;
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};

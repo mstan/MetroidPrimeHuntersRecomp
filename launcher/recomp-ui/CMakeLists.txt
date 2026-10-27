@@ -5,6 +5,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(MPH_NATIVE_GL_PREVIEW "Package native GL capabilities in the Windows preview" OFF)
+option(MPH_NATIVE_PERFORMANCE "Use the qualified Windows native ARM9/HLE profile" OFF)
 
 set(MPH_LAUNCHER_SDL_BACKEND "SDL3" CACHE STRING
     "Launcher SDL backend: SDL3 or SDL2")
@@ -58,6 +59,10 @@ target_compile_definitions(mph-mod-provider-test PRIVATE
 if(MPH_NATIVE_GL_PREVIEW)
     target_compile_definitions(mph-recomp-ui PRIVATE MPH_NATIVE_GL_PREVIEW=1)
     target_compile_definitions(mph-mod-provider-test PRIVATE MPH_NATIVE_GL_PREVIEW=1)
+endif()
+if(MPH_NATIVE_PERFORMANCE AND WIN32)
+    target_compile_definitions(mph-recomp-ui PRIVATE MPH_NATIVE_PERFORMANCE=1)
+    target_compile_definitions(mph-mod-provider-test PRIVATE MPH_NATIVE_PERFORMANCE=1)
 endif()
 
 set(SNESRECOMP_SDL_BACKEND "${MPH_LAUNCHER_SDL_BACKEND}" CACHE STRING

@@ -1,4 +1,4 @@
-ï»¿<#
+<#
 Build and package the Metroid Prime Hunters Recomp Windows release.
 
 This script builds the title banks, the sibling ndsrecomp runner, and the
@@ -29,6 +29,10 @@ param(
   # Preview includes the measured submission implementation; LLE stays available.
   [ValidateSet('HLE', 'LLE')]
   [string]$SubmitImplementation = 'HLE',
+  [ValidateSet('ON', 'OFF')]
+  [string]$PerformanceBackend = 'ON',
+  # Pinned SDK source with runner/cmake/dynarmic-readonly-pages.patch applied.
+  [string]$DynarmicRoot = '',
   [ValidateSet('OPENGL', 'COMPUTE')]
   [string]$AcceleratedRenderer = 'OPENGL',
   [ValidateSet('ON', 'OFF')]
@@ -54,6 +58,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PerformanceBackend -eq 'ON' -and -not $DynarmicRoot) {
+  throw 'Performance requires -DynarmicRoot <patched pinned SDK source>. Use -PerformanceBackend OFF for the portable Faithful build.'
+}
+if ($PerformanceBackend -eq 'OFF') { $DynarmicRoot = '' }
 $root = Split-Path -Parent $PSScriptRoot
 $cmakePath = [IO.Path]::GetFullPath($CMake)
 if (-not (Test-Path -LiteralPath $cmakePath)) {
@@ -65,6 +73,9 @@ function Resolve-BuildPath([string]$value) {
   return [IO.Path]::GetFullPath((Join-Path $root $value))
 }
 $frameworkRoot = Resolve-BuildPath $NdsrecompRoot
+if ($PerformanceBackend -eq 'ON' -and -not (Test-Path -LiteralPath (Join-Path $frameworkRoot 'runner\src\native_service_entries.h'))) {
+  throw 'MPH native execution requires the matching native-services framework. Pass -NdsrecompRoot <matching checkout> or -PerformanceBackend OFF.'
+}
 $gameBuild = Resolve-BuildPath $GameBuildDir
 $runnerBuild = Resolve-BuildPath $RunnerBuildDir
 $launcherBuild = Resolve-BuildPath $LauncherBuildDir
@@ -88,6 +99,11 @@ try {
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
+    "-DNDS_MPH_PERFORMANCE=$PerformanceBackend",
+    "-DNDS_ARM9_DYNARMIC_ROOT=$DynarmicRoot",
+    '-DNDS_ARM7_NATIVE=OFF',
+    '-DNDS_GX_COMMAND_CACHE=ON',
+    '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
     "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",
     "-DNDS_TITLE_VERSION=v$Version-alpha",
     "-DNDS_LEAN_DIAGNOSTICS=$LeanDiagnostics",
@@ -147,6 +163,7 @@ try {
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     "-DMPH_LAUNCHER_SDL_BACKEND=$SdlBackend" `
     "-DMPH_NATIVE_GL_PREVIEW=$($AcceleratedRenderer -eq 'OPENGL')" `
+    "-DMPH_NATIVE_PERFORMANCE=$PerformanceBackend" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
   & $cmakePath --build $launcherBuild -j $Jobs

@@ -13,6 +13,28 @@ bool require(bool condition, const char* label) {
 }  // namespace
 
 int main() {
+    if (!require(std::strcmp(runner_execution_model_arg(),
+                            kNativePerformance ? "performance" : "faithful") == 0,
+                 "build-selected execution model")) return 96;
+#ifdef _WIN32
+    const wchar_t* key=L"NDS_ARM9_DIRECT_READS";
+    SetLastError(ERROR_SUCCESS);
+    const DWORD size=GetEnvironmentVariableW(key,nullptr,0);
+    const bool present=size||GetLastError()!=ERROR_ENVVAR_NOT_FOUND;
+    std::wstring old(size,L'\0');
+    if(size)old.resize(GetEnvironmentVariableW(key,old.data(),size));
+    SetEnvironmentVariableW(key,L"launcher-test-sentinel");
+    bool profile_ok=false;
+    {
+        ScopedNativeEnv profile;
+        wchar_t value[64]{};GetEnvironmentVariableW(key,value,64);
+        profile_ok=std::wcscmp(value,kNativePerformance?L"1":L"launcher-test-sentinel")==0;
+    }
+    wchar_t restored[64]{};GetEnvironmentVariableW(key,restored,64);
+    const bool restored_ok=std::wcscmp(restored,L"launcher-test-sentinel")==0;
+    SetEnvironmentVariableW(key,present?old.c_str():nullptr);
+    if(!require(profile_ok&&restored_ok,"native child profile and parent environment restoration"))return 97;
+#endif
     if (!require(std::strcmp(runner_screen_layout_arg(0), "stacked") == 0,
                  "stacked layout arg")) return 88;
     if (!require(std::strcmp(runner_screen_layout_arg(1), "separate") == 0,

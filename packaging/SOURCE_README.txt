@@ -1,13 +1,13 @@
-Metroid Prime Hunters Recomp v0.7.9-alpha - source and build notes
+Metroid Prime Hunters Recomp v0.7.10-alpha - source and build notes
 ================================================================
 
-The matching source bundle is attached to the v0.7.9-alpha GitHub release:
-https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.9-alpha
+Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
+The matching title version is v0.7.10-alpha; the exact engine revision is below.
 
 Public source revisions:
-  Title/launcher: mstan/MetroidPrimeHuntersRecomp tag v0.7.9-alpha
+  Title/launcher: mstan/MetroidPrimeHuntersRecomp tag v0.7.10-alpha
   Engine: RetroPortingToolKit/ndsrecomp
-    88ca4616848f67521ebfc675ee0f5b9e9a65277a
+    cd12dadd030d5fe2c28110f735805b6d15e128f2
   Shared UI: mstan/recomp-ui
     2e8532811f85922e844bdbed9ede02566c01f17a
   ARM core: the engine's external/arm-recomp-core submodule
@@ -15,7 +15,7 @@ Public source revisions:
   FreeBIOS: the engine's third_party/freebios submodule
     6d6cfb4953924e4abdaa130aedf71826a055508e
 
-The source bundle includes those trees and vendored melonDS sources/patches.
+The engine includes vendored melonDS sources and tracked local patches.
 See framework/THIRD_PARTY_ATTRIBUTION.md for upstream provenance and licenses.
 nds_runner is a GPL-3.0-or-later combined work; LICENSE-GPL and licenses/ are
 included with the binaries. Other components retain their respective terms.
@@ -36,7 +36,7 @@ Release runner settings (normal Release optimization; no PGO):
   NDS_CAPTURE_VIEW_REUSE=ON
   NDS_PGO_MODE=OFF
   NDS_BOOTSTRAP_FIRMWARE=ON
-  NDS_TITLE_VERSION=v0.7.9-alpha
+  NDS_TITLE_VERSION=v0.7.10-alpha
   NDS_TITLE_BANK_DIR=<your generated title banks>
   NDS_TITLE_ROM_SHA1=<SHA-1 above>
   NDS_RECOMP_UI_ROOT=<shared UI source>
@@ -50,8 +50,17 @@ Launcher: build title/launcher/recomp-ui with NDSRECOMP_ROOT=<framework>,
 RECOMP_UI_ROOT=<shared UI>, MPH_LAUNCHER_SDL_BACKEND=SDL3 and
 MPH_NATIVE_GL_PREVIEW=ON. Build framework/recompiler for the overlay toolchain.
 title/tools/make_release.ps1 packages the runner, launcher and compatible
-prebuilt shard cache. The source bundle's BUILDING.txt gives example commands.
+prebuilt shard cache. See tools/build-windows.ps1 for the supported build options.
 
 Software rendering remains selectable in the launcher. Developers can build
 the LLE math/submission reference with the corresponding IMPLEMENTATION=LLE
 settings; the reference paths and their tests remain in the source tree.
+
+Windows defaults use native ARM9 and ARM7, pure status/cache instructions,
+and precise physical code-write notifications. Retained portable reference:
+tools/build-windows.ps1 -PerformanceBackend OFF
+NDS_MPH_PERFORMANCE=ON, NDS_ARM7_NATIVE=ON, NDS_NATIVE_CONTROL=ON,
+NDS_NATIVE_PRECISE_WRITES=ON, NDS_ARM9_DYNARMIC_ROOT=<pinned SDK>.
+Dynarmic a41c380246d3d9f9874f0f792d234dc0cc17c180 uses the engine
+runner/cmake/dynarmic-readonly-pages.patch; dependency licenses are included.
+Adaptive BOX_TEST follows the expanded render clip volume.

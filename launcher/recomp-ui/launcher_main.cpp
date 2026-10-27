@@ -78,6 +78,7 @@ struct ModState {
     bool hd_rendering = false;
     int internal_resolution = 2;
     int texture_upscale = 2;
+    int hd_antialiasing = 0;
     // Frame interpolation. Off by default: it is experimental, presentation
     // only, and it can ghost fast motion, so the untouched 60 Hz frame train
     // stays the reference. The runner makes it inert on its own on <100 Hz
@@ -194,6 +195,10 @@ constexpr std::array<HdChoice, 3> kTextureUpscaleChoices{{
     {1, "Off"},
     {2, "2x"},
     {4, "4x"},
+}};
+
+constexpr std::array<HdChoice, 4> kAntialiasingChoices{{
+    {0, "Off"}, {2, "2 samples"}, {4, "4 samples"}, {8, "8 samples"},
 }};
 
 struct RendererChoice {
@@ -636,6 +641,9 @@ void load_mod_state(ModState& state) {
             const long parsed = std::strtol(value.c_str(), &end, 10);
             if (end && *end == 0 && parsed >= 1 && parsed <= 4)
                 state.internal_resolution = static_cast<int>(parsed);
+        } else if (key == "hd_antialiasing") {
+            if (value == "0" || value == "2" || value == "4" || value == "8")
+                state.hd_antialiasing = std::stoi(value);
         } else if (key == "texture_upscale") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -800,6 +808,7 @@ bool save_mod_state(ModState& state) {
              << (state.hd_rendering ? "true" : "false") << '\n'
              << "internal_resolution=" << state.internal_resolution << '\n'
              << "texture_upscale=" << state.texture_upscale << '\n'
+             << "hd_antialiasing=" << state.hd_antialiasing << '\n'
              << "frame_interpolation="
              << (state.frame_interpolation ? "true" : "false") << '\n'
              << "window_scale=" << state.window_scale << '\n'
@@ -912,7 +921,7 @@ int mod_feature_get(void* context, int index,
         copy_text(output->status,
                   state->hd_rendering ? "Enabled" : "Disabled");
         output->enabled = state->hd_rendering ? 1 : 0;
-        output->option_count = kNativeGlPreview ? 1 : 2;
+        output->option_count = kNativeGlPreview ? 2 : 3;
     } else if (index == 4) {
         copy_text(output->id, "frame-interpolation");
         copy_text(output->package_id, "mph-frame-interpolation");
@@ -1043,9 +1052,19 @@ int mod_feature_option_get(void* context, const char* package_id,
     }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
-        if (index > (kNativeGlPreview ? 0 : 1)) return 0;
+        if (index > (kNativeGlPreview ? 1 : 2)) return 0;
         const auto* hd = static_cast<const ModState*>(context);
         std::memset(output, 0, sizeof(*output));
+        if (index == (kNativeGlPreview ? 1 : 2)) {
+            copy_text(output->id, "antialiasing");
+            copy_text(output->label, "Anti-aliasing (SSAA)");
+            copy_text(output->description, "Smooths 3D edges using the higher-resolution image. Use 4x internal resolution for best results; HUD text stays sharp. Restart the game to apply.");
+            std::snprintf(output->value, sizeof(output->value), "%d", hd->hd_antialiasing);
+            copy_text(output->default_value, "0");
+            output->type = RECOMP_MOD_OPTION_CHOICE;
+            output->choice_count = static_cast<int>(kAntialiasingChoices.size());
+            return 1;
+        }
         if (index == 0) {
             copy_text(output->id, "internal-resolution");
             copy_text(output->label, "Internal resolution");
@@ -1203,6 +1222,14 @@ int mod_feature_choice_get(void*, const char* package_id,
     }
     if (std::strcmp(package_id, "mph-hd-rendering") == 0 &&
         std::strcmp(feature_id, "hd-rendering") == 0) {
+        if (std::strcmp(option_id, "antialiasing") == 0) {
+            if (index >= static_cast<int>(kAntialiasingChoices.size())) return 0;
+            std::memset(output, 0, sizeof(*output));
+            const HdChoice& choice = kAntialiasingChoices[index];
+            std::snprintf(output->value, sizeof(output->value), "%d", choice.value);
+            copy_text(output->label, choice.label);
+            return 1;
+        }
         if (std::strcmp(option_id, "internal-resolution") == 0) {
             if (index >= static_cast<int>(kInternalResolutionChoices.size()))
                 return 0;
@@ -1292,11 +1319,22 @@ int mod_feature_set_option(void* context, const char* package_id,
         std::strcmp(feature_id, "hd-rendering") == 0) {
         char* hd_end = nullptr;
         const long hd_parsed = std::strtol(value, &hd_end, 10);
-        if (!hd_end || *hd_end != 0) return 0;
+        if (!hd_end || hd_end == value || *hd_end != 0) return 0;
+        if (std::strcmp(option_id, "antialiasing") == 0) {
+            for (const HdChoice& choice : kAntialiasingChoices) {
+                if (choice.value != hd_parsed) continue;
+                hd_state->hd_antialiasing = static_cast<int>(hd_parsed);
+                if (hd_parsed && hd_state->internal_resolution < 2)
+                    hd_state->internal_resolution = 2;
+                return 1;
+            }
+            return 0;
+        }
         if (std::strcmp(option_id, "internal-resolution") == 0) {
             for (const HdChoice& choice : kInternalResolutionChoices) {
                 if (choice.value != hd_parsed) continue;
                 hd_state->internal_resolution = static_cast<int>(hd_parsed);
+                if (hd_parsed == 1) hd_state->hd_antialiasing = 0;
                 return 1;
             }
             return 0;
@@ -1867,7 +1905,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         L" --frame-interpolation " +
         (mods.frame_interpolation ? L"blend" : L"off") +
         L" --supersampling " + std::to_wstring(supersampling) +
-        L" --antialiasing " + std::to_wstring(antialiasing) +
+        L" --antialiasing " + std::to_wstring((std::max)(antialiasing,
+            mods.hd_rendering ? mods.hd_antialiasing : 0)) +
         L" --relative-mouse-touch " +
         (mods.prime_controls ? L"on" : L"off") +
         L" --relative-mouse-sensitivity " +
@@ -1958,7 +1997,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--frame-interpolation",
                mods.frame_interpolation ? "blend" : "off");
     append_arg(args, "--supersampling", std::to_string(supersampling));
-    append_arg(args, "--antialiasing", std::to_string(antialiasing));
+    append_arg(args, "--antialiasing", std::to_string((std::max)(antialiasing,
+        mods.hd_rendering ? mods.hd_antialiasing : 0)));
     append_arg(args, "--relative-mouse-touch",
                mods.prime_controls ? "on" : "off");
     append_arg(args, "--relative-mouse-sensitivity",

@@ -648,12 +648,14 @@ int main() {
         if (!require(std::strcmp(hd.package_id, "mph-hd-rendering") == 0,
                      "hd package id")) return 62;
         if (!require(hd.enabled == 0, "hd disabled by default")) return 63;
-        if (!require(hd.option_count == (kNativeGlPreview ? 1 : 2), "hd option count")) return 64;
+        if (!require(hd.option_count == (kNativeGlPreview ? 2 : 3), "hd option count")) return 64;
         if (kNativeGlPreview) {
             RecompLauncherCModOption hidden{};
-            if (!require(!provider.feature_option_get(provider.ctx,
+            if (!require(provider.feature_option_get(provider.ctx,
                     "mph-hd-rendering", "hd-rendering", 1, &hidden),
-                    "native preview hides unavailable texture upscaling")) return 64;
+                    "native preview exposes SSAA in place of unavailable texture upscaling")) return 64;
+            if (!require(std::strcmp(hidden.id, "antialiasing") == 0,
+                         "native preview second option is SSAA")) return 64;
         }
 
         // Both options must reject values outside their choice list, so a
@@ -675,6 +677,16 @@ int main() {
                          "texture-upscale", "4") == (kNativeGlPreview ? 0 : 1),
                      "hd texture upscale accepts 4")) return 68;
 
+        if (!require(provider.feature_set_option(provider.ctx,
+                         "mph-hd-rendering", "hd-rendering", "antialiasing", "8") == 1 &&
+                     provider.feature_set_option(provider.ctx,
+                         "mph-hd-rendering", "hd-rendering", "antialiasing", "6") == 0,
+                     "SSAA accepts supported samples only")) return 68;
+        RecompLauncherCModChoice aa_choice{};
+        if (!require(provider.feature_choice_get(provider.ctx,
+                         "mph-hd-rendering", "hd-rendering", "antialiasing", 3, &aa_choice) &&
+                     std::strcmp(aa_choice.value, "8") == 0,
+                     "SSAA choices are discoverable")) return 68;
         ModState hd_saved{};
         hd_saved.settings_path =
             std::filesystem::temp_directory_path() /
@@ -682,6 +694,7 @@ int main() {
         hd_saved.hd_rendering = true;
         hd_saved.internal_resolution = 3;
         hd_saved.texture_upscale = 4;
+        hd_saved.hd_antialiasing = 8;
         if (!require(save_mod_state(hd_saved), "hd save")) return 69;
         ModState hd_loaded{};
         hd_loaded.settings_path = hd_saved.settings_path;
@@ -692,6 +705,8 @@ int main() {
                      "hd internal resolution round trip")) return 71;
         if (!require(hd_loaded.texture_upscale == 4,
                      "hd texture upscale round trip")) return 72;
+        if (!require(hd_loaded.hd_antialiasing == 8,
+                     "HD SSAA preference round trip")) return 72;
         std::filesystem::remove(hd_saved.settings_path);
     }
 

@@ -784,6 +784,8 @@ int main() {
         saved.keyboard_bindings[5] = 0;
         saved.gamepad_bindings[4] = 111;
         saved.gamepad_bindings[5] = 0;
+        saved.gamepad_bindings[6] = 22;
+        saved.gamepad_bindings[7] = 26;
         saved.display_layout = 0;
         saved.fullscreen = 2;
         saved.linear_filter = true;
@@ -882,7 +884,7 @@ int main() {
         std::wstring input_command;
         append_binding_args(input_command, loaded);
         if (!require(input_command.find(L"--keyboard-bindings \"82,81,80,79,17,0,22,4,20,26,40,42\"") != std::wstring::npos &&
-                     input_command.find(L"--gamepad-bindings \"12,13,14,15,111,0,3,4,10,11,7,5\"") != std::wstring::npos &&
+                     input_command.find(L"--gamepad-bindings \"12,13,14,15,111,0,22,26,10,11,7,5\"") != std::wstring::npos &&
                      input_command.find(L"--mph-bind-move-forward") != std::wstring::npos,
                      "actual Windows args preserve12-button order plus Prime Controls")) return 167;
 #else
@@ -891,7 +893,7 @@ int main() {
         if (!require(input_command.size() > 4 && input_command[0] == "--keyboard-bindings" &&
                      input_command[1] == "82,81,80,79,17,0,22,4,20,26,40,42" &&
                      input_command[2] == "--gamepad-bindings" &&
-                     input_command[3] == "12,13,14,15,111,0,3,4,10,11,7,5",
+                     input_command[3] == "12,13,14,15,111,0,22,26,10,11,7,5",
                      "actual portable args preserve12-button order")) return 167;
 #endif
         if (!require(loaded.window_scale == 2,
@@ -927,7 +929,7 @@ int main() {
             std::ofstream file(settings_path, std::ios::trunc);
             file << "settings_version=4\n"
                     "keyboard_bindings=1,2,3,4,5,6,7,8,9,10,11,x\n"
-                    "gamepad_bindings=112,0,0,0,0,0,0,0,0,0,0,0\n"
+                    "gamepad_bindings=27,0,0,0,0,0,0,0,0,0,0,0\n"
                     "window_scale=0\n"
                     "display_layout=99\n"
                     "fullscreen=-1\n"

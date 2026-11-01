@@ -18,7 +18,9 @@ ROM-derived source is distributed.
 
 ## Current Windows update
 
-Windows **v0.7.11-alpha**: see [release notes](docs/RELEASE-0.7.11-alpha.md).
+Windows **v0.7.12-alpha** uses the qualified native/HLE engine release.
+Exact source pins and build profiles are packaged in `SOURCE.txt`.
+Earlier notes: [v0.7.11-alpha](docs/RELEASE-0.7.11-alpha.md).
 Retains the supported MPH execution configuration; MKDS's title-specific CPU
 backend is not enabled. Linux delivery is unchanged.
 
@@ -28,9 +30,9 @@ backend is not enabled. Linux delivery is unchanged.
 
 Click the image to watch the gameplay preview on YouTube.
 
-## Current Release
+## Earlier published releases
 
-Current downloads:
+Published downloads preceding v0.7.12:
 
 - Windows native GL preview: [v0.7.11-alpha](https://github.com/mstan/MetroidPrimeHuntersRecomp/releases/tag/v0.7.11-alpha)
   `MetroidPrimeHuntersRecomp-windows-x64-v0.7.11.zip`
@@ -67,8 +69,8 @@ this native GL preview and its control is hidden. Extract the preview into a
 fresh directory; it contains no ROM, retail BIOS/firmware, saves or private
 captures. Existing save files should be backed up before testing an alpha.
 
-Framework: `6721d74cc168564373839510fa93df0ce2be090d`.
-Shared UI: `2e8532811f85922e844bdbed9ede02566c01f17a`.
+Current Windows framework: `179ac63d9e4055e1218d61b3fd03c34a94880a6e`.
+Current shared UI: `3f1d6f122a58823614abce14f5b86f4d165a629c`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,

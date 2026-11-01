@@ -36,10 +36,11 @@ set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
 add_executable(mph-recomp-ui launcher_main.cpp
     "${NDSRECOMP_ROOT}/recompiler/support/sha1.cpp")
 target_include_directories(mph-recomp-ui PRIVATE
-    "${NDSRECOMP_ROOT}/recompiler/support")
+    "${NDSRECOMP_ROOT}/recompiler/support"
+    "${NDSRECOMP_ROOT}/launcher")
 target_link_libraries(mph-recomp-ui PRIVATE ${MPH_LAUNCHER_SDL_TARGET})
 
-set(RECOMP_UI_ROOT "F:/Projects/recomp-ui" CACHE PATH
+set(RECOMP_UI_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/recomp-ui" CACHE PATH
     "Path to the shared recomp-ui checkout")
 
 enable_testing()
@@ -51,6 +52,7 @@ add_executable(mph-mod-provider-test tests/launcher_mod_provider_test.cpp
 # below. Listed ahead of the recomp-ui directories for that reason.
 target_include_directories(mph-mod-provider-test PRIVATE
     "${NDSRECOMP_ROOT}/recompiler/support"
+    "${NDSRECOMP_ROOT}/launcher"
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${RECOMP_UI_ROOT}/src"
     "${RECOMP_UI_ROOT}/src/common")

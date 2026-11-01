@@ -117,6 +117,9 @@ int main() {
     }
 
     ModState state{};
+    if (!require(state.keyboard_bindings == kNdsDefaultKeys &&
+                 state.gamepad_bindings == kNdsDefaultPad,
+                 "missing maps use DS defaults, not unbound arrays")) return 164;
     RecompLauncherCModProvider provider = make_mod_provider(&state);
 
     if (!require(provider.feature_count != nullptr, "feature_count callback"))
@@ -777,6 +780,10 @@ int main() {
         ModState saved{};
         saved.settings_path = settings_path;
         saved.window_scale = 5;
+        saved.keyboard_bindings[4] = 6;
+        saved.keyboard_bindings[5] = 0;
+        saved.gamepad_bindings[4] = 111;
+        saved.gamepad_bindings[5] = 0;
         saved.display_layout = 0;
         saved.fullscreen = 2;
         saved.linear_filter = true;
@@ -848,6 +855,13 @@ int main() {
                          "030000005e0400008e02000014010000") == 0,
                      "saved player gamepad guid applied")) return 114;
 
+        if (!require(loaded.keyboard_bindings == saved.keyboard_bindings &&
+                     loaded.gamepad_bindings == saved.gamepad_bindings &&
+                     applied.player_key_bind[0][4] == 6 &&
+                     applied.player_key_bind[0][5] == 0 &&
+                     applied.player_pad_bind[0][4] == 111,
+                     "edited/unbound DS maps round trip and reach controller UI")) return 165;
+        applied.player_key_bind[0][4] = 17;
         applied.window_scale = 2;
         applied.display_layout = 1;
         applied.fullscreen = 1;
@@ -860,6 +874,26 @@ int main() {
         copy_text(applied.player_gamepad_guid[0],
                   "050000004c050000e60c000000010000");
         capture_launcher_settings(&loaded, applied);
+        if (!require(loaded.keyboard_bindings[4] == 17 &&
+                     loaded.keyboard_bindings[5] == 0 &&
+                     loaded.gamepad_bindings == saved.gamepad_bindings,
+                     "captured DS key edit preserves pad map and explicit unbind")) return 166;
+#ifdef _WIN32
+        std::wstring input_command;
+        append_binding_args(input_command, loaded);
+        if (!require(input_command.find(L"--keyboard-bindings \"82,81,80,79,17,0,22,4,20,26,40,42\"") != std::wstring::npos &&
+                     input_command.find(L"--gamepad-bindings \"12,13,14,15,111,0,3,4,10,11,7,5\"") != std::wstring::npos &&
+                     input_command.find(L"--mph-bind-move-forward") != std::wstring::npos,
+                     "actual Windows args preserve12-button order plus Prime Controls")) return 167;
+#else
+        std::vector<std::string> input_command;
+        append_binding_args(input_command, loaded);
+        if (!require(input_command.size() > 4 && input_command[0] == "--keyboard-bindings" &&
+                     input_command[1] == "82,81,80,79,17,0,22,4,20,26,40,42" &&
+                     input_command[2] == "--gamepad-bindings" &&
+                     input_command[3] == "12,13,14,15,111,0,3,4,10,11,7,5",
+                     "actual portable args preserve12-button order")) return 167;
+#endif
         if (!require(loaded.window_scale == 2,
                      "changed window scale captured")) return 115;
         if (!require(loaded.display_layout == 1,
@@ -892,6 +926,8 @@ int main() {
         {
             std::ofstream file(settings_path, std::ios::trunc);
             file << "settings_version=4\n"
+                    "keyboard_bindings=1,2,3,4,5,6,7,8,9,10,11,x\n"
+                    "gamepad_bindings=112,0,0,0,0,0,0,0,0,0,0,0\n"
                     "window_scale=0\n"
                     "display_layout=99\n"
                     "fullscreen=-1\n"
@@ -905,6 +941,9 @@ int main() {
         ModState invalid{};
         invalid.settings_path = settings_path;
         load_mod_state(invalid);
+        if (!require(invalid.keyboard_bindings == kNdsDefaultKeys &&
+                     invalid.gamepad_bindings == kNdsDefaultPad,
+                     "malformed maps leave whole defaults intact")) return 168;
         if (!require(invalid.window_scale == 3,
                      "invalid window scale keeps default")) return 123;
         if (!require(invalid.display_layout == 1,
@@ -923,6 +962,19 @@ int main() {
                      "invalid player source keeps default")) return 127;
         if (!require(invalid.renderer_type == "compute",
                      "invalid renderer keeps default")) return 127;
+
+        invalid.keyboard_bindings.fill(0);
+        invalid.gamepad_bindings.fill(0);
+        if (!require(save_mod_state(invalid), "all-unbound DS maps save")) return 169;
+        ModState unbound{};
+        unbound.settings_path = settings_path;
+        load_mod_state(unbound);
+        RecompLauncherCSettings unbound_ui{};
+        apply_saved_launcher_settings(unbound, &unbound_ui);
+        if (!require(unbound.keyboard_bindings == NdsButtonBindings{} &&
+                     unbound.gamepad_bindings == NdsButtonBindings{} &&
+                     unbound_ui.player_key_bind[0][4] == 0,
+                     "all-zero maps remain unbound after load and UI seed")) return 170;
 
         std::filesystem::remove(settings_path);
     }

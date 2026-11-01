@@ -84,7 +84,7 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "2d9f4f3cb33daa78a724a1c17fdbcc2048580c2c"
+pin = "853c059aaab91acb5f1a9274f41d9ae82818c95b"
 branch = "main"
 
 [reference.mphread]

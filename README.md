@@ -292,6 +292,9 @@ for provenance and licensing details for shared runtime components.
 
 ## Developers
 
+Initialize the pinned launcher UI with `git submodule update --init third_party/recomp-ui`
+before building. The build scripts retain explicit UI-path overrides for development.
+
 This README is intentionally player-facing. Development notes, validation
 history, and bring-up details live in [`docs/BRINGUP.md`](docs/BRINGUP.md).
 

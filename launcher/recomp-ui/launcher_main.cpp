@@ -1,5 +1,6 @@
 #include "recomp_launcher.h"
 #include "launcher_profile.h"
+#include "nds_input_bindings.h"
 #include "sha1.h"
 
 #ifdef _WIN32
@@ -12,6 +13,7 @@ extern char **environ;
 #endif
 
 #include <array>
+#include <algorithm>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -84,6 +86,8 @@ struct ModState {
     // displays and on the direct OpenGL compute presenter.
     bool frame_interpolation = false;
     int window_scale = 3;
+    NdsButtonBindings keyboard_bindings = kNdsDefaultKeys;
+    NdsButtonBindings gamepad_bindings = kNdsDefaultPad;
     int display_layout = 1;
     int fullscreen = 0;
     bool linear_filter = false;
@@ -655,6 +659,10 @@ void load_mod_state(ModState& state) {
             // read as an enable.
             if (value == "true" || value == "false")
                 state.frame_interpolation = value == "true";
+        } else if (key == "keyboard_bindings") {
+            nds_parse_bindings(value, false, &state.keyboard_bindings);
+        } else if (key == "gamepad_bindings") {
+            nds_parse_bindings(value, true, &state.gamepad_bindings);
         } else if (key == "window_scale") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -811,6 +819,8 @@ bool save_mod_state(ModState& state) {
              << "frame_interpolation="
              << (state.frame_interpolation ? "true" : "false") << '\n'
              << "window_scale=" << state.window_scale << '\n'
+             << "keyboard_bindings=" << nds_format_bindings(state.keyboard_bindings) << '\n'
+             << "gamepad_bindings=" << nds_format_bindings(state.gamepad_bindings) << '\n'
              << "display_layout=" << state.display_layout << '\n'
              << "fullscreen=" << state.fullscreen << '\n'
              << "linear_filter="
@@ -1601,6 +1611,8 @@ void append_savestate_dir_arg(std::wstring& command,
 }
 
 void append_binding_args(std::wstring& command, const ModState& mods) {
+    append_arg(command, L"--keyboard-bindings", widen(nds_format_bindings(mods.keyboard_bindings).c_str()));
+    append_arg(command, L"--gamepad-bindings", widen(nds_format_bindings(mods.gamepad_bindings).c_str()));
     for (const BindingOption& option : kBindingOptions) {
         std::wstring flag = L"--mph-bind-";
         flag += widen(option.id);
@@ -1702,6 +1714,8 @@ void append_savestate_dir_arg(std::vector<std::string>& args,
 
 void append_binding_args(std::vector<std::string>& args,
                          const ModState& mods) {
+    append_arg(args, "--keyboard-bindings", nds_format_bindings(mods.keyboard_bindings));
+    append_arg(args, "--gamepad-bindings", nds_format_bindings(mods.gamepad_bindings));
     for (const BindingOption& option : kBindingOptions) {
         append_arg(args, std::string("--mph-bind-") + option.id,
                    mods.*(option.member));
@@ -2076,6 +2090,8 @@ void apply_saved_launcher_settings(
     const ModState& state, RecompLauncherCSettings* settings) {
     if (!settings) return;
     settings->window_scale = state.window_scale;
+    std::copy(state.keyboard_bindings.begin(), state.keyboard_bindings.end(), settings->player_key_bind[0]);
+    std::copy(state.gamepad_bindings.begin(), state.gamepad_bindings.end(), settings->player_pad_bind[0]);
     settings->display_layout = state.display_layout;
     settings->fullscreen = state.fullscreen;
     settings->linear_filter = state.linear_filter ? 1 : 0;
@@ -2093,6 +2109,8 @@ void capture_launcher_settings(
     ModState* state, const RecompLauncherCSettings& settings) {
     if (!state) return;
     state->window_scale = settings.window_scale;
+    std::copy_n(settings.player_key_bind[0], state->keyboard_bindings.size(), state->keyboard_bindings.begin());
+    std::copy_n(settings.player_pad_bind[0], state->gamepad_bindings.size(), state->gamepad_bindings.begin());
     state->display_layout = settings.display_layout;
     state->fullscreen = settings.fullscreen;
     state->linear_filter = settings.linear_filter != 0;
@@ -2125,6 +2143,9 @@ int main(int argc, char** argv) {
     settings.supersampling = 1;
     settings.antialiasing = 0;
     settings.renderer = renderer_type_to_settings_index(kDefaultRendererType);
+    std::copy(kNdsDefaultKeys.begin(), kNdsDefaultKeys.end(), settings.player_key_bind[0]);
+    std::copy(kNdsDefaultPad.begin(), kNdsDefaultPad.end(), settings.player_pad_bind[0]);
+    const RecompLauncherCSettings default_settings = settings;
 
     static const char* const sha1[] = {
         "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
@@ -2187,6 +2208,7 @@ int main(int argc, char** argv) {
 
     RecompLauncherCGameInfo game{};
     launcher_profile_apply("nds", &game);
+    game.default_settings = &default_settings;
     // MPH has Nintendo WFC online play, so it opts into the dashboard
     // ONLINE identity card (most DS titles never set this).
     game.has_player_name = 1;
@@ -2231,7 +2253,6 @@ int main(int argc, char** argv) {
         "Metroid Prime Hunters - Launcher", &settings, &game,
         exe.string().c_str(), default_rom.string().c_str(),
         selected_rom, sizeof(selected_rom));
-    if (result == 1) return 0;
     if (result == 2) {
         std::fprintf(stderr, "recomp-ui unavailable\n");
         return 2;
@@ -2268,8 +2289,12 @@ int main(int argc, char** argv) {
         } else {
             mod_state.player_name = typed;
         }
-        save_mod_state(mod_state);
+        if (!save_mod_state(mod_state)) {
+            std::fprintf(stderr, "%s\n", mod_state.last_error.c_str());
+            return 3;
+        }
     }
+    if (result == 1) return 0;
     return launch_runner(exe, selected_rom, settings.display_layout,
                          settings.fullscreen,
                          mod_state.adaptive_widescreen,

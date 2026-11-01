@@ -15,7 +15,7 @@ TITLE_TARGET="metroidprimehuntersrecomp"
 ROM_SHA1="90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 RUNNER_NAME="nds_runner"
 LAUNCHER_NAME="mph-recomp-ui"
-VERSION="0.1.0"
+VERSION="0.7.12"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 BUILD_FLAVOR="release"
@@ -31,7 +31,7 @@ PACKAGE_EXISTING=0
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
-RECOMP_UI_ROOT="${RECOMP_UI_ROOT:-$REPO/../recomp-ui}"
+RECOMP_UI_ROOT="${RECOMP_UI_ROOT:-$REPO/third_party/recomp-ui}"
 FRAMEWORK_ROOT="$(cd "$FRAMEWORK_ROOT" && pwd)"
 RECOMP_UI_ROOT="$(cd "$RECOMP_UI_ROOT" && pwd)"
 OUT="$REPO/release-linux"
@@ -84,7 +84,7 @@ test -f "$FRAMEWORK_ROOT/recompiler/CMakeLists.txt" || {
   exit 1
 }
 test -f "$RECOMP_UI_ROOT/recomp_ui.cmake" || {
-  echo "ERROR: sibling recomp-ui checkout is missing." >&2
+  echo "ERROR: pinned recomp-ui submodule is missing; run git submodule update --init third_party/recomp-ui." >&2
   exit 1
 }
 test -f "$REPO/Metroid Prime Hunters.nds" || {

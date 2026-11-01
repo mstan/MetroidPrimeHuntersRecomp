@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.7.9',
+  [string]$Version = '0.7.12',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
@@ -20,7 +20,7 @@ param(
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompilerBuildDir = 'recompiler\build',
-  [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
+  [string]$RecompUiRoot = 'third_party\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
   # Developer build choice; there is no player-facing runtime switch.
@@ -81,6 +81,7 @@ function Resolve-BuildPath([string]$value) {
   return [IO.Path]::GetFullPath((Join-Path $root $value))
 }
 $frameworkRoot = Resolve-BuildPath $NdsrecompRoot
+$RecompUiRoot = Resolve-BuildPath $RecompUiRoot
 if ($PerformanceBackend -eq 'ON' -and -not (Test-Path -LiteralPath (Join-Path $frameworkRoot 'runner\src\native_service_entries.h'))) {
   throw 'MPH native execution requires the matching native-services framework. Pass -NdsrecompRoot <matching checkout> or -PerformanceBackend OFF.'
 }

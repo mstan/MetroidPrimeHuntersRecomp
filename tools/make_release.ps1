@@ -23,7 +23,7 @@ param(
   # Inputs for the bundled live-overlay (tcc) toolchain. $NdsrecompRoot is
   # relative to the repo root; $RecompilerBuildDir is relative to that.
   [string]$NdsrecompRoot = '..\ndsrecomp',
-  [string]$RecompUiRoot = 'F:\Projects\recomp-ui',
+  [string]$RecompUiRoot = 'third_party\recomp-ui',
   [string]$RecompilerBuildDir = 'recompiler\build',
   [switch]$SkipOverlayToolchain,
   # Developer-built native shard cache produced by

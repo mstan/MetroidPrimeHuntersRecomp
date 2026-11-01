@@ -84,7 +84,7 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "25592a5b6d818bb8c36456f1ade6a619ca0323b0"
+pin = "179ac63d9e4055e1218d61b3fd03c34a94880a6e"
 branch = "release/native-hle-v0.6.11"
 
 [reference.mphread]

@@ -87,8 +87,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "179ac63d9e4055e1218d61b3fd03c34a94880a6e"
-branch = "release/native-hle-v0.6.11"
+pin = "404dd3fd7ac12ecafc4716d5d0949bed68f42666"
+branch = "main"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

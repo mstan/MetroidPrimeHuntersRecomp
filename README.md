@@ -18,7 +18,9 @@ ROM-derived source is distributed.
 
 ## Current Windows update
 
-Windows **v0.7.12-alpha** uses the qualified native/HLE engine release.
+Windows **v0.7.13-alpha** adds continuous adaptive widescreen HUD
+backgrounds and optional 6x, 8x and 12x internal rendering scales. It retains
+the native OpenGL/HLE execution profile and the 4x / 8-sample AA defaults.
 Exact source pins and build profiles are packaged in `SOURCE.txt`.
 Earlier notes: [v0.7.11-alpha](docs/RELEASE-0.7.11-alpha.md).
 Retains the supported MPH execution configuration; MKDS's title-specific CPU
@@ -45,19 +47,8 @@ execution, interrupts, Wi-Fi behavior and software-rendered guest graphics
 readbacks retain their existing contracts. Native OpenGL and the existing MPH
 HLE services remain enabled, with Software available for troubleshooting.
 
-One matched 600-vblank uncapped Gorea sample on an i5-4670 / GTX 760 used
-5.1% less process CPU time and 1.3% less elapsed time (104.8 to 106.2
-vblanks/second). Private committed memory was about 65 MiB lower, and capture
-snapshot copying fell from 375 MiB to 2.5 MiB in that scene. Both screens,
-recent audio, semantic guest state and event counts matched the reference.
-This is a small targeted sample, not sustained presented 60-FPS qualification
-or a whole-game performance guarantee. The CPU span and deadline-cache probes
-were rejected and are excluded.
-
-The owner confirmed the desktop presentation looks fine. No new real-peer
-Wiimmfi match was performed for this update; online play remains experimental.
-Current-build save/load checks pass. Native in-game saves are preserved;
-execution save states remain build-specific. This update is Windows-only.
+Native in-game saves are preserved; execution save states remain
+build-specific. This update is Windows-only. Online play remains experimental.
 
 Developers retain the LLE math/submission choices and the original host paths:
 `-MathImplementation LLE -SubmitImplementation LLE`, `-LeanDiagnostics OFF`,
@@ -69,7 +60,12 @@ this native GL preview and its control is hidden. Extract the preview into a
 fresh directory; it contains no ROM, retail BIOS/firmware, saves or private
 captures. Existing save files should be backed up before testing an alpha.
 
-Current Windows framework: `179ac63d9e4055e1218d61b3fd03c34a94880a6e`.
+HD Rendering also offers experimental 6x, 8x and 12x scales. At 16:9, 12x
+produces a 3D raster above 3840x2160 while keeping HUD layers at native DS
+resolution. These choices use more GPU time and memory; reduce the scale or
+anti-aliasing if the game slows down. The default remains 4x.
+
+Current Windows framework: `404dd3fd7ac12ecafc4716d5d0949bed68f42666`.
 Current shared UI: `3f1d6f122a58823614abce14f5b86f4d165a629c`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
@@ -121,17 +117,16 @@ AppImage ROM picker fallback, the v0.4.4 Steam Deck / older-glibc AppImage
 baseline, the v0.4.3 launcher fullscreen/layout forwarding and HD renderer
 fixes, the v0.4.2 public Tab turbo default-off fix, and the v0.4.1 Nintendo WFC
 reconnect and same-machine local Multi-Card runtime-bank fixes.
-The v0.4.0 HD Rendering mod is still available on the Mods page: it raises the
-3D engine above one sample per DS pixel (up to 4x) and filters decoded
-textures, while the 2D layers stay native. It is off by default; enable it
-under Mods and pick the internal resolution and texture upscaling that suit
-your GPU.
+HD Rendering is available on the Mods page. It raises the 3D raster
+resolution while the 2D layers stay native. The current native OpenGL release
+defaults to 4x with 8-sample SSAA; higher scales are experimental and require
+more GPU time and memory.
 
 ## Quick Start
 
 Windows:
 
-1. Download and fully extract the `v0.7.8-alpha` Windows ZIP.
+1. Download and fully extract the `v0.7.13-alpha` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.

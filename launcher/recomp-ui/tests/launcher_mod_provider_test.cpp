@@ -669,8 +669,14 @@ int main() {
                      "hd internal resolution accepts 4")) return 65;
         if (!require(provider.feature_set_option(
                          provider.ctx, "mph-hd-rendering", "hd-rendering",
-                         "internal-resolution", "8") == 0,
-                     "hd internal resolution rejects 8")) return 66;
+                         "internal-resolution", "8") == 1 &&
+                     provider.feature_set_option(provider.ctx,
+                         "mph-hd-rendering", "hd-rendering",
+                         "internal-resolution", "12") == 1 &&
+                     provider.feature_set_option(provider.ctx,
+                         "mph-hd-rendering", "hd-rendering",
+                         "internal-resolution", "13") == 0,
+                     "HD accepts higher scales and rejects unsupported ones")) return 66;
         if (!require(provider.feature_set_option(
                          provider.ctx, "mph-hd-rendering", "hd-rendering",
                          "texture-upscale", "3") == 0,
@@ -695,7 +701,7 @@ int main() {
             std::filesystem::temp_directory_path() /
             "mph_mod_provider_hd_settings.ini";
         hd_saved.hd_rendering = true;
-        hd_saved.internal_resolution = 3;
+        hd_saved.internal_resolution = 12;
         hd_saved.texture_upscale = 4;
         hd_saved.hd_antialiasing = 8;
         if (!require(save_mod_state(hd_saved), "hd save")) return 69;
@@ -704,7 +710,7 @@ int main() {
         load_mod_state(hd_loaded);
         if (!require(hd_loaded.hd_rendering, "hd enable round trip"))
             return 70;
-        if (!require(hd_loaded.internal_resolution == 3,
+        if (!require(hd_loaded.internal_resolution == 12,
                      "hd internal resolution round trip")) return 71;
         if (!require(hd_loaded.texture_upscale == 4,
                      "hd texture upscale round trip")) return 72;

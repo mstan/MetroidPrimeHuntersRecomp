@@ -31,6 +31,9 @@ adaptive_skybox_fill = false
 # Anchor their authored left/center/right bands over the widened 3D world
 # instead of falling back to a pillarboxed native composite.
 adaptive_hud_anchor = true
+# Extend the original background-frame seams between anchored panels. The
+# separately rendered instruments, text and touch interface retain their size.
+adaptive_hud_gap_fill = true
 # MPH's centered location banner and energy assembly are wider than the
 # framework's conservative 64-pixel default. Preserve source X=64..191 as one
 # centered unit so text and bars never cross an anchor seam.

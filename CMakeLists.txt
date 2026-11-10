@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(MetroidPrimeHuntersRecomp VERSION 0.7.12 LANGUAGES C CXX)
+project(MetroidPrimeHuntersRecomp VERSION 0.7.13 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -510,6 +510,17 @@ add_custom_command(
 mph_preceding_args(MPH_ARM9_CAPTURE_PRECEDING
     ${MPH_COVERAGE_ARM9_DISPATCH}
     "${MPH_RECOMP_DIR}/mph_arm9_dispatch.c")
+# Capture banks can name over a hundred preceding dispatch files. Keep those
+# arguments relative to the source directory: absolute paths exceed cmd.exe's
+# 8191-character limit in long Windows worktrees even though the native tool
+# itself accepts the same argument list. Dependencies remain absolute.
+set(MPH_ARM9_CAPTURE_PRECEDING_RELATIVE)
+foreach(_preceding IN LISTS MPH_ARM9_CAPTURE_PRECEDING)
+    if(IS_ABSOLUTE "${_preceding}")
+        file(RELATIVE_PATH _preceding "${CMAKE_CURRENT_SOURCE_DIR}" "${_preceding}")
+    endif()
+    list(APPEND MPH_ARM9_CAPTURE_PRECEDING_RELATIVE "${_preceding}")
+endforeach()
 foreach(_capture_spec IN LISTS MPH_DEFERRED_ARM9_CAPTURE_SPECS)
     string(REPLACE "|" ";" _capture_spec "${_capture_spec}")
     list(GET _capture_spec 0 _cap_bank)
@@ -530,11 +541,12 @@ foreach(_capture_spec IN LISTS MPH_DEFERRED_ARM9_CAPTURE_SPECS)
                 --max-function-bytes 512
                 --validate-live-bytes
                 --prune-preceding-owned
-                ${MPH_ARM9_CAPTURE_PRECEDING}
+                ${MPH_ARM9_CAPTURE_PRECEDING_RELATIVE}
         COMMAND ${CMAKE_COMMAND} -E touch
                 "${MPH_RECOMP_DIR}/${_cap_bank}.stamp"
         DEPENDS nds_recompile "${_cap_config}" "${_cap_image}"
                 "${MPH_ARM9_STAMP}" ${MPH_RUNTIME_BANK_STAMPS_PRE}
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         COMMENT "Recompiling AMHE0 capture bank ${_cap_bank} (pruned against the ARM9 main closure)")
 endforeach()
 

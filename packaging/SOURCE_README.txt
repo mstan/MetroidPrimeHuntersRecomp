@@ -1,13 +1,13 @@
-Metroid Prime Hunters Recomp v0.7.12-alpha - source and build notes
+Metroid Prime Hunters Recomp v0.7.13-alpha - source and build notes
 =================================================================
 
 Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
-Declared matching release ref: v0.7.12-alpha.
-Before that tag is published, use branch fix/launcher-bindings-20261031 (PR49).
+Declared matching release ref: v0.7.13-alpha.
+The matching release tag contains the title, launcher and packaging sources.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
-    release/native-hle-v0.6.11 at 179ac63d9e4055e1218d61b3fd03c34a94880a6e
+    v0.6.12 sources at 404dd3fd7ac12ecafc4716d5d0949bed68f42666
   Shared UI: https://github.com/mstan/recomp-ui
     3f1d6f122a58823614abce14f5b86f4d165a629c
   ARM core: the engine's external/arm-recomp-core submodule
@@ -26,10 +26,8 @@ Apply the four patches tracked in the selected engine's runner/cmake, in order:
   dynarmic-cold-register-allocation.patch
   dynarmic-prepared-blocks.patch
   dynarmic-published-stores.patch
-Use this patched source as NDS_ARM9_DYNARMIC_ROOT. The selected SDK archive
-SHA-256 is 6a843c4287f5b6519cd27de38d26e1593ccad8a9c6329e5cf52cfd0867f576b8;
-its dependency licenses are included. The archive is a build input, not a
-replacement for the corresponding public source and patchset.
+Use this patched source as NDS_ARM9_DYNARMIC_ROOT. The release compiles
+this source and patchset locally; dependency notices are included.
 
 Build requirements: Windows x64 MinGW-w64 GCC 15.2, CMake/Ninja, SDL and Python,
 plus your own supported cartridge dump. Generate title/system banks with the
@@ -50,15 +48,15 @@ Selected native runner profile (engine runner/CMakeLists.txt):
   NDS_MKDS_STREAM_IMPLEMENTATION=LLE; NDS_MKDS_CARD_PIO_IMPLEMENTATION=LLE
   NDS_GX_COMMAND_CACHE=ON; NDS_BOOTSTRAP_FIRMWARE=ON
   NDS_CAPTURE_VIEW_REUSE=ON; NDS_LEAN_DIAGNOSTICS=ON
-  NDS_TITLE_VERSION=v0.7.12-alpha
+  NDS_TITLE_VERSION=v0.7.13-alpha
   NDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
   NDS_TITLE_BANK_DIR=<your generated title banks>
   NDS_RECOMP_UI_ROOT=<shared UI source above>
 The selected O2 bank archive SHA-256 is
-0f1528fd878a494fb2224ec0a0d98091f9cc50203963023791666d5254504707.
+ee36ba31bda670612de6372324eea1f236450c6840acb69838fb723030fa9f89.
 MPH remains serial; the MKDS CPU/render handoff profile is not admitted.
 
-Use tools/build-windows.ps1 -Version 0.7.12 -PerformanceBackend ON
+Use tools/build-windows.ps1 -Version 0.7.13 -PerformanceBackend ON
 -DynarmicRoot <patched SDK> for the supported generation/build pipeline,
 with the explicit runner CMake profile above. The portable reference remains
 available with PerformanceBackend OFF and the retained LLE service choices.
@@ -67,7 +65,7 @@ RECOMP_UI_ROOT=<selected UI>, MPH_LAUNCHER_SDL_BACKEND=SDL3,
 MPH_NATIVE_PERFORMANCE=ON and MPH_NATIVE_GL_PREVIEW=ON.
 
 Build the selected engine's recompiler for the bundled overlay toolchain.
-tools/make_release.ps1 -Version 0.7.12 -RunnerBuildDir <runner>
+tools/make_release.ps1 -Version 0.7.13 -RunnerBuildDir <runner>
 -LauncherBuildDir <launcher> -NdsrecompRoot <engine> -RecompUiRoot <UI>
 -RecompilerBuildDir recompiler/build -ShardCacheDir <compatible cache>
 -SdlBackend SDL3 packages the full toolchain and compatible native shard cache.
@@ -77,6 +75,9 @@ The selected recompiler uses codegen v3; the cache provider identity is
 CPython 3.13.1/TCC0.9.27 toolchain, runtime headers and dependency notices.
 
 Graphics default to 4x internal 3D resolution and 8-sample supersample AA.
+Experimental 6x, 8x and 12x scales are selectable. Adaptive widescreen HUD
+backgrounds extend their original seam pixels while retaining instruments.
+Native-aspect HUD mapping is unchanged.
 Native resolution, AA Off and Software remain selectable. Prime/stylus/device
 settings are preserved. Save states are build-specific; native in-game save
 progress is a separate preserved contract. Online play remains experimental.

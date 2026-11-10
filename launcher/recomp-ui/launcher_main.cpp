@@ -187,11 +187,14 @@ struct HdChoice {
     const char* label;
 };
 
-constexpr std::array<HdChoice, 4> kInternalResolutionChoices{{
+constexpr std::array<HdChoice, 7> kInternalResolutionChoices{{
     {1, "1x (native)"},
     {2, "2x"},
     {3, "3x"},
     {4, "4x"},
+    {6, "6x (experimental)"},
+    {8, "8x (experimental)"},
+    {12, "12x (4K widescreen, experimental)"},
 }};
 
 constexpr std::array<HdChoice, 3> kTextureUpscaleChoices{{
@@ -642,7 +645,7 @@ void load_mod_state(ModState& state) {
         } else if (key == "internal_resolution") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
-            if (end && *end == 0 && parsed >= 1 && parsed <= 4)
+            if (end && *end == 0 && parsed >= 1 && parsed <= 12)
                 state.internal_resolution = static_cast<int>(parsed);
         } else if (key == "hd_antialiasing") {
             if (value == "0" || value == "2" || value == "4" || value == "8")
@@ -1079,7 +1082,8 @@ int mod_feature_option_get(void* context, const char* package_id,
             copy_text(output->label, "Internal resolution");
             copy_text(output->description,
                       "Sample density of the 3D engine. Costs GPU time and "
-                      "VRAM; 2D layers are unaffected.");
+                      "VRAM; 2D layers are unaffected. Above 4x is experimental. "
+                      "12x supports a 4K widescreen view; lower this if play slows down.");
             copy_text(output->group, "Resolution");
             std::snprintf(output->value, sizeof(output->value), "%d",
                           hd->internal_resolution);

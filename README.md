@@ -82,7 +82,7 @@ packaging patch fixes the SteamOS startup failure involving
 
 Also new since v0.5.0: Widescreen has been overhauled. The launcher now exposes a
 `Widescreen` display option with `Dynamic` as the default plus fixed
-`4:3`, `5:3`, `2:1`, and `21:9` modes. Fixed modes preserve their selected
+`4:3`, `5:3`, `16:9`, `2:1`, and `21:9` modes. Fixed modes preserve their selected
 aspect ratio in fullscreen, so they pillarbox or letterbox instead of stretching
 to the monitor. The runner also rejects unsupported fixed widths up front rather
 than closing after launch.
@@ -163,7 +163,7 @@ If your ROM does not match, the launcher/runner should reject it.
 
 - Boots the supported ROM through the ndsrecomp runner.
 - Reaches Metroid Prime Hunters gameplay in tested routes.
-- Includes Dynamic widescreen plus fixed 4:3, 5:3, 2:1, and 21:9 upper-screen
+- Includes Dynamic widescreen plus fixed 4:3, 5:3, 16:9, 2:1, and 21:9 upper-screen
   display modes.
 - Includes Prime-style keyboard and mouse controls.
 - Includes full remappable gamepad bindings in the launcher.

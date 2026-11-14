@@ -2,6 +2,7 @@ FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG SDL3_VERSION=3.2.20
+ARG BUILD_JOBS=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -54,7 +55,7 @@ RUN curl -fsSL "https://www.libsdl.org/release/SDL3-${SDL3_VERSION}.tar.gz" \
       -DCMAKE_BUILD_TYPE=Release \
       -DSDL_TESTS=OFF \
       -DSDL_EXAMPLES=OFF \
-  && cmake --build /tmp/SDL3-build -j"$(nproc)" \
+  && cmake --build /tmp/SDL3-build -j"${BUILD_JOBS}" \
   && cmake --install /tmp/SDL3-build \
   && ldconfig \
   && rm -rf /tmp/SDL3.tar.gz /tmp/SDL3-src /tmp/SDL3-build

@@ -15,6 +15,16 @@ test -f "$APPDIR/usr/bin/game.toml"
 test -d "$APPDIR/usr/bin/assets"
 test -f "$APPDIR/usr/bin/bios/README.txt"
 
+python3 - "$APPDIR" <<'PY'
+import os, pathlib, sys
+root = pathlib.Path(sys.argv[1]).resolve()
+for path in root.rglob("*"):
+    if path.is_symlink():
+        target = os.readlink(path)
+        if os.path.isabs(target) or not path.resolve().is_relative_to(root):
+            raise SystemExit(f"payload symlink escapes AppDir: {path.relative_to(root)} -> {target}")
+PY
+
 if [ "$EXPECT_LIVE_TOOLCHAIN" = 1 ]; then
   TOOLCHAIN="$APPDIR/usr/bin/overlay_toolchain"
   test -f "$TOOLCHAIN/compile_live_shards.py"

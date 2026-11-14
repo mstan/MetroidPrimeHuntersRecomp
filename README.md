@@ -16,15 +16,21 @@ Hunters** as a native recompilation target. You provide your own legally
 obtained ROM. No Nintendo ROM, BIOS, firmware, save data, or generated
 ROM-derived source is distributed.
 
-## Current Windows update
+## Current desktop update
 
-Windows **v0.7.13-alpha** adds continuous adaptive widescreen HUD
-backgrounds and optional 6x, 8x and 12x internal rendering scales. It retains
-the native OpenGL/HLE execution profile and the 4x / 8-sample AA defaults.
-Exact source pins and build profiles are packaged in `SOURCE.txt`.
-Earlier notes: [v0.7.11-alpha](docs/RELEASE-0.7.11-alpha.md).
-Retains the supported MPH execution configuration; MKDS's title-specific CPU
-backend is not enabled. Linux delivery is unchanged.
+**v0.7.14-alpha** adds an exact fixed 16:9 display choice with a matching
+adventure frustum. It corrects native OpenGL depth comparisons and keeps the
+touch window associated with the game. Current-build checkpoints correctly
+rebind the frustum after width changes and restore native geometry when
+widescreen is turned off.
+
+Adaptive widescreen stays enabled for fresh profiles, and explicit saved
+display choices are preserved. Windows retains its native OpenGL/HLE profile
+and 4x / 8-sample AA defaults. Linux retains its portable faithful profile.
+Exact source pins and platform build options are packaged in `SOURCE.txt`.
+
+Details: [v0.7.14-alpha](docs/RELEASE-0.7.14-alpha.md).
+MKDS's title-specific CPU backend is not enabled.
 
 ## Gameplay Preview
 

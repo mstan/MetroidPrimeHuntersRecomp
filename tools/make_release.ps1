@@ -140,7 +140,7 @@ $noticeFiles = [ordered]@{
   'ndsrecomp-MIT.txt' = Join-Path $ndsLicenseRoot 'LICENSE-MIT'
   'ndsrecomp-ATTRIBUTION.md' = Join-Path $ndsLicenseRoot 'THIRD_PARTY_ATTRIBUTION.md'
   'arm-recomp-core.txt' = Join-Path $ndsLicenseRoot 'external\arm-recomp-core\LICENSE'
-  'freebios.txt' = Join-Path $ndsLicenseRoot 'third_party\freebios\LICENSE.txt'
+  'freebios.txt' = Join-Path $root 'packaging\component-notices\freebios.txt'
   'libslirp.txt' = Join-Path $ndsLicenseRoot 'runner\vendor\melonds\net\libslirp\COPYRIGHT'
   'xxhash-header.txt' = Join-Path $ndsLicenseRoot 'runner\vendor\melonds\xxhash\xxhash.h'
   'khrplatform-header.txt' = Join-Path $ndsLicenseRoot 'runner\vendor\melonds\glad\khrplatform.h'
@@ -153,6 +153,11 @@ New-Item -ItemType Directory -Path $licenseRoot -Force | Out-Null
 foreach ($notice in $noticeFiles.GetEnumerator()) {
   [IO.File]::WriteAllBytes((Join-Path $licenseRoot $notice.Key),
     [IO.File]::ReadAllBytes($notice.Value))
+}
+foreach ($name in @('LatoLatin-OFL.txt', 'NotoSansSymbols2-OFL.txt',
+                    'OpenMoji-LICENSE.txt')) {
+  [IO.File]::WriteAllBytes((Join-Path $licenseRoot $name),
+    [IO.File]::ReadAllBytes((Join-Path $root "packaging\font-notices\$name")))
 }
 # Keep the optional native SDK's complete dependency notice bundle with the
 # Windows runner. These small repository-owned copies also package cleanly

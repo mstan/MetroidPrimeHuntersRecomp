@@ -15,7 +15,7 @@ TITLE_TARGET="metroidprimehuntersrecomp"
 ROM_SHA1="90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 RUNNER_NAME="nds_runner"
 LAUNCHER_NAME="mph-recomp-ui"
-VERSION="0.7.12"
+VERSION="0.7.14"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 BUILD_FLAVOR="release"
@@ -200,6 +200,30 @@ cp "$REPO/LICENSE" "$APPDIR/usr/bin/LICENSE"
 # GPL-3.0-or-later combined work and the release must carry the GPL text.
 cp "$REPO/LICENSE-GPL" "$APPDIR/usr/bin/LICENSE-GPL"
 cp "$REPO/packaging/BIOS_README.txt" "$APPDIR/usr/bin/bios/README.txt"
+cp "$REPO/packaging/SOURCE_README.txt" "$APPDIR/usr/bin/SOURCE.txt"
+{
+  printf '\nLinux x86_64 build configuration\n================================\n'
+  "$GCC" --version | head -1
+  printf 'SDL version: '
+  if [ "$SDL_BACKEND" = SDL3 ]; then pkg-config --modversion sdl3; else pkg-config --modversion sdl2; fi
+  grep -E '^(CMAKE_BUILD_TYPE|NDS_SDL_BACKEND|NDS_ACCELERATED_RENDERER|NDS_MPH_PERFORMANCE|NDS_ARM7_NATIVE|NDS_CORE_IPO|NDS_MPH_MATH_IMPLEMENTATION|NDS_MPH_SUBMIT_IMPLEMENTATION|NDS_LEAN_DIAGNOSTICS|NDS_CAPTURE_VIEW_REUSE|NDS_GX_COMMAND_CACHE|NDS_TITLE_VERSION):' "$RUNNER_BUILD/CMakeCache.txt"
+} >> "$APPDIR/usr/bin/SOURCE.txt"
+LICENSES="$APPDIR/usr/bin/licenses"
+mkdir -p "$LICENSES/dynarmic"
+cp "$FRAMEWORK_ROOT/LICENSE" "$LICENSES/ndsrecomp-LICENSE.txt"
+cp "$FRAMEWORK_ROOT/LICENSE-MIT" "$LICENSES/ndsrecomp-MIT.txt"
+cp "$FRAMEWORK_ROOT/THIRD_PARTY_ATTRIBUTION.md" "$LICENSES/ndsrecomp-ATTRIBUTION.md"
+cp "$FRAMEWORK_ROOT/external/arm-recomp-core/LICENSE" "$LICENSES/arm-recomp-core.txt"
+cp "$REPO/packaging/component-notices/freebios.txt" "$LICENSES/freebios.txt"
+cp "$FRAMEWORK_ROOT/runner/vendor/melonds/net/libslirp/COPYRIGHT" "$LICENSES/libslirp.txt"
+cp "$FRAMEWORK_ROOT/runner/vendor/melonds/xxhash/xxhash.h" "$LICENSES/xxhash-header.txt"
+cp "$FRAMEWORK_ROOT/runner/vendor/melonds/glad/khrplatform.h" "$LICENSES/khrplatform-header.txt"
+cp "$RECOMP_UI_ROOT/LICENSE" "$LICENSES/recomp-ui.txt"
+cp "$RECOMP_UI_ROOT/src/third_party/imgui/LICENSE.txt" "$LICENSES/imgui.txt"
+cp "$RECOMP_UI_ROOT/assets/common/fonts/NOTICE.md" "$LICENSES/fonts.md"
+cp "$RECOMP_UI_ROOT/assets/common/img/NOTICE.md" "$LICENSES/images.md"
+cp "$REPO/packaging/font-notices/"*.txt "$LICENSES/"
+cp "$REPO/packaging/dynarmic-notices/"*.txt "$LICENSES/dynarmic/"
 
 # The live compiler and cache are a release unit. The cache is filtered
 # against these exact staged artifacts; the player-side TCC command discovers
@@ -232,6 +256,12 @@ if [ "$SKIP_OVERLAY_TOOLCHAIN" != 1 ]; then
   }
   cp "$SYSTEM_PYTHON" "$TOOLCHAIN/python/bin/python3-runtime"
   cp -a "$PY_STDLIB" "$TOOLCHAIN/python/lib/"
+  # Debian's sitecustomize symlink targets host /etc and installs distro crash
+  # hooks. A private Python runtime must not import a machine-specific hook.
+  STAGED_SITE="$TOOLCHAIN/python/lib/$(basename "$PY_STDLIB")/sitecustomize.py"
+  if [ -L "$STAGED_SITE" ]; then
+    rm -- "$STAGED_SITE"
+  fi
   cat > "$TOOLCHAIN/python/bin/python3" <<'EOF'
 #!/bin/sh
 HERE="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
@@ -355,6 +385,37 @@ if [ "$STAGE_FOR_SHARD_PERFORMANCE_GATE" = 1 ]; then
   echo "ERROR: --stage-for-shard-performance-gate is disabled by project validation policy." >&2
   exit 2
 fi
+
+# Carry the notices of the system packages whose unmodified runtime files are
+# bundled below. SDL is built locally by the pinned container recipe.
+mkdir -p "$LICENSES/runtime"
+if [ "$SDL_BACKEND" = SDL3 ]; then
+  cp "$(pkg-config --variable=prefix sdl3)/share/licenses/SDL3/LICENSE.txt" "$LICENSES/runtime/SDL3.txt"
+else
+  cp /usr/share/doc/libsdl2-2.0-0/copyright "$LICENSES/runtime/SDL2.txt"
+fi
+# Runtime dependencies copied by linuxdeploy from the supported Ubuntu image.
+# Keep their upstream notices with the actual package/source versions so the
+# distribution's corresponding sources can be retrieved without guessing.
+RUNTIME_PACKAGES=(libgcc-s1 libstdc++6 python3.10 tcc
+  libbz2-1.0 libcrypt1 libssl3 libdb5.3 libffi8 libgssapi-krb5-2
+  libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0 liblzma5 libmpdec3
+  libncursesw6 libnsl2 libreadline8 libsqlite3-0 libtinfo6 libtirpc3)
+for package in "${RUNTIME_PACKAGES[@]}"; do
+  cp "/usr/share/doc/$package/copyright" "$LICENSES/runtime/$package.txt"
+done
+dpkg-query -W -f='${binary:Package}\t${Version}\t${source:Package}\t${source:Version}\n' \
+  "${RUNTIME_PACKAGES[@]}" > "$LICENSES/runtime/package-versions.tsv"
+cat > "$LICENSES/runtime/SOURCE.txt" <<'EOF'
+The unmodified Ubuntu 22.04 runtime components are listed with their binary
+and corresponding source versions in package-versions.tsv. Copyright notices
+identify each upstream source and license. Exact distribution source packages
+are available from https://archive.ubuntu.com/ubuntu/pool/ and
+https://security.ubuntu.com/ubuntu/pool/; with matching deb-src repositories,
+use: apt source SOURCE_PACKAGE=SOURCE_VERSION
+SDL3 source and its pinned version are identified in the container recipe and
+SOURCE.txt at the top of this package. It is built without local SDL changes.
+EOF
 
 echo "[4/4] package AppImage"
 DEPLOY_TOOLCHAIN_ARGS=()

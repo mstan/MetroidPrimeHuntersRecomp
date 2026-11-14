@@ -86,6 +86,9 @@ Also new since v0.5.0: Widescreen has been overhauled. The launcher now exposes 
 aspect ratio in fullscreen, so they pillarbox or letterbox instead of stretching
 to the monitor. The runner also rejects unsupported fixed widths up front rather
 than closing after launch.
+The saved `16:9` choice uses a 342x192 raster, rounded to an even width.
+Your saved aspect-ratio choice is preserved. Dynamic remains the default
+for new settings.
 
 Also new since v0.4.13: Diagnostics now writes to a visible `diagnostics`
 folder next to `MetroidPrimeHuntersRecomp.exe` / the AppImage instead of the

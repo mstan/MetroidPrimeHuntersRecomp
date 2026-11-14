@@ -226,12 +226,15 @@ struct WidescreenChoice {
     int width;
 };
 
-constexpr std::array<WidescreenChoice, 5> kWidescreenChoices{{
+constexpr std::array<WidescreenChoice, 6> kWidescreenChoices{{
     {"adaptive", "Dynamic", 0},
     {"fixed-4-3", "4:3", 256},
     {"fixed-5-3", "5:3", 320},
     {"fixed-2-1", "2:1", 384},
     {"fixed-21-9", "21:9", 448},
+    // Round 192 * 16 / 9 to the nearest even raster width. Existing IDs/indices
+    // stay stable, and the runner renders the extra geometry at this width.
+    {"fixed-16-9", "16:9", 342},
 }};
 
 struct SensitivityChoice {

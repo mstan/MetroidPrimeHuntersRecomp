@@ -83,4 +83,4 @@ settings are preserved. Save states are build-specific; native in-game save
 progress is a separate preserved contract. Online play remains experimental.
 
 TinyCC 0.9.27 source: https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27.tar.bz2
-Its full matching COPYING is included beside the Windows compiler.
+Its full matching COPYING is included beside the bundled compiler.

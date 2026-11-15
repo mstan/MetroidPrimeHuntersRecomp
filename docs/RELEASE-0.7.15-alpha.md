@@ -11,5 +11,5 @@ Linux retains the faithful portable execution profile. Existing fixed 16:9,
 depth and touch-window corrections are retained.
 
 Packages include source/build information and component/font notices, including
-the full matching TinyCC license beside the Windows compiler. Supply your own
+the full matching TinyCC license beside the bundled compiler. Supply your own
 supported ROM; ROMs, BIOS, firmware, saves and captured guest memory are absent.

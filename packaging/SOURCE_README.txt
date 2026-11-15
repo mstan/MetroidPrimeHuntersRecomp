@@ -1,15 +1,15 @@
-Metroid Prime Hunters Recomp v0.7.14-alpha - source and build notes
+Metroid Prime Hunters Recomp v0.7.15-alpha - source and build notes
 =================================================================
 
 Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
-Declared matching release ref: v0.7.14-alpha.
+Declared matching release ref: v0.7.15-alpha.
 The matching release tag contains the title, launcher and packaging sources.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
-    v0.6.12 sources at d04e1b541b0775d84e9236b3c6288ff7117a2013
+    Quality-only source at 5f6ee5c4c9fd6df76c91aeb72093bd8d10dd0fe2
   Shared UI: https://github.com/RetroPortingToolKit/recomp-ui
-    3f1d6f122a58823614abce14f5b86f4d165a629c
+    a8e6d5e6e673fa34db9104cc10c574c54c68082b
   ARM core: the engine's external/arm-recomp-core submodule
     90b6c510a7471c9c7146c0e8c8f5d9e6d7b13e57
   FreeBIOS: the engine's third_party/freebios submodule
@@ -48,7 +48,7 @@ Selected Windows native runner profile (engine runner/CMakeLists.txt):
   NDS_MKDS_STREAM_IMPLEMENTATION=LLE; NDS_MKDS_CARD_PIO_IMPLEMENTATION=LLE
   NDS_GX_COMMAND_CACHE=ON; NDS_BOOTSTRAP_FIRMWARE=ON
   NDS_CAPTURE_VIEW_REUSE=ON; NDS_LEAN_DIAGNOSTICS=ON
-  NDS_TITLE_VERSION=v0.7.14-alpha
+  NDS_TITLE_VERSION=v0.7.15-alpha
   NDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
   NDS_TITLE_BANK_DIR=<your generated title banks>
   NDS_RECOMP_UI_ROOT=<shared UI source above>
@@ -56,7 +56,7 @@ The selected O2 bank archive SHA-256 is
 ee36ba31bda670612de6372324eea1f236450c6840acb69838fb723030fa9f89.
 MPH remains serial; the MKDS CPU/render handoff profile is not admitted.
 
-Use tools/build-windows.ps1 -Version 0.7.14 -PerformanceBackend ON
+Use tools/build-windows.ps1 -Version 0.7.15 -PerformanceBackend ON
 -DynarmicRoot <patched SDK> for the supported generation/build pipeline,
 with the explicit runner CMake profile above. The portable reference remains
 available with PerformanceBackend OFF and the retained LLE service choices.
@@ -65,7 +65,7 @@ RECOMP_UI_ROOT=<selected UI>, MPH_LAUNCHER_SDL_BACKEND=SDL3,
 MPH_NATIVE_PERFORMANCE=ON and MPH_NATIVE_GL_PREVIEW=ON.
 
 Build the selected engine's recompiler for the bundled overlay toolchain.
-tools/make_release.ps1 -Version 0.7.14 -RunnerBuildDir <runner>
+tools/make_release.ps1 -Version 0.7.15 -RunnerBuildDir <runner>
 -LauncherBuildDir <launcher> -NdsrecompRoot <engine> -RecompUiRoot <UI>
 -RecompilerBuildDir recompiler/build -ShardCacheDir <compatible cache>
 -SdlBackend SDL3 packages the full toolchain and compatible native shard cache.
@@ -81,3 +81,6 @@ Native-aspect HUD mapping is unchanged.
 Native resolution, AA Off and Software remain selectable. Prime/stylus/device
 settings are preserved. Save states are build-specific; native in-game save
 progress is a separate preserved contract. Online play remains experimental.
+
+TinyCC 0.9.27 source: https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27.tar.bz2
+Its full matching COPYING is included beside the Windows compiler.

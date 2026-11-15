@@ -281,6 +281,7 @@ EOF
   }
   cp "$TCC_SYSTEM" "$TOOLCHAIN/tcc/tcc-runtime"
   cp -a "$TCC_SUPPORT/." "$TOOLCHAIN/tcc/lib/tcc/"
+  cp "$REPO/packaging/component-notices/TinyCC-0.9.27-COPYING.txt" "$TOOLCHAIN/tcc/COPYING"
   chmod 0755 "$TOOLCHAIN/nds_recompile" "$TOOLCHAIN/python/bin/python3" \
     "$TOOLCHAIN/python/bin/python3-runtime" "$TOOLCHAIN/tcc/tcc-runtime"
   bash "$REPO/tools/fix_linux_appdir_runtime.sh" "$APPDIR"

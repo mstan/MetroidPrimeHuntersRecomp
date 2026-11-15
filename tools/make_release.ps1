@@ -1,4 +1,4 @@
-﻿<#
+<#
 Package a completed Metroid Prime Hunters Recomp Windows release.
 
 The ZIP contains the portable recomp-ui launcher, the title runner with EVERY
@@ -315,6 +315,8 @@ if (-not $SkipOverlayToolchain) {
     -DestinationPath $tccTmp -Force
   Copy-Item -LiteralPath (Join-Path $tccTmp 'tcc') `
     -Destination (Join-Path $toolchain 'tcc') -Recurse
+  Copy-Item -LiteralPath (Join-Path $root 'packaging/component-notices/TinyCC-0.9.27-COPYING.txt') `
+    -Destination (Join-Path $toolchain 'tcc/COPYING')
 
   Copy-Item -LiteralPath $recompiler -Destination $toolchain
   foreach ($name in @('libgcc_s_seh-1.dll', 'libstdc++-6.dll',

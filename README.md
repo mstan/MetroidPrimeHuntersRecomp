@@ -23,6 +23,11 @@ profile uses native geometry, ARM9 observation services and native ARM7 services
 with the retained qualified math and geometry-submission HLE. The Automatic quality controls and
 dependency notices introduced in v0.7.15 remain included.
 
+Settings > Display offers picture-in-picture in any corner, with the bottom
+screen inset over the main top screen. Bottom right is the first PiP choice;
+screen swapping is unavailable for this title. Stacked and separate windows
+remain available, and the selected layout is saved.
+
 **v0.7.15-alpha** adds a Graphics control for Automatic quality and a display
 of effective 3D quality. Turning it Off restores the selected resolution and
 supersampling, with the choice retained across current-build loads and restarts.
@@ -72,8 +77,8 @@ produces a 3D raster above 3840x2160 while keeping HUD layers at native DS
 resolution. These choices use more GPU time and memory; reduce the scale or
 anti-aliasing if the game slows down. The default remains 4x.
 
-Current Windows framework: `404dd3fd7ac12ecafc4716d5d0949bed68f42666`.
-Current shared UI: `3f1d6f122a58823614abce14f5b86f4d165a629c`.
+Current Windows framework: `60924315042ba6aaff725cbdb775bbb5f7881cce`.
+Current shared UI: `a8e6d5e6e673fa34db9104cc10c574c54c68082b`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,

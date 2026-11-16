@@ -14,7 +14,7 @@ param(
   [int]$Jobs = 0,
   [string]$Image = 'mph-linux-steamdeck-builder:ubuntu22.04',
   [string]$Out = 'release-linux-steamdeck',
-  [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$NdsrecompRoot = 'ndsrecomp',
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [string]$ShardCacheDir = 'release-shard-cache-linux',
   [ValidateSet('HLE', 'LLE')]

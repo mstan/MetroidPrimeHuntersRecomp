@@ -30,7 +30,7 @@ else()
     message(FATAL_ERROR "MPH_LAUNCHER_SDL_BACKEND must be SDL3 or SDL2")
 endif()
 
-set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
+set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../ndsrecomp" CACHE PATH
     "Path to the ndsrecomp framework checkout (for the shared SHA-1 helper)")
 
 # A second launcher can select the separately built reference runner while

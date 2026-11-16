@@ -77,7 +77,7 @@ produces a 3D raster above 3840x2160 while keeping HUD layers at native DS
 resolution. These choices use more GPU time and memory; reduce the scale or
 anti-aliasing if the game slows down. The default remains 4x.
 
-Current Windows framework: `60924315042ba6aaff725cbdb775bbb5f7881cce`.
+Current Windows framework: `00c2ff0408caabdcbaeacaf7089bf8875a045010`.
 Current shared UI: `a8e6d5e6e673fa34db9104cc10c574c54c68082b`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very
@@ -304,7 +304,8 @@ for provenance and licensing details for shared runtime components.
 
 ## Developers
 
-Initialize the pinned launcher UI with `git submodule update --init third_party/recomp-ui`
+Initialize the pinned engine and launcher UI with
+`git submodule update --init --recursive -- ndsrecomp third_party/recomp-ui`
 before building. The build scripts retain explicit UI-path overrides for development.
 
 This README is intentionally player-facing. Development notes, validation

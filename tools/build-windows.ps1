@@ -1,7 +1,7 @@
 <#
 Build and package the Metroid Prime Hunters Recomp Windows release.
 
-This script builds the title banks, the sibling ndsrecomp runner, and the
+This script builds the title banks, the pinned ndsrecomp submodule runner, and the
 Windows recomp-ui launcher, then stages a portable ZIP with tools\make_release.ps1.
 It does not publish a release.
 
@@ -15,7 +15,7 @@ param(
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
   [string]$GameBuildDir = 'build-release',
-  [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
+  [string]$RunnerBuildDir = 'ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
   [string]$RunnerFilename = 'nds_runner.exe',
   [string]$ReferenceRunnerBuildDir = '',
@@ -27,7 +27,7 @@ param(
   # Qualified whole-file asset service; the reference build below forces OFF.
   [ValidateSet('ON', 'OFF')][string]$WholeAssets = 'ON',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
-  [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$NdsrecompRoot = 'ndsrecomp',
   [string]$RecompilerBuildDir = 'recompiler\build',
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]

@@ -4,7 +4,7 @@ project(MetroidPrimeHuntersRecomp VERSION 0.7.16 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ndsrecomp" CACHE PATH
+set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/ndsrecomp" CACHE PATH
     "Path to the ndsrecomp framework checkout")
 if(NOT EXISTS "${NDSRECOMP_ROOT}/recompiler/CMakeLists.txt")
     message(FATAL_ERROR

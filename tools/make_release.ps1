@@ -10,12 +10,12 @@ BIOS/firmware, saves, raw captures, and generated source are never staged.
 Build the runner and launcher first, then run:
 
   powershell -File tools\make_release.ps1 -Version 0.1.0 `
-    -RunnerBuildDir ..\ndsrecomp\runner\build-mph-release `
+    -RunnerBuildDir ndsrecomp\runner\build-mph-release `
     -LauncherBuildDir launcher\recomp-ui\build-release
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Version,
-  [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
+  [string]$RunnerBuildDir = 'ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
   # Optional paired inputs for the separately compiled faithful launcher/runner.
   [string]$ReferenceRunnerBuildDir = '',
@@ -25,7 +25,7 @@ param(
   [string]$SdlBackend = 'SDL3',
   # Inputs for the bundled live-overlay (tcc) toolchain. $NdsrecompRoot is
   # relative to the repo root; $RecompilerBuildDir is relative to that.
-  [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$NdsrecompRoot = 'ndsrecomp',
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [string]$RecompilerBuildDir = 'recompiler\build',
   [switch]$SkipOverlayToolchain,
@@ -94,6 +94,20 @@ foreach ($required in @($runner, $launcher, $assets)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Release input missing: $required"
   }
+}
+
+$frameworkForPin = Resolve-UnderRoot $NdsrecompRoot $root
+$frameworkPinMatch = [regex]::Match(
+  (Get-Content -LiteralPath (Join-Path $root 'game.toml') -Raw),
+  '(?m)^\s*pin\s*=\s*"([0-9a-f]{40})"\s*$')
+if (-not $frameworkPinMatch.Success) { throw 'Missing ndsrecomp framework pin.' }
+$frameworkPin = $frameworkPinMatch.Groups[1].Value
+$indexedFramework = (git -C $root rev-parse ':ndsrecomp').Trim()
+if ($LASTEXITCODE -ne 0) { throw 'The ndsrecomp engine submodule is not pinned.' }
+$checkedFramework = (git -C $frameworkForPin rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $indexedFramework -ne $frameworkPin -or
+    $checkedFramework -ne $frameworkPin) {
+  throw 'The engine checkout and submodule must match the game.toml release pin.'
 }
 
 # A runner missing generated banks is functional but slow: the FMV bank

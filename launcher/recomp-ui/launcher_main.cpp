@@ -1,6 +1,7 @@
 #include "recomp_launcher.h"
 #include "launcher_profile.h"
 #include "nds_input_bindings.h"
+#include "nds_screen_layout_settings.h"
 #include "sha1.h"
 
 #ifdef _WIN32
@@ -33,6 +34,7 @@ extern char **environ;
 #endif
 
 namespace {
+constexpr NdsLauncherPipCapabilities kPipCapabilities{false};
 
 #if defined(_WIN32) && defined(MPH_NATIVE_PERFORMANCE)
 constexpr bool kNativePerformance = true;
@@ -714,7 +716,7 @@ void load_mod_state(ModState& state) {
         } else if (key == "display_layout") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
-            if (end && *end == 0 && parsed >= 0 && parsed <= 1)
+            if (end && *end == 0 && parsed >= 0 && parsed < nds_launcher_screen_layout_count(kPipCapabilities))
                 state.display_layout = static_cast<int>(parsed);
         } else if (key == "fullscreen") {
             char* end = nullptr;
@@ -1864,7 +1866,7 @@ void show_launch_error(const char* message) {
 }
 
 const char* runner_screen_layout_arg(int display_layout) {
-    return display_layout == 1 ? "separate" : "stacked";
+    return nds_launcher_screen_layout_arg(display_layout);
 }
 
 const char* runner_fullscreen_arg(int fullscreen) {
@@ -2012,6 +2014,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(command, L"--wfc-provider", L"wiimmfi");
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
+    append_arg(command, L"--pip-corner", widen(nds_launcher_pip_corner_arg(display_layout)));
+    append_arg(command, L"--pip-main-screen", widen(nds_launcher_pip_main_arg(display_layout,kPipCapabilities)));
     append_arg(command, L"--execution-model", widen(runner_execution_model_arg(mods.online_play)));
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
@@ -2062,6 +2066,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--config", config.string());
     append_arg(args, "--screen-layout",
                runner_screen_layout_arg(display_layout));
+    append_arg(args, "--pip-corner", nds_launcher_pip_corner_arg(display_layout));
+    append_arg(args, "--pip-main-screen", nds_launcher_pip_main_arg(display_layout,kPipCapabilities));
     append_arg(args, "--fullscreen", runner_fullscreen_arg(fullscreen));
     append_arg(args, "--adaptive-widescreen", adaptive ? "top" : "none");
     if (const int width = runner_widescreen_width_arg(mods); width > 0)
@@ -2218,10 +2224,7 @@ int main(int argc, char** argv) {
     static const char* const sha1[] = {
         "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
     };
-    static const char* const display_layouts[] = {
-        "Stacked window",
-        "Separate windows",
-    };
+
     static const char* const renderer_labels[] = {
         "Auto",
         "OpenGL",
@@ -2292,8 +2295,8 @@ int main(int argc, char** argv) {
     game.num_renderers = std::size(renderer_labels);
     game.lock_device = 0;
     game.hide_rebind = 0;
-    game.display_layout_labels = display_layouts;
-    game.num_display_layouts = std::size(display_layouts);
+    game.display_layout_labels = kNdsScreenLayoutLabels;
+    game.num_display_layouts = nds_launcher_screen_layout_count(kPipCapabilities);
     game.mods = &mod_provider;
     game.bios_verify = nds_bios_verify;
     game.persist_setup = nds_persist_setup;

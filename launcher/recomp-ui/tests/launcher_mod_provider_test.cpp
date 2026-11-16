@@ -13,6 +13,10 @@ bool require(bool condition, const char* label) {
 }  // namespace
 
 int main() {
+    if (!require(!kPipCapabilities.swap_main && nds_launcher_screen_layout_count(kPipCapabilities)==6 &&
+            std::strcmp(nds_launcher_pip_corner_arg(2),"bottom-right")==0 &&
+            std::strcmp(nds_launcher_pip_main_arg(9,kPipCapabilities),"top")==0,
+            "PiP defaults bottom-right and never exposes swapped title layouts")) return 251;
     if (!require(std::strcmp(runner_execution_model_arg(),
                             kNativePerformance ? "performance" : "faithful") == 0,
                  "build-selected execution model")) return 96;
@@ -924,6 +928,11 @@ int main() {
                      "changed window scale captured")) return 115;
         if (!require(loaded.display_layout == 1,
                      "changed display layout captured")) return 116;
+        ModState pip_saved=loaded;pip_saved.display_layout=5;
+        if(!require(save_mod_state(pip_saved),"PiP corner saved"))return 252;
+        ModState pip_loaded{};pip_loaded.settings_path=settings_path;load_mod_state(pip_loaded);
+        if(!require(pip_loaded.display_layout==5,"PiP corner survives launcher restart"))return 253;
+        if(!require(save_mod_state(loaded),"restore separate-layout fixture"))return 254;
         if (!require(loaded.fullscreen == 1,
                      "changed fullscreen captured")) return 117;
         if (!require(!loaded.linear_filter,

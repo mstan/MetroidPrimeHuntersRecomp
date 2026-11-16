@@ -24,8 +24,8 @@ param(
   [ValidateSet('REFERENCE', 'NATIVE')][string]$Geometry = 'NATIVE',
   [ValidateSet('ON', 'OFF')][string]$ObservationService = 'ON',
   [ValidateSet('ON', 'OFF')][string]$OfflineArm7 = 'ON',
-  # D5 remains disabled until its independent disposition.
-  [ValidateSet('ON', 'OFF')][string]$WholeAssets = 'OFF',
+  # Qualified whole-file asset service; the reference build below forces OFF.
+  [ValidateSet('ON', 'OFF')][string]$WholeAssets = 'ON',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompilerBuildDir = 'recompiler\build',

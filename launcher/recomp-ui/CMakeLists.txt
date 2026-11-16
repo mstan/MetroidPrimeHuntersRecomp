@@ -73,6 +73,7 @@ target_include_directories(mph-mod-provider-test PRIVATE
     "${RECOMP_UI_ROOT}/src"
     "${RECOMP_UI_ROOT}/src/common")
 target_compile_definitions(mph-mod-provider-test PRIVATE
+    NDS_RUNNER_FILENAME="${NDS_RUNNER_FILENAME}"
     MPH_RECOMP_UI_NO_MAIN)
 if(MPH_NATIVE_GL_PREVIEW)
     target_compile_definitions(mph-recomp-ui PRIVATE MPH_NATIVE_GL_PREVIEW=1)

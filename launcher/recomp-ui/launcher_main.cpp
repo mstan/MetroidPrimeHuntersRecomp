@@ -199,6 +199,21 @@ const char* runner_filename_arg(const ModState& mods) {
         ? "nds_runner_lle.exe" : NDS_RUNNER_FILENAME;
 }
 
+const char* runner_files_error(const std::filesystem::path& directory,
+                              const ModState& mods) {
+    if (!std::filesystem::is_regular_file(directory / runner_filename_arg(mods))) {
+        if (std::strcmp(runner_filename_arg(mods), "nds_runner_lle.exe") == 0)
+            return "The Reference engine is missing. Build the reference executable "
+                   "for this checkout or re-extract the complete release ZIP.";
+        return "The game engine is missing. Build this checkout or re-extract "
+               "the complete release ZIP.";
+    }
+    if (!std::filesystem::is_regular_file(directory / "game.toml"))
+        return "The game configuration is missing. Re-extract the complete release ZIP.";
+    return nullptr;
+}
+
+
 struct HdChoice {
     int value;
     const char* label;
@@ -1888,16 +1903,12 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         runner_filename_arg(mods);
     const std::filesystem::path config = game_dir / "game.toml";
 
-    if (!std::filesystem::is_regular_file(runner) ||
-        !std::filesystem::is_regular_file(config)) {
+    if (const char* error = runner_files_error(game_dir, mods)) {
 #ifdef _WIN32
-        MessageBoxW(nullptr,
-            L"The selected runner or game.toml is "
-            L"missing. Re-extract the full release ZIP.",
+        MessageBoxW(nullptr, widen(error).c_str(),
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
 #else
-        std::fprintf(stderr,
-            "The selected runner or game.toml is missing.\n");
+        std::fprintf(stderr, "%s\n", error);
 #endif
         return false;
     }

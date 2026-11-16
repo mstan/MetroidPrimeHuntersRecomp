@@ -1250,6 +1250,17 @@ int main() {
         if (!require(save_mod_state(connectivity), "offline choice saves")) return 185;
         load_mod_state(restored);
         if (!require(!restored.online_play, "explicit offline choice survives restart")) return 186;
+        const auto engines = directory / "engines";
+        std::filesystem::create_directories(engines);
+        std::ofstream(engines / "nds_runner.exe").put('x');
+        std::ofstream(engines / "game.toml").put('x');
+        connectivity.online_play = true;
+        const char* error = runner_files_error(engines, connectivity);
+        if (!require(error && std::strstr(error, "Reference engine is missing"),
+                     "missing reference reports a friendly error without using enhanced binary")) return 187;
+        std::filesystem::remove(engines / "nds_runner.exe");
+        std::filesystem::remove(engines / "game.toml");
+        std::filesystem::remove(engines);
         std::filesystem::remove(connectivity.settings_path);
         std::filesystem::remove(directory);
     }

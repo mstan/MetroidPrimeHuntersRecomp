@@ -6,7 +6,7 @@ Matching release ref: v0.7.16-alpha.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
-    920cc891229f2bd92dc5f203cc159e8944fddf3c
+    555df21ce87b41eda583f441b30c88f71c563e21
   Shared UI: https://github.com/RetroPortingToolKit/recomp-ui
     a8e6d5e6e673fa34db9104cc10c574c54c68082b
   ARM core: the engine's external/arm-recomp-core submodule

@@ -89,7 +89,7 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "920cc891229f2bd92dc5f203cc159e8944fddf3c"
+pin = "555df21ce87b41eda583f441b30c88f71c563e21"
 branch = "integration/nds-five-services-20261115"
 
 [reference.mphread]

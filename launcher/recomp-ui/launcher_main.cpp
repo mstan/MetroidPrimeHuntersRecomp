@@ -39,8 +39,8 @@ constexpr bool kNativePerformance = true;
 #else
 constexpr bool kNativePerformance = false;
 #endif
-const char* runner_execution_model_arg() {
-    return kNativePerformance ? "performance" : "faithful";
+const char* runner_execution_model_arg(bool online_play = false) {
+    return kNativePerformance && !online_play ? "performance" : "faithful";
 }
 
 #ifdef _WIN32
@@ -50,8 +50,8 @@ const char* runner_execution_model_arg() {
 struct ScopedNativeEnv {
     struct Previous {std::wstring name,value;bool present;};
     std::vector<Previous> previous;
-    ScopedNativeEnv() {
-        if(!kNativePerformance)return;
+    explicit ScopedNativeEnv(bool enabled = true) {
+        if(!kNativePerformance || !enabled)return;
         for(const auto& setting:std::initializer_list<std::pair<const wchar_t*,const wchar_t*>>{
             {L"NDS_ARM9_DIRECT_READS",L"1"},{L"NDS_ARM9_BATCH_WRITES",L"1"},
             {L"NDS_ARM9_LONG_BLOCKS",L"0"},{L"NDS_ARM9_DATA_HANDOFFS",L"0"},
@@ -79,6 +79,7 @@ constexpr bool kNativeGlPreview = false;
 #endif
 
 struct ModState {
+    bool online_play = !kNativePerformance;
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
     // Owner-selected HD default. internal_resolution
@@ -189,6 +190,14 @@ struct ModState {
     std::filesystem::path settings_path;
     std::string last_error;
 };
+
+bool use_native_runner(const ModState& mods) {
+    return kNativePerformance && !mods.online_play;
+}
+const char* runner_filename_arg(const ModState& mods) {
+    return kNativePerformance && !use_native_runner(mods)
+        ? "nds_runner_lle.exe" : NDS_RUNNER_FILENAME;
+}
 
 struct HdChoice {
     int value;
@@ -646,6 +655,8 @@ void load_mod_state(ModState& state) {
             const long parsed = std::strtol(value.c_str(), &end, 10);
             if (end && *end == '\0' && parsed >= 0)
                 settings_version = static_cast<int>(parsed);
+        } else if (key == "wireless_online_play") {
+            state.online_play = value == "true";
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
         } else if (key == "widescreen_mode") {
@@ -821,7 +832,8 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=12\n"
+        file << "settings_version=13\n"
+             << "wireless_online_play=" << (state.online_play ? "true" : "false") << '\n'
              << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "widescreen_mode=" << widescreen_choice(state).value << '\n'
@@ -897,15 +909,29 @@ bool save_mod_state(ModState& state) {
 // card (GameInfo.has_player_name + the NDS profile's "identity" panel),
 // directly under the controller card.
 int mod_feature_count(void*) {
-    return 5;
+    return 6;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 4) return 0;
+    if (!context || !output || index < 0 || index >= mod_feature_count(context)) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
-    if (index == 0) {
+    if (index == 5) {
+        copy_text(output->id, "wireless-online-play");
+        copy_text(output->package_id, "mph-connectivity");
+        copy_text(output->package_version, "0.1.0");
+        copy_text(output->package_name, "Connectivity");
+        copy_text(output->name, "Wireless & online play");
+        copy_text(output->author, "ndsrecomp");
+        copy_text(output->description,
+            "Enables wireless multiplayer and Nintendo WFC through Wiimmfi using "
+            "the Reference engine. Turn off for faster offline play. Restart "
+            "the game after changing this setting.");
+        copy_text(output->group, "Connectivity");
+        copy_text(output->status, state->online_play ? "Enabled - Reference engine" : "Offline");
+        output->enabled = state->online_play;
+    } else if (index == 0) {
         copy_text(output->id, "widescreen");
         copy_text(output->package_id, "mph-widescreen");
         copy_text(output->package_version, "0.1.0");
@@ -1012,6 +1038,11 @@ int mod_feature_enable(void* context, const char* package_id,
                        const char* feature_id, int enabled) {
     if (!context || !package_id || !feature_id) return 0;
     auto* state = static_cast<ModState*>(context);
+    if (std::strcmp(package_id, "mph-connectivity") == 0 &&
+        std::strcmp(feature_id, "wireless-online-play") == 0) {
+        state->online_play = enabled != 0;
+        return 1;
+    }
     if (is_widescreen_feature(package_id, feature_id)) {
         state->adaptive_widescreen = enabled != 0;
         if (state->adaptive_widescreen &&
@@ -1853,7 +1884,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         data_dir = std::filesystem::absolute(env);
 #endif
 
-    const std::filesystem::path runner = game_dir / NDS_RUNNER_FILENAME;
+    const std::filesystem::path runner = game_dir /
+        runner_filename_arg(mods);
     const std::filesystem::path config = game_dir / "game.toml";
 
     if (!std::filesystem::is_regular_file(runner) ||
@@ -1951,14 +1983,14 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         // presents two white windows to a player. Direct cartridge boot uses
         // the same mutable firmware image (identity, WFC settings, updates)
         // while entering the title deterministically.
-        L" --startup-mode automatic --boot direct" +
-        // The runner's own default keeps networking OFF (probe/CI safety);
-        // a player launching through the UI expects Nintendo WFC to work,
-        // so the launcher turns it on and points it at Wiimmfi.
-        L" --network on --wfc on --wfc-provider wiimmfi";
+        L" --startup-mode automatic --boot direct";
+
+    append_arg(command, L"--network", mods.online_play ? L"on" : L"off");
+    append_arg(command, L"--wfc", mods.online_play ? L"on" : L"off");
+    append_arg(command, L"--wfc-provider", L"wiimmfi");
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
-    append_arg(command, L"--execution-model", widen(runner_execution_model_arg()));
+    append_arg(command, L"--execution-model", widen(runner_execution_model_arg(mods.online_play)));
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
     append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
@@ -1980,7 +2012,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_live_overlay_args(command, game_dir);
 
     ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
-    ScopedNativeEnv native_env;
+    ScopedNativeEnv native_env(!mods.online_play);
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
@@ -2040,8 +2072,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                std::to_string(mods.pad_aim_sensitivity));
     append_arg(args, "--startup-mode", "automatic");
     append_arg(args, "--boot", "direct");
-    append_arg(args, "--network", "on");
-    append_arg(args, "--wfc", "on");
+    append_arg(args, "--network", mods.online_play ? "on" : "off");
+    append_arg(args, "--wfc", mods.online_play ? "on" : "off");
     append_arg(args, "--wfc-provider", "wiimmfi");
     append_arg(args, "--firmware-state-path", firmware_state.string());
     append_arg(args, "--diagnostics", mods.diagnostics ? "on" : "off");

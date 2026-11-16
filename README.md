@@ -322,3 +322,5 @@ license text and making the corresponding source available.
 <p align="center">
   <a href="https://discord.gg/Ad9BwSzctP"><img src=".github/raid-discord.png" alt="Join the Retro AI Development (R.A.I.D.) Discord" width="200"></a>
 </p>
+
+Wireless multiplayer and Nintendo WFC remain available through **Mods ? Wireless & online play**. Enhanced builds start offline; enabling connectivity uses the included Reference engine. The separate Reference launcher uses the same ROM selection, saves, firmware and settings. Restart the game after changing connectivity.

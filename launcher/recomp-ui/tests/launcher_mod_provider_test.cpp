@@ -128,7 +128,7 @@ int main() {
     // card, not a mod. Index 1 stays prime controls so the assertions below
     // are unaffected by HD rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 5, "feature_count == 5")) return 4;
+    if (!require(feature_count == 6, "feature_count == 6")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 0, &feature),
@@ -511,8 +511,8 @@ int main() {
 
     // The online identity is NOT a mod feature: it lives on the dashboard
     // ONLINE card (GameInfo.has_player_name + the NDS "identity" panel).
-    // Five Mods-page features remain; index 5 must not resolve.
-    if (!require(!provider.feature_get(provider.ctx, 5, &feature),
+    // Six Mods-page features remain; index 6 must not resolve.
+    if (!require(!provider.feature_get(provider.ctx, 6, &feature),
                  "exactly five mod features (identity is not a mod)")) {
         return 37;
     }
@@ -1227,5 +1227,31 @@ int main() {
     }
 #endif
 
+    {
+        ModState connectivity;
+        if (!require(connectivity.online_play == !kNativePerformance,
+                     "enhanced defaults offline and reference defaults online")) return 180;
+        connectivity.online_play = false;
+        if (!require(use_native_runner(connectivity) == kNativePerformance,
+                     "offline selection uses the build's execution profile")) return 181;
+        connectivity.online_play = true;
+        if (!require(!use_native_runner(connectivity) &&
+                     std::strcmp(runner_filename_arg(connectivity),
+                       kNativePerformance ? "nds_runner_lle.exe" : NDS_RUNNER_FILENAME) == 0 &&
+                     std::strcmp(runner_execution_model_arg(true), "faithful") == 0,
+                     "wireless and online selection uses the true reference runner")) return 182;
+        const auto directory = std::filesystem::temp_directory_path() / "mph-connectivity-test";
+        connectivity.settings_path = directory / "mods.ini";
+        if (!require(save_mod_state(connectivity), "online choice saves")) return 183;
+        ModState restored; restored.settings_path = connectivity.settings_path;
+        load_mod_state(restored);
+        if (!require(restored.online_play, "explicit online choice survives restart")) return 184;
+        connectivity.online_play = false;
+        if (!require(save_mod_state(connectivity), "offline choice saves")) return 185;
+        load_mod_state(restored);
+        if (!require(!restored.online_play, "explicit offline choice survives restart")) return 186;
+        std::filesystem::remove(connectivity.settings_path);
+        std::filesystem::remove(directory);
+    }
     return 0;
 }

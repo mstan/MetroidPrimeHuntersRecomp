@@ -17,6 +17,15 @@ param(
   [string]$GameBuildDir = 'build-release',
   [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
+  [string]$RunnerFilename = 'nds_runner.exe',
+  [string]$ReferenceRunnerBuildDir = '',
+  [string]$ReferenceLauncherBuildDir = '',
+  [switch]$SkipPackage,
+  [ValidateSet('REFERENCE', 'NATIVE')][string]$Geometry = 'NATIVE',
+  [ValidateSet('ON', 'OFF')][string]$ObservationService = 'ON',
+  [ValidateSet('ON', 'OFF')][string]$OfflineArm7 = 'ON',
+  # D5 remains disabled until its independent disposition.
+  [ValidateSet('ON', 'OFF')][string]$WholeAssets = 'OFF',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [string]$NdsrecompRoot = '..\ndsrecomp',
   [string]$RecompilerBuildDir = 'recompiler\build',
@@ -64,11 +73,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $SkipPackage -and $PerformanceBackend -eq 'ON' -and
+    (-not $ReferenceRunnerBuildDir -or -not $ReferenceLauncherBuildDir)) {
+  throw 'Enhanced packages require both reference build directories. Use -SkipPackage to build artifacts only.'
+}
+
 if ($PerformanceBackend -eq 'ON' -and -not $DynarmicRoot) {
   throw 'Performance requires -DynarmicRoot <patched pinned SDK source>. Use -PerformanceBackend OFF for the portable Faithful build.'
 }
 if ($PerformanceBackend -eq 'OFF') {
   $DynarmicRoot = ''; $Arm7Native = 'OFF'; $NativeControl = 'OFF'
+  $Geometry = 'REFERENCE'; $ObservationService = 'OFF'; $OfflineArm7 = 'OFF'; $WholeAssets = 'OFF'
+  $MathImplementation = 'LLE'; $SubmitImplementation = 'LLE'
 }
 $root = Split-Path -Parent $PSScriptRoot
 $cmakePath = [IO.Path]::GetFullPath($CMake)
@@ -108,7 +124,16 @@ try {
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
+    "-DNDS_3D_GEOMETRY=$Geometry",
+    '-DNDS_MKDS_MODEL_IMPLEMENTATION=LLE',
+    "-DNDS_ARM9_OBSERVATION_SERVICE=$ObservationService",
+    "-DNDS_OFFLINE_ARM7=$OfflineArm7",
+    "-DNDS_WHOLE_ASSETS=$WholeAssets",
     "-DNDS_MPH_PERFORMANCE=$PerformanceBackend",
+    '-DNDS_MKDS_PERFORMANCE=OFF',
+    '-DNDS_MKDS_IMPLEMENTATION=LLE',
+    '-DNDS_MKDS_STREAM_IMPLEMENTATION=LLE',
+    '-DNDS_MKDS_CARD_PIO_IMPLEMENTATION=LLE',
     "-DNDS_ARM9_DYNARMIC_ROOT=$DynarmicRoot",
     "-DNDS_ARM7_NATIVE=$Arm7Native",
     "-DNDS_NATIVE_CONTROL=$NativeControl",
@@ -173,28 +198,34 @@ try {
     -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     "-DMPH_LAUNCHER_SDL_BACKEND=$SdlBackend" `
-    "-DMPH_NATIVE_GL_PREVIEW=$($AcceleratedRenderer -eq 'OPENGL')" `
+    "-DMPH_NATIVE_GL_PREVIEW=$($PerformanceBackend -eq 'ON' -and $AcceleratedRenderer -eq 'OPENGL')" `
     "-DMPH_NATIVE_PERFORMANCE=$PerformanceBackend" `
+    "-DNDS_RUNNER_FILENAME=$RunnerFilename" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
   & $cmakePath --build $launcherBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed.' }
 
-  & "$root\tools\make_release.ps1" `
-    -Version $Version `
-    -RunnerBuildDir $RunnerBuildDir `
-    -LauncherBuildDir $LauncherBuildDir `
-    -RuntimeBinDir $RuntimeBinDir `
-    -NdsrecompRoot $NdsrecompRoot `
-    -RecompilerBuildDir $RecompilerBuildDir `
-    -RecompUiRoot $RecompUiRoot `
-    -SdlBackend $SdlBackend `
-    -ShardCacheDir $ShardCacheDir `
-    -ShardPerformanceGate $ShardPerformanceGate `
-    -StageForShardPerformanceGate:$StageForShardPerformanceGate `
-    -Gcc $Gcc `
-    -PythonExe $PythonExe `
-    -AllowNoShardCache:$AllowNoShardCache
+  if (-not $SkipPackage) {
+    & "$root\tools\make_release.ps1" `
+      -Version $Version `
+      -RunnerBuildDir $RunnerBuildDir `
+      -LauncherBuildDir $LauncherBuildDir `
+      -ReferenceRunnerBuildDir $ReferenceRunnerBuildDir `
+      -ReferenceLauncherBuildDir $ReferenceLauncherBuildDir `
+      -RuntimeBinDir $RuntimeBinDir `
+      -NdsrecompRoot $NdsrecompRoot `
+      -RecompilerBuildDir $RecompilerBuildDir `
+      -RecompUiRoot $RecompUiRoot `
+      -SdlBackend $SdlBackend `
+      -ShardCacheDir $ShardCacheDir `
+      -ShardPerformanceGate $ShardPerformanceGate `
+      -StageForShardPerformanceGate:$StageForShardPerformanceGate `
+      -Gcc $Gcc `
+      -PythonExe $PythonExe `
+      -AllowNoShardCache:$AllowNoShardCache
+    if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed.' }
+  }
 } finally {
   Pop-Location
 }

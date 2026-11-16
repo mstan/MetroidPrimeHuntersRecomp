@@ -80,6 +80,7 @@ constexpr bool kNativeGlPreview = false;
 
 struct ModState {
     bool online_play = !kNativePerformance;
+    bool online_play_has_choice = false;
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
     // Owner-selected HD default. internal_resolution
@@ -673,6 +674,7 @@ void load_mod_state(ModState& state) {
                 settings_version = static_cast<int>(parsed);
         } else if (key == "wireless_online_play") {
             state.online_play = value == "true";
+            state.online_play_has_choice = true;
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
         } else if (key == "widescreen_mode") {
@@ -853,9 +855,10 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=13\n"
-             << "wireless_online_play=" << (state.online_play ? "true" : "false") << '\n'
-             << "adaptive_widescreen="
+        file << "settings_version=13\n";
+        if (state.online_play_has_choice)
+            file << "wireless_online_play=" << (state.online_play ? "true" : "false") << '\n';
+        file << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "widescreen_mode=" << widescreen_choice(state).value << '\n'
              << "hd_rendering="
@@ -1063,6 +1066,7 @@ int mod_feature_enable(void* context, const char* package_id,
     if (std::strcmp(package_id, "mph-connectivity") == 0 &&
         std::strcmp(feature_id, "wireless-online-play") == 0) {
         state->online_play = enabled != 0;
+        state->online_play_has_choice = true;
         return 1;
     }
     if (is_widescreen_feature(package_id, feature_id)) {

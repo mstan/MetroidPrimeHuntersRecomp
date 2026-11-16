@@ -1249,15 +1249,35 @@ int main() {
                      std::strcmp(runner_execution_model_arg(true), "faithful") == 0,
                      "wireless and online selection uses the true reference runner")) return 182;
         const auto directory = std::filesystem::temp_directory_path() / "mph-connectivity-test";
+        {
+            ModState reference_defaults;
+            reference_defaults.online_play = true;
+            reference_defaults.settings_path = directory / "implicit-reference.ini";
+            if (!require(save_mod_state(reference_defaults), "implicit Reference defaults save")) return 188;
+            std::ifstream implicit(reference_defaults.settings_path);
+            const std::string saved((std::istreambuf_iterator<char>(implicit)), {});
+            if (!require(saved.find("wireless_online_play=") == std::string::npos,
+                         "opening Reference does not persist its implicit connectivity default")) return 189;
+            ModState enhanced_defaults;
+            enhanced_defaults.online_play = false;
+            enhanced_defaults.settings_path = reference_defaults.settings_path;
+            load_mod_state(enhanced_defaults);
+            if (!require(!enhanced_defaults.online_play && !enhanced_defaults.online_play_has_choice,
+                         "next enhanced launch retains offline default without an explicit choice")) return 190;
+            implicit.close();
+            std::filesystem::remove(reference_defaults.settings_path);
+        }
         connectivity.settings_path = directory / "mods.ini";
+        auto connectivity_provider = make_mod_provider(&connectivity);
+        connectivity_provider.feature_enable(connectivity_provider.ctx, "mph-connectivity", "wireless-online-play", 1);
         if (!require(save_mod_state(connectivity), "online choice saves")) return 183;
         ModState restored; restored.settings_path = connectivity.settings_path;
         load_mod_state(restored);
-        if (!require(restored.online_play, "explicit online choice survives restart")) return 184;
-        connectivity.online_play = false;
+        if (!require(restored.online_play && restored.online_play_has_choice, "explicit online choice survives restart")) return 184;
+        connectivity_provider.feature_enable(connectivity_provider.ctx, "mph-connectivity", "wireless-online-play", 0);
         if (!require(save_mod_state(connectivity), "offline choice saves")) return 185;
         load_mod_state(restored);
-        if (!require(!restored.online_play, "explicit offline choice survives restart")) return 186;
+        if (!require(!restored.online_play && restored.online_play_has_choice, "explicit offline choice survives restart")) return 186;
         const auto engines = directory / "engines";
         std::filesystem::create_directories(engines);
         std::ofstream(engines / "nds_runner.exe").put('x');

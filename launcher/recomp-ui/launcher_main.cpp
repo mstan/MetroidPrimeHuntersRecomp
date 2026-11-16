@@ -1,6 +1,7 @@
 #include "recomp_launcher.h"
 #include "launcher_profile.h"
 #include "nds_input_bindings.h"
+#include "nds_screen_layout_settings.h"
 #include "sha1.h"
 
 #ifdef _WIN32
@@ -24,15 +25,24 @@ extern char **environ;
 #include <utility>
 #include <vector>
 
+#ifndef NDS_RUNNER_FILENAME
+#ifdef _WIN32
+#define NDS_RUNNER_FILENAME "nds_runner.exe"
+#else
+#define NDS_RUNNER_FILENAME "nds_runner"
+#endif
+#endif
+
 namespace {
+constexpr NdsLauncherPipCapabilities kPipCapabilities{false};
 
 #if defined(_WIN32) && defined(MPH_NATIVE_PERFORMANCE)
 constexpr bool kNativePerformance = true;
 #else
 constexpr bool kNativePerformance = false;
 #endif
-const char* runner_execution_model_arg() {
-    return kNativePerformance ? "performance" : "faithful";
+const char* runner_execution_model_arg(bool online_play = false) {
+    return kNativePerformance && !online_play ? "performance" : "faithful";
 }
 
 #ifdef _WIN32
@@ -42,8 +52,8 @@ const char* runner_execution_model_arg() {
 struct ScopedNativeEnv {
     struct Previous {std::wstring name,value;bool present;};
     std::vector<Previous> previous;
-    ScopedNativeEnv() {
-        if(!kNativePerformance)return;
+    explicit ScopedNativeEnv(bool enabled = true) {
+        if(!kNativePerformance || !enabled)return;
         for(const auto& setting:std::initializer_list<std::pair<const wchar_t*,const wchar_t*>>{
             {L"NDS_ARM9_DIRECT_READS",L"1"},{L"NDS_ARM9_BATCH_WRITES",L"1"},
             {L"NDS_ARM9_LONG_BLOCKS",L"0"},{L"NDS_ARM9_DATA_HANDOFFS",L"0"},
@@ -71,6 +81,8 @@ constexpr bool kNativeGlPreview = false;
 #endif
 
 struct ModState {
+    bool online_play = !kNativePerformance;
+    bool online_play_has_choice = false;
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
     // Owner-selected HD default. internal_resolution
@@ -182,6 +194,29 @@ struct ModState {
     std::filesystem::path settings_path;
     std::string last_error;
 };
+
+bool use_native_runner(const ModState& mods) {
+    return kNativePerformance && !mods.online_play;
+}
+const char* runner_filename_arg(const ModState& mods) {
+    return kNativePerformance && !use_native_runner(mods)
+        ? "nds_runner_lle.exe" : NDS_RUNNER_FILENAME;
+}
+
+const char* runner_files_error(const std::filesystem::path& directory,
+                              const ModState& mods) {
+    if (!std::filesystem::is_regular_file(directory / runner_filename_arg(mods))) {
+        if (std::strcmp(runner_filename_arg(mods), "nds_runner_lle.exe") == 0)
+            return "The Reference engine is missing. Build the reference executable "
+                   "for this checkout or re-extract the complete release ZIP.";
+        return "The game engine is missing. Build this checkout or re-extract "
+               "the complete release ZIP.";
+    }
+    if (!std::filesystem::is_regular_file(directory / "game.toml"))
+        return "The game configuration is missing. Re-extract the complete release ZIP.";
+    return nullptr;
+}
+
 
 struct HdChoice {
     int value;
@@ -639,6 +674,9 @@ void load_mod_state(ModState& state) {
             const long parsed = std::strtol(value.c_str(), &end, 10);
             if (end && *end == '\0' && parsed >= 0)
                 settings_version = static_cast<int>(parsed);
+        } else if (key == "wireless_online_play") {
+            state.online_play = value == "true";
+            state.online_play_has_choice = true;
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
         } else if (key == "widescreen_mode") {
@@ -678,7 +716,7 @@ void load_mod_state(ModState& state) {
         } else if (key == "display_layout") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
-            if (end && *end == 0 && parsed >= 0 && parsed <= 1)
+            if (end && *end == 0 && parsed >= 0 && parsed < nds_launcher_screen_layout_count(kPipCapabilities))
                 state.display_layout = static_cast<int>(parsed);
         } else if (key == "fullscreen") {
             char* end = nullptr;
@@ -819,8 +857,10 @@ bool save_mod_state(ModState& state) {
             state.last_error = "Could not write launcher mod settings.";
             return false;
         }
-        file << "settings_version=12\n"
-             << "adaptive_widescreen="
+        file << "settings_version=13\n";
+        if (state.online_play_has_choice)
+            file << "wireless_online_play=" << (state.online_play ? "true" : "false") << '\n';
+        file << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "widescreen_mode=" << widescreen_choice(state).value << '\n'
              << "hd_rendering="
@@ -896,15 +936,29 @@ bool save_mod_state(ModState& state) {
 // card (GameInfo.has_player_name + the NDS profile's "identity" panel),
 // directly under the controller card.
 int mod_feature_count(void*) {
-    return 5;
+    return 6;
 }
 
 int mod_feature_get(void* context, int index,
                     RecompLauncherCModFeature* output) {
-    if (!context || !output || index < 0 || index > 4) return 0;
+    if (!context || !output || index < 0 || index >= mod_feature_count(context)) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
-    if (index == 0) {
+    if (index == 5) {
+        copy_text(output->id, "wireless-online-play");
+        copy_text(output->package_id, "mph-connectivity");
+        copy_text(output->package_version, "0.1.0");
+        copy_text(output->package_name, "Connectivity");
+        copy_text(output->name, "Wireless & online play");
+        copy_text(output->author, "ndsrecomp");
+        copy_text(output->description,
+            "Enables wireless multiplayer and Nintendo WFC through Wiimmfi using "
+            "the Reference engine. Turn off for faster offline play. Restart "
+            "the game after changing this setting.");
+        copy_text(output->group, "Connectivity");
+        copy_text(output->status, state->online_play ? "Enabled - Reference engine" : "Offline");
+        output->enabled = state->online_play;
+    } else if (index == 0) {
         copy_text(output->id, "widescreen");
         copy_text(output->package_id, "mph-widescreen");
         copy_text(output->package_version, "0.1.0");
@@ -1011,6 +1065,12 @@ int mod_feature_enable(void* context, const char* package_id,
                        const char* feature_id, int enabled) {
     if (!context || !package_id || !feature_id) return 0;
     auto* state = static_cast<ModState*>(context);
+    if (std::strcmp(package_id, "mph-connectivity") == 0 &&
+        std::strcmp(feature_id, "wireless-online-play") == 0) {
+        state->online_play = enabled != 0;
+        state->online_play_has_choice = true;
+        return 1;
+    }
     if (is_widescreen_feature(package_id, feature_id)) {
         state->adaptive_widescreen = enabled != 0;
         if (state->adaptive_widescreen &&
@@ -1806,7 +1866,7 @@ void show_launch_error(const char* message) {
 }
 
 const char* runner_screen_layout_arg(int display_layout) {
-    return display_layout == 1 ? "separate" : "stacked";
+    return nds_launcher_screen_layout_arg(display_layout);
 }
 
 const char* runner_fullscreen_arg(int fullscreen) {
@@ -1852,23 +1912,16 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         data_dir = std::filesystem::absolute(env);
 #endif
 
-#ifdef _WIN32
-    const std::filesystem::path runner = game_dir / "nds_runner.exe";
-#else
-    const std::filesystem::path runner = game_dir / "nds_runner";
-#endif
+    const std::filesystem::path runner = game_dir /
+        runner_filename_arg(mods);
     const std::filesystem::path config = game_dir / "game.toml";
 
-    if (!std::filesystem::is_regular_file(runner) ||
-        !std::filesystem::is_regular_file(config)) {
+    if (const char* error = runner_files_error(game_dir, mods)) {
 #ifdef _WIN32
-        MessageBoxW(nullptr,
-            L"The release is incomplete: nds_runner.exe or game.toml is "
-            L"missing. Re-extract the full release ZIP.",
+        MessageBoxW(nullptr, widen(error).c_str(),
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
 #else
-        std::fprintf(stderr,
-            "The release is incomplete: nds_runner or game.toml is missing.\n");
+        std::fprintf(stderr, "%s\n", error);
 #endif
         return false;
     }
@@ -1954,14 +2007,16 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         // presents two white windows to a player. Direct cartridge boot uses
         // the same mutable firmware image (identity, WFC settings, updates)
         // while entering the title deterministically.
-        L" --startup-mode automatic --boot direct" +
-        // The runner's own default keeps networking OFF (probe/CI safety);
-        // a player launching through the UI expects Nintendo WFC to work,
-        // so the launcher turns it on and points it at Wiimmfi.
-        L" --network on --wfc on --wfc-provider wiimmfi";
+        L" --startup-mode automatic --boot direct";
+
+    append_arg(command, L"--network", mods.online_play ? L"on" : L"off");
+    append_arg(command, L"--wfc", mods.online_play ? L"on" : L"off");
+    append_arg(command, L"--wfc-provider", L"wiimmfi");
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
-    append_arg(command, L"--execution-model", widen(runner_execution_model_arg()));
+    append_arg(command, L"--pip-corner", widen(nds_launcher_pip_corner_arg(display_layout)));
+    append_arg(command, L"--pip-main-screen", widen(nds_launcher_pip_main_arg(display_layout,kPipCapabilities)));
+    append_arg(command, L"--execution-model", widen(runner_execution_model_arg(mods.online_play)));
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
     append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
@@ -1983,7 +2038,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_live_overlay_args(command, game_dir);
 
     ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
-    ScopedNativeEnv native_env;
+    ScopedNativeEnv native_env(!mods.online_play);
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
@@ -2011,6 +2066,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--config", config.string());
     append_arg(args, "--screen-layout",
                runner_screen_layout_arg(display_layout));
+    append_arg(args, "--pip-corner", nds_launcher_pip_corner_arg(display_layout));
+    append_arg(args, "--pip-main-screen", nds_launcher_pip_main_arg(display_layout,kPipCapabilities));
     append_arg(args, "--fullscreen", runner_fullscreen_arg(fullscreen));
     append_arg(args, "--adaptive-widescreen", adaptive ? "top" : "none");
     if (const int width = runner_widescreen_width_arg(mods); width > 0)
@@ -2043,8 +2100,8 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                std::to_string(mods.pad_aim_sensitivity));
     append_arg(args, "--startup-mode", "automatic");
     append_arg(args, "--boot", "direct");
-    append_arg(args, "--network", "on");
-    append_arg(args, "--wfc", "on");
+    append_arg(args, "--network", mods.online_play ? "on" : "off");
+    append_arg(args, "--wfc", mods.online_play ? "on" : "off");
     append_arg(args, "--wfc-provider", "wiimmfi");
     append_arg(args, "--firmware-state-path", firmware_state.string());
     append_arg(args, "--diagnostics", mods.diagnostics ? "on" : "off");
@@ -2167,10 +2224,7 @@ int main(int argc, char** argv) {
     static const char* const sha1[] = {
         "90164d1ac127ee5f9815ea4ae7de798c7b5fc629",
     };
-    static const char* const display_layouts[] = {
-        "Stacked window",
-        "Separate windows",
-    };
+
     static const char* const renderer_labels[] = {
         "Auto",
         "OpenGL",
@@ -2241,8 +2295,8 @@ int main(int argc, char** argv) {
     game.num_renderers = std::size(renderer_labels);
     game.lock_device = 0;
     game.hide_rebind = 0;
-    game.display_layout_labels = display_layouts;
-    game.num_display_layouts = std::size(display_layouts);
+    game.display_layout_labels = kNdsScreenLayoutLabels;
+    game.num_display_layouts = nds_launcher_screen_layout_count(kPipCapabilities);
     game.mods = &mod_provider;
     game.bios_verify = nds_bios_verify;
     game.persist_setup = nds_persist_setup;

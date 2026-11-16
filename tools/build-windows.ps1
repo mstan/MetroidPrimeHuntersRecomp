@@ -1,7 +1,7 @@
 <#
 Build and package the Metroid Prime Hunters Recomp Windows release.
 
-This script builds the title banks, the sibling ndsrecomp runner, and the
+This script builds the title banks, the pinned ndsrecomp submodule runner, and the
 Windows recomp-ui launcher, then stages a portable ZIP with tools\make_release.ps1.
 It does not publish a release.
 
@@ -10,23 +10,32 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.7.13',
+  [string]$Version = '0.7.16',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
   [string]$GameBuildDir = 'build-release',
-  [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
+  [string]$RunnerBuildDir = 'ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
+  [string]$RunnerFilename = 'nds_runner.exe',
+  [string]$ReferenceRunnerBuildDir = '',
+  [string]$ReferenceLauncherBuildDir = '',
+  [switch]$SkipPackage,
+  [ValidateSet('REFERENCE', 'NATIVE')][string]$Geometry = 'NATIVE',
+  [ValidateSet('ON', 'OFF')][string]$ObservationService = 'ON',
+  [ValidateSet('ON', 'OFF')][string]$OfflineArm7 = 'ON',
+  # Qualified whole-file asset service; the reference build below forces OFF.
+  [ValidateSet('ON', 'OFF')][string]$WholeAssets = 'ON',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
-  [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$NdsrecompRoot = 'ndsrecomp',
   [string]$RecompilerBuildDir = 'recompiler\build',
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
-  # Developer build choice; there is no player-facing runtime switch.
+  # Match the retained, qualified math HLE in the enhanced package.
   [ValidateSet('HLE', 'LLE')]
   [string]$MathImplementation = 'HLE',
-  # Preview includes the measured submission implementation; LLE stays available.
+  # Match the retained, qualified submission HLE in the enhanced package.
   [ValidateSet('HLE', 'LLE')]
   [string]$SubmitImplementation = 'HLE',
   [ValidateSet('ON', 'OFF')]
@@ -37,7 +46,7 @@ param(
   [string]$NativeControl = 'ON',
   [ValidateSet('ON', 'OFF')]
   [string]$NativePreciseWrites = 'ON',
-  # Pinned SDK source with runner/cmake/dynarmic-readonly-pages.patch applied.
+  # Isolated SDK source prepared with the matching engine docs/dynarmic-sdk.md recipe.
   [string]$DynarmicRoot = '',
   [ValidateSet('OPENGL', 'COMPUTE')]
   [string]$AcceleratedRenderer = 'OPENGL',
@@ -64,11 +73,18 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $SkipPackage -and $PerformanceBackend -eq 'ON' -and
+    (-not $ReferenceRunnerBuildDir -or -not $ReferenceLauncherBuildDir)) {
+  throw 'Enhanced packages require both reference build directories. Use -SkipPackage to build artifacts only.'
+}
+
 if ($PerformanceBackend -eq 'ON' -and -not $DynarmicRoot) {
-  throw 'Performance requires -DynarmicRoot <patched pinned SDK source>. Use -PerformanceBackend OFF for the portable Faithful build.'
+  throw 'Performance requires -DynarmicRoot <SDK prepared using the matching engine docs/dynarmic-sdk.md>. Use -PerformanceBackend OFF for the portable Faithful build.'
 }
 if ($PerformanceBackend -eq 'OFF') {
   $DynarmicRoot = ''; $Arm7Native = 'OFF'; $NativeControl = 'OFF'
+  $Geometry = 'REFERENCE'; $ObservationService = 'OFF'; $OfflineArm7 = 'OFF'; $WholeAssets = 'OFF'
+  $MathImplementation = 'LLE'; $SubmitImplementation = 'LLE'
 }
 $root = Split-Path -Parent $PSScriptRoot
 $cmakePath = [IO.Path]::GetFullPath($CMake)
@@ -108,11 +124,21 @@ try {
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",
+    "-DNDS_3D_GEOMETRY=$Geometry",
+    '-DNDS_MKDS_MODEL_IMPLEMENTATION=LLE',
+    "-DNDS_ARM9_OBSERVATION_SERVICE=$ObservationService",
+    "-DNDS_OFFLINE_ARM7=$OfflineArm7",
+    "-DNDS_WHOLE_ASSETS=$WholeAssets",
     "-DNDS_MPH_PERFORMANCE=$PerformanceBackend",
+    '-DNDS_MKDS_PERFORMANCE=OFF',
+    '-DNDS_MKDS_IMPLEMENTATION=LLE',
+    '-DNDS_MKDS_STREAM_IMPLEMENTATION=LLE',
+    '-DNDS_MKDS_CARD_PIO_IMPLEMENTATION=LLE',
     "-DNDS_ARM9_DYNARMIC_ROOT=$DynarmicRoot",
     "-DNDS_ARM7_NATIVE=$Arm7Native",
     "-DNDS_NATIVE_CONTROL=$NativeControl",
     "-DNDS_NATIVE_PRECISE_WRITES=$NativePreciseWrites",
+    '-DNDS_NATIVE_PUBLISHED_STORES=OFF',
     '-DNDS_GX_COMMAND_CACHE=ON',
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
     "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",
@@ -173,28 +199,34 @@ try {
     -DNDSRECOMP_ROOT="$frameworkRoot" `
     -DRECOMP_UI_ROOT="$RecompUiRoot" `
     "-DMPH_LAUNCHER_SDL_BACKEND=$SdlBackend" `
-    "-DMPH_NATIVE_GL_PREVIEW=$($AcceleratedRenderer -eq 'OPENGL')" `
+    "-DMPH_NATIVE_GL_PREVIEW=$($PerformanceBackend -eq 'ON' -and $AcceleratedRenderer -eq 'OPENGL')" `
     "-DMPH_NATIVE_PERFORMANCE=$PerformanceBackend" `
+    "-DNDS_RUNNER_FILENAME=$RunnerFilename" `
     -DCMAKE_PREFIX_PATH="$RuntimeBinDir\..\lib\cmake"
   if ($LASTEXITCODE -ne 0) { throw 'Launcher CMake configure failed.' }
   & $cmakePath --build $launcherBuild -j $Jobs
   if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed.' }
 
-  & "$root\tools\make_release.ps1" `
-    -Version $Version `
-    -RunnerBuildDir $RunnerBuildDir `
-    -LauncherBuildDir $LauncherBuildDir `
-    -RuntimeBinDir $RuntimeBinDir `
-    -NdsrecompRoot $NdsrecompRoot `
-    -RecompilerBuildDir $RecompilerBuildDir `
-    -RecompUiRoot $RecompUiRoot `
-    -SdlBackend $SdlBackend `
-    -ShardCacheDir $ShardCacheDir `
-    -ShardPerformanceGate $ShardPerformanceGate `
-    -StageForShardPerformanceGate:$StageForShardPerformanceGate `
-    -Gcc $Gcc `
-    -PythonExe $PythonExe `
-    -AllowNoShardCache:$AllowNoShardCache
+  if (-not $SkipPackage) {
+    & "$root\tools\make_release.ps1" `
+      -Version $Version `
+      -RunnerBuildDir $RunnerBuildDir `
+      -LauncherBuildDir $LauncherBuildDir `
+      -ReferenceRunnerBuildDir $ReferenceRunnerBuildDir `
+      -ReferenceLauncherBuildDir $ReferenceLauncherBuildDir `
+      -RuntimeBinDir $RuntimeBinDir `
+      -NdsrecompRoot $NdsrecompRoot `
+      -RecompilerBuildDir $RecompilerBuildDir `
+      -RecompUiRoot $RecompUiRoot `
+      -SdlBackend $SdlBackend `
+      -ShardCacheDir $ShardCacheDir `
+      -ShardPerformanceGate $ShardPerformanceGate `
+      -StageForShardPerformanceGate:$StageForShardPerformanceGate `
+      -Gcc $Gcc `
+      -PythonExe $PythonExe `
+      -AllowNoShardCache:$AllowNoShardCache
+    if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed.' }
+  }
 } finally {
   Pop-Location
 }

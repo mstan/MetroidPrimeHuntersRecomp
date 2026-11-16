@@ -1,13 +1,12 @@
-Metroid Prime Hunters Recomp v0.7.15-alpha - source and build notes
-=================================================================
+Metroid Prime Hunters Recomp v0.7.16-alpha - source and build notes
+================================================================
 
 Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
-Declared matching release ref: v0.7.15-alpha.
-The matching release tag contains the title, launcher and packaging sources.
+Matching release ref: v0.7.16-alpha.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
-    Quality-only source at 5f6ee5c4c9fd6df76c91aeb72093bd8d10dd0fe2
+    555df21ce87b41eda583f441b30c88f71c563e21
   Shared UI: https://github.com/RetroPortingToolKit/recomp-ui
     a8e6d5e6e673fa34db9104cc10c574c54c68082b
   ARM core: the engine's external/arm-recomp-core submodule
@@ -21,66 +20,59 @@ notices. Other components retain their respective licenses.
 
 Native SDK source: https://github.com/lioncash/dynarmic at
   a41c380246d3d9f9874f0f792d234dc0cc17c180
-Apply the four patches tracked in the selected engine's runner/cmake, in order:
+Apply the selected engine's runner/cmake patches in this order:
   dynarmic-readonly-pages.patch
   dynarmic-cold-register-allocation.patch
   dynarmic-prepared-blocks.patch
-  dynarmic-published-stores.patch
-Use this patched source as NDS_ARM9_DYNARMIC_ROOT. The release compiles
-this source and patchset locally; dependency notices are included.
+  dynarmic-observation-callbacks.patch
+Follow the selected engine docs/dynarmic-sdk.md for the public reproducible
+recipe, expected patched tree and feature/ABI checks. Pass that isolated source
+explicitly as -DynarmicRoot; no private commit is required. Published stores
+remain OFF for this profile. Dependency notices ship with the package; the SDK
+is absent from the separate Reference build.
 
 Build requirements: Windows x64 MinGW-w64 GCC 15.2, CMake/Ninja, SDL and Python,
 plus your own supported cartridge dump. Generate title/system banks with the
-title tools and the engine bios/ instructions. Retail ROM or BIOS/firmware
-dumps, saves, private captured pages and generated title C are not distributed.
-For your own build omit NDS_PREBUILT_BANK_ARCHIVE and compile locally generated
-banks. The release retains verified O2 title banks; it does not select bank O3.
+title tools and engine bios/ instructions. ROMs, BIOS/firmware dumps, saves,
+private captures and generated title C are not distributed. Omit
+NDS_PREBUILT_BANK_ARCHIVE when compiling your own generated banks.
 
-Selected Windows native runner profile (engine runner/CMakeLists.txt):
+Enhanced offline runner profile:
   CMAKE_BUILD_TYPE=Release; NDS_SDL_BACKEND=SDL3
   NDS_ACCELERATED_RENDERER=OPENGL; NDS_ENABLE_COMPUTE_RENDERER=ON
-  NDS_CORE_IPO=OFF; NDS_PGO_MODE=OFF
+  NDS_3D_GEOMETRY=NATIVE; NDS_ARM9_OBSERVATION_SERVICE=ON
+  NDS_OFFLINE_ARM7=ON; NDS_WHOLE_ASSETS=ON; NDS_NATIVE_PUBLISHED_STORES=OFF
   NDS_MPH_PERFORMANCE=ON
   NDS_MPH_MATH_IMPLEMENTATION=HLE; NDS_MPH_SUBMIT_IMPLEMENTATION=HLE
-  NDS_ARM7_NATIVE=ON; NDS_NATIVE_CONTROL=ON
-  NDS_NATIVE_PRECISE_WRITES=ON; NDS_NATIVE_PUBLISHED_STORES=ON
-  NDS_MKDS_PERFORMANCE=OFF; NDS_MKDS_IMPLEMENTATION=LLE
-  NDS_MKDS_STREAM_IMPLEMENTATION=LLE; NDS_MKDS_CARD_PIO_IMPLEMENTATION=LLE
   NDS_GX_COMMAND_CACHE=ON; NDS_BOOTSTRAP_FIRMWARE=ON
-  NDS_CAPTURE_VIEW_REUSE=ON; NDS_LEAN_DIAGNOSTICS=ON
-  NDS_TITLE_VERSION=v0.7.15-alpha
   NDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
-  NDS_TITLE_BANK_DIR=<your generated title banks>
-  NDS_RECOMP_UI_ROOT=<shared UI source above>
-The selected O2 bank archive SHA-256 is
-ee36ba31bda670612de6372324eea1f236450c6840acb69838fb723030fa9f89.
-MPH remains serial; the MKDS CPU/render handoff profile is not admitted.
 
-Use tools/build-windows.ps1 -Version 0.7.15 -PerformanceBackend ON
--DynarmicRoot <patched SDK> for the supported generation/build pipeline,
-with the explicit runner CMake profile above. The portable reference remains
-available with PerformanceBackend OFF and the retained LLE service choices.
-Build launcher/recomp-ui with NDSRECOMP_ROOT=<selected engine>,
-RECOMP_UI_ROOT=<selected UI>, MPH_LAUNCHER_SDL_BACKEND=SDL3,
-MPH_NATIVE_PERFORMANCE=ON and MPH_NATIVE_GL_PREVIEW=ON.
+Use tools/build-windows.ps1 -Version 0.7.16 -PerformanceBackend ON
+-DynarmicRoot <SDK prepared using docs/dynarmic-sdk.md> with the matching engine/UI sources.
+Build the separate Reference runner with -PerformanceBackend OFF; that forces
+SDK, native geometry, ARM9 observation, native ARM7, whole-assets and title HLE
+off. Its launcher uses NDS_RUNNER_FILENAME=nds_runner_lle.exe and native flags
+OFF. The enhanced launcher uses the default runner filename and native flags ON.
+Use -SkipPackage when building artifacts separately; then pass both enhanced
+and Reference runner/launcher directories to tools/make_release.ps1.
 
-Build the selected engine's recompiler for the bundled overlay toolchain.
-tools/make_release.ps1 -Version 0.7.15 -RunnerBuildDir <runner>
--LauncherBuildDir <launcher> -NdsrecompRoot <engine> -RecompUiRoot <UI>
--RecompilerBuildDir recompiler/build -ShardCacheDir <compatible cache>
--SdlBackend SDL3 packages the full toolchain and compatible native shard cache.
-Do not use SkipOverlayToolchain or AllowNoShardCache for this release.
-The selected recompiler uses codegen v3; the cache provider identity is
-9111767316e24b622941, with 7 GCC shards. The package includes the pinned
-CPython 3.13.1/TCC0.9.27 toolchain, runtime headers and dependency notices.
+Wireless & online play is available in Mods. Enhanced profiles default offline;
+enabling connectivity selects the included Reference engine. Both engines
+share ROM selection, firmware, cartridge saves and launcher preferences.
+Graphics retain adaptive Fit to screen and the selected quality controls.
+Save states are build-specific; native in-game save progress is preserved.
+Online interoperability remains experimental.
 
-Graphics default to 4x internal 3D resolution and 8-sample supersample AA.
-Experimental 6x, 8x and 12x scales are selectable. Adaptive widescreen HUD
-backgrounds extend their original seam pixels while retaining instruments.
-Native-aspect HUD mapping is unchanged.
-Native resolution, AA Off and Software remain selectable. Prime/stylus/device
-settings are preserved. Save states are build-specific; native in-game save
-progress is a separate preserved contract. Online play remains experimental.
-
-TinyCC 0.9.27 source: https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27.tar.bz2
+The package intentionally omits old prebuilt shard caches. The matching
+embedded CPython 3.13.1/TinyCC 0.9.27/recompiler provider, runtime headers and
+dependency notices are bundled. Package with -AllowNoShardCache and do not
+use -SkipOverlayToolchain. Player-generated cache state remains private.
+TinyCC source: https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27.tar.bz2
 Its full matching COPYING is included beside the bundled compiler.
+
+Bundled live-overlay recompiler is the retained separately qualified tool from
+engine source 85811e5776e4c2bcbfac132a19164fb5f4e9aeff, codegen identity
+nds-codegen-v3. Its executable SHA-256 is
+c3afd4279572be5802f6f125a8e4bf7dadc8beb8ad8342bb801fcd0eb8c42639.
+It uses the matching runtime_arm.h shipped alongside it; the later engine
+merge does not change that runtime interface or regenerate title banks.

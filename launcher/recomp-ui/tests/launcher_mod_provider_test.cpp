@@ -13,6 +13,10 @@ bool require(bool condition, const char* label) {
 }  // namespace
 
 int main() {
+    if (!require(!kPipCapabilities.swap_main && nds_launcher_screen_layout_count(kPipCapabilities)==6 &&
+            std::strcmp(nds_launcher_pip_corner_arg(2),"bottom-right")==0 &&
+            std::strcmp(nds_launcher_pip_main_arg(9,kPipCapabilities),"top")==0,
+            "PiP defaults bottom-right and never exposes swapped title layouts")) return 251;
     if (!require(std::strcmp(runner_execution_model_arg(),
                             kNativePerformance ? "performance" : "faithful") == 0,
                  "build-selected execution model")) return 96;
@@ -128,7 +132,7 @@ int main() {
     // card, not a mod. Index 1 stays prime controls so the assertions below
     // are unaffected by HD rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 5, "feature_count == 5")) return 4;
+    if (!require(feature_count == 6, "feature_count == 6")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 0, &feature),
@@ -511,8 +515,8 @@ int main() {
 
     // The online identity is NOT a mod feature: it lives on the dashboard
     // ONLINE card (GameInfo.has_player_name + the NDS "identity" panel).
-    // Five Mods-page features remain; index 5 must not resolve.
-    if (!require(!provider.feature_get(provider.ctx, 5, &feature),
+    // Six Mods-page features remain; index 6 must not resolve.
+    if (!require(!provider.feature_get(provider.ctx, 6, &feature),
                  "exactly five mod features (identity is not a mod)")) {
         return 37;
     }
@@ -924,6 +928,11 @@ int main() {
                      "changed window scale captured")) return 115;
         if (!require(loaded.display_layout == 1,
                      "changed display layout captured")) return 116;
+        ModState pip_saved=loaded;pip_saved.display_layout=5;
+        if(!require(save_mod_state(pip_saved),"PiP corner saved"))return 252;
+        ModState pip_loaded{};pip_loaded.settings_path=settings_path;load_mod_state(pip_loaded);
+        if(!require(pip_loaded.display_layout==5,"PiP corner survives launcher restart"))return 253;
+        if(!require(save_mod_state(loaded),"restore separate-layout fixture"))return 254;
         if (!require(loaded.fullscreen == 1,
                      "changed fullscreen captured")) return 117;
         if (!require(!loaded.linear_filter,
@@ -1235,5 +1244,62 @@ int main() {
     }
 #endif
 
+    {
+        ModState connectivity;
+        if (!require(connectivity.online_play == !kNativePerformance,
+                     "enhanced defaults offline and reference defaults online")) return 180;
+        connectivity.online_play = false;
+        if (!require(use_native_runner(connectivity) == kNativePerformance,
+                     "offline selection uses the build's execution profile")) return 181;
+        connectivity.online_play = true;
+        if (!require(!use_native_runner(connectivity) &&
+                     std::strcmp(runner_filename_arg(connectivity),
+                       kNativePerformance ? "nds_runner_lle.exe" : NDS_RUNNER_FILENAME) == 0 &&
+                     std::strcmp(runner_execution_model_arg(true), "faithful") == 0,
+                     "wireless and online selection uses the true reference runner")) return 182;
+        const auto directory = std::filesystem::temp_directory_path() / "mph-connectivity-test";
+        {
+            ModState reference_defaults;
+            reference_defaults.online_play = true;
+            reference_defaults.settings_path = directory / "implicit-reference.ini";
+            if (!require(save_mod_state(reference_defaults), "implicit Reference defaults save")) return 188;
+            std::ifstream implicit(reference_defaults.settings_path);
+            const std::string saved((std::istreambuf_iterator<char>(implicit)), {});
+            if (!require(saved.find("wireless_online_play=") == std::string::npos,
+                         "opening Reference does not persist its implicit connectivity default")) return 189;
+            ModState enhanced_defaults;
+            enhanced_defaults.online_play = false;
+            enhanced_defaults.settings_path = reference_defaults.settings_path;
+            load_mod_state(enhanced_defaults);
+            if (!require(!enhanced_defaults.online_play && !enhanced_defaults.online_play_has_choice,
+                         "next enhanced launch retains offline default without an explicit choice")) return 190;
+            implicit.close();
+            std::filesystem::remove(reference_defaults.settings_path);
+        }
+        connectivity.settings_path = directory / "mods.ini";
+        auto connectivity_provider = make_mod_provider(&connectivity);
+        connectivity_provider.feature_enable(connectivity_provider.ctx, "mph-connectivity", "wireless-online-play", 1);
+        if (!require(save_mod_state(connectivity), "online choice saves")) return 183;
+        ModState restored; restored.settings_path = connectivity.settings_path;
+        load_mod_state(restored);
+        if (!require(restored.online_play && restored.online_play_has_choice, "explicit online choice survives restart")) return 184;
+        connectivity_provider.feature_enable(connectivity_provider.ctx, "mph-connectivity", "wireless-online-play", 0);
+        if (!require(save_mod_state(connectivity), "offline choice saves")) return 185;
+        load_mod_state(restored);
+        if (!require(!restored.online_play && restored.online_play_has_choice, "explicit offline choice survives restart")) return 186;
+        const auto engines = directory / "engines";
+        std::filesystem::create_directories(engines);
+        std::ofstream(engines / "nds_runner.exe").put('x');
+        std::ofstream(engines / "game.toml").put('x');
+        connectivity.online_play = true;
+        const char* error = runner_files_error(engines, connectivity);
+        if (!require(error && std::strstr(error, "Reference engine is missing"),
+                     "missing reference reports a friendly error without using enhanced binary")) return 187;
+        std::filesystem::remove(engines / "nds_runner.exe");
+        std::filesystem::remove(engines / "game.toml");
+        std::filesystem::remove(engines);
+        std::filesystem::remove(connectivity.settings_path);
+        std::filesystem::remove(directory);
+    }
     return 0;
 }

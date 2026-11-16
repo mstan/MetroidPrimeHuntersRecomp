@@ -10,19 +10,22 @@ BIOS/firmware, saves, raw captures, and generated source are never staged.
 Build the runner and launcher first, then run:
 
   powershell -File tools\make_release.ps1 -Version 0.1.0 `
-    -RunnerBuildDir ..\ndsrecomp\runner\build-mph-release `
+    -RunnerBuildDir ndsrecomp\runner\build-mph-release `
     -LauncherBuildDir launcher\recomp-ui\build-release
 #>
 param(
   [Parameter(Mandatory = $true)][string]$Version,
-  [string]$RunnerBuildDir = '..\ndsrecomp\runner\build-mph-release',
+  [string]$RunnerBuildDir = 'ndsrecomp\runner\build-mph-release',
   [string]$LauncherBuildDir = 'launcher\recomp-ui\build-release',
+  # Optional paired inputs for the separately compiled faithful launcher/runner.
+  [string]$ReferenceRunnerBuildDir = '',
+  [string]$ReferenceLauncherBuildDir = '',
   [string]$RuntimeBinDir = 'C:\msys64\mingw64\bin',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
   # Inputs for the bundled live-overlay (tcc) toolchain. $NdsrecompRoot is
   # relative to the repo root; $RecompilerBuildDir is relative to that.
-  [string]$NdsrecompRoot = '..\ndsrecomp',
+  [string]$NdsrecompRoot = 'ndsrecomp',
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [string]$RecompilerBuildDir = 'recompiler\build',
   [switch]$SkipOverlayToolchain,
@@ -63,11 +66,48 @@ $launcherBuild = Resolve-UnderRoot $LauncherBuildDir $root
 $runner = Join-Path $runnerBuild 'nds_runner.exe'
 $launcher = Join-Path $launcherBuild 'mph-recomp-ui.exe'
 $assets = Join-Path $launcherBuild 'assets'
+$referenceRunner = ''
+$referenceLauncher = ''
+if ([bool]$ReferenceRunnerBuildDir -ne [bool]$ReferenceLauncherBuildDir) {
+  throw 'ReferenceRunnerBuildDir and ReferenceLauncherBuildDir must be supplied together.'
+}
+if ($ReferenceRunnerBuildDir) {
+  $referenceRunner = Join-Path (Resolve-UnderRoot $ReferenceRunnerBuildDir $root) 'nds_runner.exe'
+  $referenceLauncher = Join-Path (Resolve-UnderRoot $ReferenceLauncherBuildDir $root) 'mph-recomp-ui.exe'
+  foreach ($requiredReference in @($referenceRunner, $referenceLauncher)) {
+    if (-not (Test-Path -LiteralPath $requiredReference -PathType Leaf)) {
+      throw "Reference release input missing: $requiredReference"
+    }
+  }
+  $referenceLauncherText = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($referenceLauncher))
+  if (-not $referenceLauncherText.Contains('nds_runner_lle.exe')) {
+    throw 'Reference launcher must be built with NDS_RUNNER_FILENAME=nds_runner_lle.exe.'
+  }
+  if ((Get-FileHash -LiteralPath $referenceRunner -Algorithm SHA256).Hash -eq
+      (Get-FileHash -LiteralPath $runner -Algorithm SHA256).Hash) {
+    throw 'Reference runner must be a separately built faithful executable.'
+  }
+}
+
 
 foreach ($required in @($runner, $launcher, $assets)) {
   if (-not (Test-Path -LiteralPath $required)) {
     throw "Release input missing: $required"
   }
+}
+
+$frameworkForPin = Resolve-UnderRoot $NdsrecompRoot $root
+$frameworkPinMatch = [regex]::Match(
+  (Get-Content -LiteralPath (Join-Path $root 'game.toml') -Raw),
+  '(?m)^\s*pin\s*=\s*"([0-9a-f]{40})"\s*$')
+if (-not $frameworkPinMatch.Success) { throw 'Missing ndsrecomp framework pin.' }
+$frameworkPin = $frameworkPinMatch.Groups[1].Value
+$indexedFramework = (git -C $root rev-parse ':ndsrecomp').Trim()
+if ($LASTEXITCODE -ne 0) { throw 'The ndsrecomp engine submodule is not pinned.' }
+$checkedFramework = (git -C $frameworkForPin rev-parse HEAD).Trim()
+if ($LASTEXITCODE -ne 0 -or $indexedFramework -ne $frameworkPin -or
+    $checkedFramework -ne $frameworkPin) {
+  throw 'The engine checkout and submodule must match the game.toml release pin.'
 }
 
 # A runner missing generated banks is functional but slow: the FMV bank
@@ -89,6 +129,9 @@ foreach ($required in @($runner, $launcher, $assets)) {
 $root = Split-Path -Parent $PSScriptRoot
 $runner = Join-Path (Resolve-UnderRoot $RunnerBuildDir $root) 'nds_runner.exe'
 $bankInventory = Test-MphBankInventory -Runner $runner -RepoRoot $root
+if ($referenceRunner) {
+  $null = Test-MphBankInventory -Runner $referenceRunner -RepoRoot $root
+}
 
 $projectText = Get-Content (Join-Path $root 'CMakeLists.txt') -Raw
 if ($projectText -notmatch
@@ -123,6 +166,16 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'bios') -Force |
 Copy-Item -LiteralPath $launcher `
   -Destination (Join-Path $stage 'MetroidPrimeHuntersRecomp.exe')
 Copy-Item -LiteralPath $runner -Destination $stage
+if ($referenceRunner) {
+  Copy-Item -LiteralPath $referenceRunner -Destination (Join-Path $stage 'nds_runner_lle.exe')
+  Copy-Item -LiteralPath $referenceLauncher -Destination (Join-Path $stage 'Metroid Prime Hunters (Reference).exe')
+  [ordered]@{
+    runner_filename = 'nds_runner_lle.exe'
+    runner_sha256 = (Get-FileHash -LiteralPath $referenceRunner -Algorithm SHA256).Hash.ToLowerInvariant()
+    launcher_sha256 = (Get-FileHash -LiteralPath $referenceLauncher -Algorithm SHA256).Hash.ToLowerInvariant()
+  } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stage 'reference-manifest.json') -Encoding UTF8
+}
+
 Copy-Item -LiteralPath $assets -Destination $stage -Recurse
 Copy-Item -LiteralPath (Join-Path $root 'game.toml') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $stage

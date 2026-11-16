@@ -13,6 +13,8 @@ sha256 = "7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855"
 # Prime Hunters uses both screens heavily. Keep them independently presentable
 # from the beginning, matching the established SM64DS host layout.
 screen_layout = "separate"
+pip_corner = "bottom-right"
+pip_allow_swap = false
 supersampling = 1
 internal_resolution = 4
 antialiasing = 8
@@ -87,8 +89,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "5f6ee5c4c9fd6df76c91aeb72093bd8d10dd0fe2"
-branch = "main"
+pin = "555df21ce87b41eda583f441b30c88f71c563e21"
+branch = "integration/nds-five-services-20261115"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

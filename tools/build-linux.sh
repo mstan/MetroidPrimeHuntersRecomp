@@ -30,7 +30,7 @@ STAGE_FOR_SHARD_PERFORMANCE_GATE=0
 PACKAGE_EXISTING=0
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/../ndsrecomp}"
+FRAMEWORK_ROOT="${NDSRECOMP_ROOT:-$REPO/ndsrecomp}"
 RECOMP_UI_ROOT="${RECOMP_UI_ROOT:-$REPO/third_party/recomp-ui}"
 FRAMEWORK_ROOT="$(cd "$FRAMEWORK_ROOT" && pwd)"
 RECOMP_UI_ROOT="$(cd "$RECOMP_UI_ROOT" && pwd)"

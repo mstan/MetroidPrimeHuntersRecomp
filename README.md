@@ -77,7 +77,7 @@ produces a 3D raster above 3840x2160 while keeping HUD layers at native DS
 resolution. These choices use more GPU time and memory; reduce the scale or
 anti-aliasing if the game slows down. The default remains 4x.
 
-Current Windows framework: `049db71cac38b6ed1a6661e93a6a279c7c2e5fee`.
+Current Windows framework: `21958aaab4cf62be627dcfee18e4bce5cb2c35f2`.
 Current shared UI: `a8e6d5e6e673fa34db9104cc10c574c54c68082b`.
 
 This is the first release line in the ndsrecomp ecosystem and it is still very

@@ -24,11 +24,12 @@ Apply the selected engine's runner/cmake patches in this order:
   dynarmic-readonly-pages.patch
   dynarmic-cold-register-allocation.patch
   dynarmic-prepared-blocks.patch
-  dynarmic-published-stores.patch
   dynarmic-observation-callbacks.patch
-The qualified patched source commit is f7afd5b4a2d25ae1c77d9e2738708be23188c6ee.
-Pass its clean checkout explicitly as -DynarmicRoot. Dependency notices ship
-with the package; the SDK is absent from the separate Reference build.
+Follow the selected engine docs/dynarmic-sdk.md for the public reproducible
+recipe, expected patched tree and feature/ABI checks. Pass that isolated source
+explicitly as -DynarmicRoot; no private commit is required. Published stores
+remain OFF for this profile. Dependency notices ship with the package; the SDK
+is absent from the separate Reference build.
 
 Build requirements: Windows x64 MinGW-w64 GCC 15.2, CMake/Ninja, SDL and Python,
 plus your own supported cartridge dump. Generate title/system banks with the
@@ -40,14 +41,14 @@ Enhanced offline runner profile:
   CMAKE_BUILD_TYPE=Release; NDS_SDL_BACKEND=SDL3
   NDS_ACCELERATED_RENDERER=OPENGL; NDS_ENABLE_COMPUTE_RENDERER=ON
   NDS_3D_GEOMETRY=NATIVE; NDS_ARM9_OBSERVATION_SERVICE=ON
-  NDS_OFFLINE_ARM7=ON; NDS_WHOLE_ASSETS=ON
+  NDS_OFFLINE_ARM7=ON; NDS_WHOLE_ASSETS=ON; NDS_NATIVE_PUBLISHED_STORES=OFF
   NDS_MPH_PERFORMANCE=ON
   NDS_MPH_MATH_IMPLEMENTATION=LLE; NDS_MPH_SUBMIT_IMPLEMENTATION=LLE
   NDS_GX_COMMAND_CACHE=ON; NDS_BOOTSTRAP_FIRMWARE=ON
   NDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
 
 Use tools/build-windows.ps1 -Version 0.7.16 -PerformanceBackend ON
--DynarmicRoot <qualified clean SDK> with the matching engine/UI sources.
+-DynarmicRoot <SDK prepared using docs/dynarmic-sdk.md> with the matching engine/UI sources.
 Build the separate Reference runner with -PerformanceBackend OFF; that forces
 SDK, native geometry, ARM9 observation, native ARM7, whole-assets and title HLE
 off. Its launcher uses NDS_RUNNER_FILENAME=nds_runner_lle.exe and native flags

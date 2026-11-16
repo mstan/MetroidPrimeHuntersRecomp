@@ -46,7 +46,7 @@ param(
   [string]$NativeControl = 'ON',
   [ValidateSet('ON', 'OFF')]
   [string]$NativePreciseWrites = 'ON',
-  # Pinned SDK source with runner/cmake/dynarmic-readonly-pages.patch applied.
+  # Isolated SDK source prepared with the matching engine docs/dynarmic-sdk.md recipe.
   [string]$DynarmicRoot = '',
   [ValidateSet('OPENGL', 'COMPUTE')]
   [string]$AcceleratedRenderer = 'OPENGL',
@@ -79,17 +79,7 @@ if (-not $SkipPackage -and $PerformanceBackend -eq 'ON' -and
 }
 
 if ($PerformanceBackend -eq 'ON' -and -not $DynarmicRoot) {
-  throw 'Performance requires -DynarmicRoot <patched pinned SDK source>. Use -PerformanceBackend OFF for the portable Faithful build.'
-}
-if ($PerformanceBackend -eq 'ON') {
-  $sdkHead = (& git -C $DynarmicRoot rev-parse HEAD 2>$null)
-  if ($LASTEXITCODE -ne 0 -or "$sdkHead".Trim() -ne 'f7afd5b4a2d25ae1c77d9e2738708be23188c6ee') {
-    throw 'Pass -DynarmicRoot pointing to the qualified SDK commit f7afd5b4a2d25ae1c77d9e2738708be23188c6ee.'
-  }
-  $sdkChanges = @(& git -C $DynarmicRoot status --porcelain 2>$null)
-  if ($LASTEXITCODE -ne 0 -or $sdkChanges.Count) {
-    throw 'The qualified SDK checkout must be clean. Use a separate checkout rather than a modified shared SDK.'
-  }
+  throw 'Performance requires -DynarmicRoot <SDK prepared using the matching engine docs/dynarmic-sdk.md>. Use -PerformanceBackend OFF for the portable Faithful build.'
 }
 if ($PerformanceBackend -eq 'OFF') {
   $DynarmicRoot = ''; $Arm7Native = 'OFF'; $NativeControl = 'OFF'
@@ -148,6 +138,7 @@ try {
     "-DNDS_ARM7_NATIVE=$Arm7Native",
     "-DNDS_NATIVE_CONTROL=$NativeControl",
     "-DNDS_NATIVE_PRECISE_WRITES=$NativePreciseWrites",
+    '-DNDS_NATIVE_PUBLISHED_STORES=OFF',
     '-DNDS_GX_COMMAND_CACHE=ON',
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
     "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",

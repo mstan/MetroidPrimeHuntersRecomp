@@ -18,19 +18,15 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
-**v0.7.14-alpha** adds an exact fixed 16:9 display choice with a matching
-adventure frustum. It corrects native OpenGL depth comparisons and keeps the
-touch window associated with the game. Current-build checkpoints correctly
-rebind the frustum after width changes and restore native geometry when
-widescreen is turned off.
+**v0.7.15-alpha** adds a Graphics control for Automatic quality and a display
+of effective 3D quality. Turning it Off restores the selected resolution and
+supersampling, with the choice retained across current-build loads and restarts.
 
-Adaptive widescreen stays enabled for fresh profiles, and explicit saved
-display choices are preserved. Windows retains its native OpenGL/HLE profile
-and 4x / 8-sample AA defaults. Linux retains its portable faithful profile.
-Exact source pins and platform build options are packaged in `SOURCE.txt`.
+Fresh profiles keep adaptive Fit to screen, and explicit saved choices remain
+unchanged. Windows retains its native OpenGL/HLE profile and Linux its faithful
+portable profile. Source/build information and dependency notices are packaged.
 
-Details: [v0.7.14-alpha](docs/RELEASE-0.7.14-alpha.md).
-MKDS's title-specific CPU backend is not enabled.
+Details: [v0.7.15-alpha](docs/RELEASE-0.7.15-alpha.md).
 
 ## Gameplay Preview
 

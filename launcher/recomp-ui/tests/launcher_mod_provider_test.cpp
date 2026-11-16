@@ -808,6 +808,7 @@ int main() {
         saved.fullscreen = 2;
         saved.linear_filter = true;
         saved.supersampling = 4;
+        saved.automatic_quality = false;
         saved.antialiasing = 8;
         saved.renderer_type = "compute";
         saved.volume = 35;
@@ -819,6 +820,8 @@ int main() {
         ModState loaded{};
         loaded.settings_path = settings_path;
         load_mod_state(loaded);
+        if (!require(!loaded.automatic_quality,
+                     "explicit automatic quality Off survives settings restart")) return 201;
         if (!require(loaded.window_scale == 5,
                      "window scale round trip")) return 101;
         if (!require(loaded.display_layout == 0,
@@ -852,6 +855,8 @@ int main() {
         applied.volume = 100;
         applied.player_src[0] = 2;
         apply_saved_launcher_settings(loaded, &applied);
+        if (!require(applied.automatic_quality == 0,
+                     "saved quality policy reaches Graphics")) return 202;
         if (!require(applied.window_scale == 5,
                      "saved window scale applied")) return 107;
         if (!require(applied.display_layout == 0,
@@ -887,6 +892,7 @@ int main() {
         applied.fullscreen = 1;
         applied.linear_filter = 0;
         applied.supersampling = 3;
+        applied.automatic_quality = 1;
         applied.antialiasing = 4;
         applied.renderer = 2;
         applied.volume = 80;
@@ -922,6 +928,8 @@ int main() {
                      "changed fullscreen captured")) return 117;
         if (!require(!loaded.linear_filter,
                      "changed linear filter captured")) return 152;
+        if (!require(loaded.automatic_quality,
+                     "changed automatic quality captured and reloaded")) return 203;
         if (!require(loaded.supersampling == 3,
                      "changed supersampling captured")) return 118;
         if (!require(loaded.antialiasing == 4,

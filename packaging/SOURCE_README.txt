@@ -6,7 +6,7 @@ Matching release ref: v0.7.16-alpha.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
-    bc16db4692bae02ef9d3495b25d4963c476c184c
+    17b6a160978aba08b90d13805e554413804b1aaf
   Shared UI: https://github.com/RetroPortingToolKit/recomp-ui
     a8e6d5e6e673fa34db9104cc10c574c54c68082b
   ARM core: the engine's external/arm-recomp-core submodule
@@ -43,7 +43,7 @@ Enhanced offline runner profile:
   NDS_3D_GEOMETRY=NATIVE; NDS_ARM9_OBSERVATION_SERVICE=ON
   NDS_OFFLINE_ARM7=ON; NDS_WHOLE_ASSETS=ON; NDS_NATIVE_PUBLISHED_STORES=OFF
   NDS_MPH_PERFORMANCE=ON
-  NDS_MPH_MATH_IMPLEMENTATION=LLE; NDS_MPH_SUBMIT_IMPLEMENTATION=LLE
+  NDS_MPH_MATH_IMPLEMENTATION=HLE; NDS_MPH_SUBMIT_IMPLEMENTATION=HLE
   NDS_GX_COMMAND_CACHE=ON; NDS_BOOTSTRAP_FIRMWARE=ON
   NDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
 
@@ -69,3 +69,10 @@ dependency notices are bundled. Package with -AllowNoShardCache and do not
 use -SkipOverlayToolchain. Player-generated cache state remains private.
 TinyCC source: https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27.tar.bz2
 Its full matching COPYING is included beside the bundled compiler.
+
+Bundled live-overlay recompiler is the retained separately qualified tool from
+engine source85811e5776e4c2bcbfac132a19164fb5f4e9aeff, codegen identity
+nds-codegen-v3. Its executable SHA-256 is
+c3afd4279572be5802f6f125a8e4bf7dadc8beb8ad8342bb801fcd0eb8c42639.
+It uses the matching runtime_arm.h shipped alongside it; the later engine
+merge does not change that runtime interface or regenerate title banks.

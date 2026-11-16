@@ -20,7 +20,7 @@ ROM-derived source is distributed.
 
 The next Windows candidate is **v0.7.16-alpha**. Its enhanced offline
 profile uses native geometry, ARM9 observation services and native ARM7 services,
-with portable math and geometry submission. The Automatic quality controls and
+with the retained qualified math and geometry-submission HLE. The Automatic quality controls and
 dependency notices introduced in v0.7.15 remain included.
 
 **v0.7.15-alpha** adds a Graphics control for Automatic quality and a display

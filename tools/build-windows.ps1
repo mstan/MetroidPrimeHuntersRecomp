@@ -32,12 +32,12 @@ param(
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
-  # Qualified package uses the retained portable math implementation.
+  # Match the retained, qualified math HLE in the enhanced package.
   [ValidateSet('HLE', 'LLE')]
-  [string]$MathImplementation = 'LLE',
-  # Qualified package uses the retained portable submission implementation.
+  [string]$MathImplementation = 'HLE',
+  # Match the retained, qualified submission HLE in the enhanced package.
   [ValidateSet('HLE', 'LLE')]
-  [string]$SubmitImplementation = 'LLE',
+  [string]$SubmitImplementation = 'HLE',
   [ValidateSet('ON', 'OFF')]
   [string]$PerformanceBackend = 'ON',
   [ValidateSet('ON', 'OFF')]

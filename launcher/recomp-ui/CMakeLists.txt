@@ -33,8 +33,24 @@ endif()
 set(NDSRECOMP_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../../ndsrecomp" CACHE PATH
     "Path to the ndsrecomp framework checkout (for the shared SHA-1 helper)")
 
+# A second launcher can select the separately built reference runner while
+# retaining the same directory, ROM selection, cartridge saves and settings.
+if(WIN32)
+    set(_nds_runner_filename "nds_runner.exe")
+else()
+    set(_nds_runner_filename "nds_runner")
+endif()
+set(NDS_RUNNER_FILENAME "${_nds_runner_filename}" CACHE STRING
+    "Runner filename beside this launcher")
+if(NOT NDS_RUNNER_FILENAME MATCHES "^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+    message(FATAL_ERROR "NDS_RUNNER_FILENAME must be a filename, without a directory")
+endif()
+
 add_executable(mph-recomp-ui launcher_main.cpp
     "${NDSRECOMP_ROOT}/recompiler/support/sha1.cpp")
+target_compile_definitions(mph-recomp-ui PRIVATE
+    NDS_RUNNER_FILENAME="${NDS_RUNNER_FILENAME}")
+
 target_include_directories(mph-recomp-ui PRIVATE
     "${NDSRECOMP_ROOT}/recompiler/support"
     "${NDSRECOMP_ROOT}/launcher")

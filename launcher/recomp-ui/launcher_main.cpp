@@ -24,6 +24,14 @@ extern char **environ;
 #include <utility>
 #include <vector>
 
+#ifndef NDS_RUNNER_FILENAME
+#ifdef _WIN32
+#define NDS_RUNNER_FILENAME "nds_runner.exe"
+#else
+#define NDS_RUNNER_FILENAME "nds_runner"
+#endif
+#endif
+
 namespace {
 
 #if defined(_WIN32) && defined(MPH_NATIVE_PERFORMANCE)
@@ -1845,23 +1853,19 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         data_dir = std::filesystem::absolute(env);
 #endif
 
-#ifdef _WIN32
-    const std::filesystem::path runner = game_dir / "nds_runner.exe";
-#else
-    const std::filesystem::path runner = game_dir / "nds_runner";
-#endif
+    const std::filesystem::path runner = game_dir / NDS_RUNNER_FILENAME;
     const std::filesystem::path config = game_dir / "game.toml";
 
     if (!std::filesystem::is_regular_file(runner) ||
         !std::filesystem::is_regular_file(config)) {
 #ifdef _WIN32
         MessageBoxW(nullptr,
-            L"The release is incomplete: nds_runner.exe or game.toml is "
+            L"The selected runner or game.toml is "
             L"missing. Re-extract the full release ZIP.",
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
 #else
         std::fprintf(stderr,
-            "The release is incomplete: nds_runner or game.toml is missing.\n");
+            "The selected runner or game.toml is missing.\n");
 #endif
         return false;
     }

@@ -6,7 +6,7 @@ Matching release ref: v0.7.16-alpha.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
-    17b6a160978aba08b90d13805e554413804b1aaf
+    920cc891229f2bd92dc5f203cc159e8944fddf3c
   Shared UI: https://github.com/RetroPortingToolKit/recomp-ui
     a8e6d5e6e673fa34db9104cc10c574c54c68082b
   ARM core: the engine's external/arm-recomp-core submodule
@@ -71,7 +71,7 @@ TinyCC source: https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27.tar.
 Its full matching COPYING is included beside the bundled compiler.
 
 Bundled live-overlay recompiler is the retained separately qualified tool from
-engine source85811e5776e4c2bcbfac132a19164fb5f4e9aeff, codegen identity
+engine source 85811e5776e4c2bcbfac132a19164fb5f4e9aeff, codegen identity
 nds-codegen-v3. Its executable SHA-256 is
 c3afd4279572be5802f6f125a8e4bf7dadc8beb8ad8342bb801fcd0eb8c42639.
 It uses the matching runtime_arm.h shipped alongside it; the later engine

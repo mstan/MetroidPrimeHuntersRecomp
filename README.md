@@ -18,6 +18,11 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
+The next Windows candidate is **v0.7.16-alpha**. Its enhanced offline
+profile uses native geometry, ARM9 observation services and native ARM7 services,
+with portable math and geometry submission. The Automatic quality controls and
+dependency notices introduced in v0.7.15 remain included.
+
 **v0.7.15-alpha** adds a Graphics control for Automatic quality and a display
 of effective 3D quality. Turning it Off restores the selected resolution and
 supersampling, with the choice retained across current-build loads and restarts.

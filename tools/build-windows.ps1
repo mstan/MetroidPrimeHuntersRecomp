@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.7.13',
+  [string]$Version = '0.7.16',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
@@ -32,12 +32,12 @@ param(
   [string]$RecompUiRoot = 'third_party\recomp-ui',
   [ValidateSet('SDL3', 'SDL2')]
   [string]$SdlBackend = 'SDL3',
-  # Developer build choice; there is no player-facing runtime switch.
+  # Qualified package uses the retained portable math implementation.
   [ValidateSet('HLE', 'LLE')]
-  [string]$MathImplementation = 'HLE',
-  # Preview includes the measured submission implementation; LLE stays available.
+  [string]$MathImplementation = 'LLE',
+  # Qualified package uses the retained portable submission implementation.
   [ValidateSet('HLE', 'LLE')]
-  [string]$SubmitImplementation = 'HLE',
+  [string]$SubmitImplementation = 'LLE',
   [ValidateSet('ON', 'OFF')]
   [string]$PerformanceBackend = 'ON',
   [ValidateSet('ON', 'OFF')]
@@ -80,6 +80,16 @@ if (-not $SkipPackage -and $PerformanceBackend -eq 'ON' -and
 
 if ($PerformanceBackend -eq 'ON' -and -not $DynarmicRoot) {
   throw 'Performance requires -DynarmicRoot <patched pinned SDK source>. Use -PerformanceBackend OFF for the portable Faithful build.'
+}
+if ($PerformanceBackend -eq 'ON') {
+  $sdkHead = (& git -C $DynarmicRoot rev-parse HEAD 2>$null)
+  if ($LASTEXITCODE -ne 0 -or "$sdkHead".Trim() -ne 'f7afd5b4a2d25ae1c77d9e2738708be23188c6ee') {
+    throw 'Pass -DynarmicRoot pointing to the qualified SDK commit f7afd5b4a2d25ae1c77d9e2738708be23188c6ee.'
+  }
+  $sdkChanges = @(& git -C $DynarmicRoot status --porcelain 2>$null)
+  if ($LASTEXITCODE -ne 0 -or $sdkChanges.Count) {
+    throw 'The qualified SDK checkout must be clean. Use a separate checkout rather than a modified shared SDK.'
+  }
 }
 if ($PerformanceBackend -eq 'OFF') {
   $DynarmicRoot = ''; $Arm7Native = 'OFF'; $NativeControl = 'OFF'

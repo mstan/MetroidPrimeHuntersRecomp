@@ -18,13 +18,13 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
-The next Windows candidate is **v0.7.16-alpha**. Its enhanced offline
+The Windows **v0.8.0-alpha** update uses bottom-left picture-in-picture by default. Its enhanced offline
 profile uses native geometry, ARM9 observation services and native ARM7 services,
 with the retained qualified math and geometry-submission HLE. The Automatic quality controls and
 dependency notices introduced in v0.7.15 remain included.
 
 Settings > Display offers picture-in-picture in any corner, with the bottom
-screen inset at 90% opacity over the main top screen. Bottom right is the first PiP choice;
+screen inset at 90% opacity over the main top screen. Bottom left is the first PiP choice; existing saved corner choices are preserved, and
 screen swapping is unavailable for this title. Stacked and separate windows
 remain available, and the selected layout is saved.
 

@@ -35,6 +35,20 @@ extern char **environ;
 
 namespace {
 constexpr NdsLauncherPipCapabilities kPipCapabilities{false};
+// Present bottom-left first while retaining the stable persisted corner indices.
+constexpr const char* kMphScreenLayoutLabels[] = {
+    "Stacked window", "Separate windows",
+    "Picture in picture: bottom left", "Picture in picture: bottom right",
+    "Picture in picture: top right", "Picture in picture: top left",
+};
+constexpr int mph_layout_index(int layout) {
+    // This swap is its own inverse between UI order and stored/shared order.
+    return layout == 2 ? 3 : layout == 3 ? 2 : layout;
+}
+const char* mph_pip_corner_arg(int layout) {
+    return nds_launcher_pip_corner_arg(mph_layout_index(layout));
+}
+
 
 #if defined(_WIN32) && defined(MPH_NATIVE_PERFORMANCE)
 constexpr bool kNativePerformance = true;
@@ -2014,7 +2028,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(command, L"--wfc-provider", L"wiimmfi");
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
-    append_arg(command, L"--pip-corner", widen(nds_launcher_pip_corner_arg(display_layout)));
+    append_arg(command, L"--pip-corner", widen(mph_pip_corner_arg(display_layout)));
     append_arg(command, L"--pip-main-screen", widen(nds_launcher_pip_main_arg(display_layout,kPipCapabilities)));
     append_arg(command, L"--execution-model", widen(runner_execution_model_arg(mods.online_play)));
     append_arg(command, L"--diagnostics",
@@ -2066,7 +2080,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_arg(args, "--config", config.string());
     append_arg(args, "--screen-layout",
                runner_screen_layout_arg(display_layout));
-    append_arg(args, "--pip-corner", nds_launcher_pip_corner_arg(display_layout));
+    append_arg(args, "--pip-corner", mph_pip_corner_arg(display_layout));
     append_arg(args, "--pip-main-screen", nds_launcher_pip_main_arg(display_layout,kPipCapabilities));
     append_arg(args, "--fullscreen", runner_fullscreen_arg(fullscreen));
     append_arg(args, "--adaptive-widescreen", adaptive ? "top" : "none");
@@ -2163,7 +2177,7 @@ void apply_saved_launcher_settings(
     settings->window_scale = state.window_scale;
     std::copy(state.keyboard_bindings.begin(), state.keyboard_bindings.end(), settings->player_key_bind[0]);
     std::copy(state.gamepad_bindings.begin(), state.gamepad_bindings.end(), settings->player_pad_bind[0]);
-    settings->display_layout = state.display_layout;
+    settings->display_layout = mph_layout_index(state.display_layout);
     settings->fullscreen = state.fullscreen;
     settings->linear_filter = state.linear_filter ? 1 : 0;
     settings->supersampling = state.supersampling;
@@ -2183,7 +2197,7 @@ void capture_launcher_settings(
     state->window_scale = settings.window_scale;
     std::copy_n(settings.player_key_bind[0], state->keyboard_bindings.size(), state->keyboard_bindings.begin());
     std::copy_n(settings.player_pad_bind[0], state->gamepad_bindings.size(), state->gamepad_bindings.begin());
-    state->display_layout = settings.display_layout;
+    state->display_layout = mph_layout_index(settings.display_layout);
     state->fullscreen = settings.fullscreen;
     state->linear_filter = settings.linear_filter != 0;
     state->supersampling = settings.supersampling;
@@ -2295,7 +2309,7 @@ int main(int argc, char** argv) {
     game.num_renderers = std::size(renderer_labels);
     game.lock_device = 0;
     game.hide_rebind = 0;
-    game.display_layout_labels = kNdsScreenLayoutLabels;
+    game.display_layout_labels = kMphScreenLayoutLabels;
     game.num_display_layouts = nds_launcher_screen_layout_count(kPipCapabilities);
     game.mods = &mod_provider;
     game.bios_verify = nds_bios_verify;

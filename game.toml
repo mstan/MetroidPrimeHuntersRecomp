@@ -13,7 +13,7 @@ sha256 = "7d0a98ff98e1b7c985d1f3d89b01730af1b2115061a4dfea847612d217a8b855"
 # Prime Hunters uses both screens heavily. Keep them independently presentable
 # from the beginning, matching the established SM64DS host layout.
 screen_layout = "separate"
-pip_corner = "bottom-right"
+pip_corner = "bottom-left"
 pip_allow_swap = false
 supersampling = 1
 internal_resolution = 4

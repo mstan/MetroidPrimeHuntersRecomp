@@ -1,8 +1,8 @@
-Metroid Prime Hunters Recomp v0.7.16-alpha - source and build notes
+Metroid Prime Hunters Recomp v0.8.0-alpha - source and build notes
 ================================================================
 
 Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
-Matching release ref: v0.7.16-alpha.
+Matching release ref: v0.8.0-alpha.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp
@@ -47,7 +47,7 @@ Enhanced offline runner profile:
   NDS_GX_COMMAND_CACHE=ON; NDS_BOOTSTRAP_FIRMWARE=ON
   NDS_TITLE_ROM_SHA1=90164d1ac127ee5f9815ea4ae7de798c7b5fc629
 
-Use tools/build-windows.ps1 -Version 0.7.16 -PerformanceBackend ON
+Use tools/build-windows.ps1 -Version 0.8.0 -PerformanceBackend ON
 -DynarmicRoot <SDK prepared using docs/dynarmic-sdk.md> with the matching engine/UI sources.
 Build the separate Reference runner with -PerformanceBackend OFF; that forces
 SDK, native geometry, ARM9 observation, native ARM7, whole-assets and title HLE

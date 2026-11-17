@@ -14,9 +14,21 @@ bool require(bool condition, const char* label) {
 
 int main() {
     if (!require(!kPipCapabilities.swap_main && nds_launcher_screen_layout_count(kPipCapabilities)==6 &&
-            std::strcmp(nds_launcher_pip_corner_arg(2),"bottom-right")==0 &&
+            std::strcmp(mph_pip_corner_arg(2),"bottom-left")==0 &&
             std::strcmp(nds_launcher_pip_main_arg(9,kPipCapabilities),"top")==0,
-            "PiP defaults bottom-right and never exposes swapped title layouts")) return 251;
+            "PiP defaults bottom-left and never exposes swapped title layouts")) return 251;
+    for (const int saved_corner : {2,3}) {
+        ModState previous{};
+        previous.display_layout = saved_corner;
+        RecompLauncherCSettings shown{};
+        apply_saved_launcher_settings(previous, &shown);
+        if (!require(std::strcmp(mph_pip_corner_arg(shown.display_layout),
+                                 saved_corner == 2 ? "bottom-right" : "bottom-left") == 0,
+                     "existing saved PiP corner keeps its meaning in the new menu")) return 255;
+        capture_launcher_settings(&previous, shown);
+        if (!require(previous.display_layout == saved_corner,
+                     "saving the new menu preserves the legacy corner index")) return 256;
+    }
     if (!require(std::strcmp(runner_execution_model_arg(),
                             kNativePerformance ? "performance" : "faithful") == 0,
                  "build-selected execution model")) return 96;

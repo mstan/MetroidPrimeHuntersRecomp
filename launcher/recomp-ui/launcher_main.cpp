@@ -118,7 +118,6 @@ struct ModState {
     int fullscreen = 0;
     bool linear_filter = false;
     int supersampling = 1;
-    bool automatic_quality = true;
     int antialiasing = 0;
     int volume = 100;
     int player_src = 2;
@@ -743,10 +742,8 @@ void load_mod_state(ModState& state) {
             else if (value == "false" || value == "0")
                 state.linear_filter = false;
         } else if (key == "automatic_quality") {
-            if (value == "true" || value == "1")
-                state.automatic_quality = true;
-            else if (value == "false" || value == "0")
-                state.automatic_quality = false;
+            // Retired: Automatic Quality was removed. A value saved by an
+            // older launcher is ignored and dropped on the next save.
         } else if (key == "supersampling") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -892,7 +889,6 @@ bool save_mod_state(ModState& state) {
              << "linear_filter="
              << (state.linear_filter ? "true" : "false") << '\n'
              << "supersampling=" << state.supersampling << '\n'
-             << "automatic_quality=" << (state.automatic_quality ? "true" : "false") << '\n'
              << "antialiasing=" << state.antialiasing << '\n'
              << "volume=" << state.volume << '\n'
              << "player_src=" << state.player_src << '\n'
@@ -2181,7 +2177,6 @@ void apply_saved_launcher_settings(
     settings->fullscreen = state.fullscreen;
     settings->linear_filter = state.linear_filter ? 1 : 0;
     settings->supersampling = state.supersampling;
-    settings->automatic_quality = state.automatic_quality ? 1 : 0;
     settings->antialiasing = state.antialiasing;
     settings->renderer =
         renderer_type_to_settings_index(state.renderer_type.c_str());
@@ -2201,7 +2196,6 @@ void capture_launcher_settings(
     state->fullscreen = settings.fullscreen;
     state->linear_filter = settings.linear_filter != 0;
     state->supersampling = settings.supersampling;
-    state->automatic_quality = settings.automatic_quality != 0;
     state->antialiasing = settings.antialiasing;
     state->renderer_type = settings_index_to_renderer_type(settings.renderer);
     state->volume = settings.volume;
@@ -2228,7 +2222,6 @@ int main(int argc, char** argv) {
     settings.player_src[0] = 2;
     settings.display_layout = 1;
     settings.supersampling = 1;
-    settings.automatic_quality = 1;
     settings.antialiasing = 0;
     settings.renderer = renderer_type_to_settings_index(kDefaultRendererType);
     std::copy(kNdsDefaultKeys.begin(), kNdsDefaultKeys.end(), settings.player_key_bind[0]);
@@ -2304,7 +2297,6 @@ int main(int argc, char** argv) {
     game.num_known_sha1 = std::size(sha1);
     game.widescreen_supported = 0;
     game.has_renderer = 1;
-    game.has_automatic_quality = 1;
     game.renderer_labels = renderer_labels;
     game.num_renderers = std::size(renderer_labels);
     game.lock_device = 0;

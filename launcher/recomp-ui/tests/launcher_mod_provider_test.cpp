@@ -803,6 +803,35 @@ int main() {
         std::filesystem::remove(fi_saved.settings_path);
     }
 
+    // Issue #44: Automatic Quality was removed. A settings file written by an
+    // older launcher still loads, keeps the player's chosen quality, and the
+    // retired key is dropped on the next save.
+    {
+        const std::filesystem::path legacy_path =
+            std::filesystem::temp_directory_path() /
+            "mph_mod_provider_retired_quality.ini";
+        {
+            std::ofstream file(legacy_path, std::ios::trunc);
+            file << "automatic_quality=true\nsupersampling=3\nantialiasing=4\n";
+        }
+        ModState legacy{};
+        legacy.settings_path = legacy_path;
+        load_mod_state(legacy);
+        if (!require(legacy.supersampling == 3 && legacy.antialiasing == 4,
+                     "retired automatic quality leaves chosen quality intact"))
+            return 204;
+        if (!require(save_mod_state(legacy), "retired quality settings save"))
+            return 205;
+        std::ifstream reread(legacy_path);
+        const std::string text((std::istreambuf_iterator<char>(reread)),
+                               std::istreambuf_iterator<char>());
+        reread.close();
+        if (!require(text.find("automatic_quality") == std::string::npos,
+                     "retired automatic quality key dropped on save"))
+            return 206;
+        std::filesystem::remove(legacy_path);
+    }
+
     // Issue #14 follow-up: every setting MPH exposes through the shared
     // launcher must survive a launcher restart, not just the two launch
     // arguments that were originally fixed.
@@ -824,7 +853,6 @@ int main() {
         saved.fullscreen = 2;
         saved.linear_filter = true;
         saved.supersampling = 4;
-        saved.automatic_quality = false;
         saved.antialiasing = 8;
         saved.renderer_type = "compute";
         saved.volume = 35;
@@ -836,8 +864,6 @@ int main() {
         ModState loaded{};
         loaded.settings_path = settings_path;
         load_mod_state(loaded);
-        if (!require(!loaded.automatic_quality,
-                     "explicit automatic quality Off survives settings restart")) return 201;
         if (!require(loaded.window_scale == 5,
                      "window scale round trip")) return 101;
         if (!require(loaded.display_layout == 0,
@@ -871,8 +897,6 @@ int main() {
         applied.volume = 100;
         applied.player_src[0] = 2;
         apply_saved_launcher_settings(loaded, &applied);
-        if (!require(applied.automatic_quality == 0,
-                     "saved quality policy reaches Graphics")) return 202;
         if (!require(applied.window_scale == 5,
                      "saved window scale applied")) return 107;
         if (!require(applied.display_layout == 0,
@@ -908,7 +932,6 @@ int main() {
         applied.fullscreen = 1;
         applied.linear_filter = 0;
         applied.supersampling = 3;
-        applied.automatic_quality = 1;
         applied.antialiasing = 4;
         applied.renderer = 2;
         applied.volume = 80;
@@ -949,8 +972,6 @@ int main() {
                      "changed fullscreen captured")) return 117;
         if (!require(!loaded.linear_filter,
                      "changed linear filter captured")) return 152;
-        if (!require(loaded.automatic_quality,
-                     "changed automatic quality captured and reloaded")) return 203;
         if (!require(loaded.supersampling == 3,
                      "changed supersampling captured")) return 118;
         if (!require(loaded.antialiasing == 4,

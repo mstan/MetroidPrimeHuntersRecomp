@@ -59,14 +59,13 @@ def prepare(args: argparse.Namespace) -> None:
         env.pop(key, None)
     command = [str(exe), str(FRAMEWORK / "bios"), "--serve", "--port", str(args.port),
                "--rom", str(GAME / "Metroid Prime Hunters.nds"),
-               "--config", str(GAME / "game.toml"), "--boot", "direct", "--no-save",
-               "--performance-governor", "off"]
+               "--config", str(GAME / "game.toml"), "--boot", "direct", "--no-save"]
     with (args.out / "stdout.log").open("wb") as stdout, (args.out / "stderr.log").open("wb") as stderr:
         process = subprocess.Popen(command, cwd=exe.parent, env=env, stdout=stdout, stderr=stderr,
                                    creationflags=subprocess.CREATE_NO_WINDOW)
     dump(args.out / "process.json", {"pid": process.pid, "port": args.port,
          "command": command, "exe_sha256": hashlib.sha256(exe.read_bytes()).hexdigest(),
-         "renderer": "compute", "governor": "off", "audio_output": "dummy"})
+         "renderer": "compute", "audio_output": "dummy"})
     client = None
     harvest = None
     try:

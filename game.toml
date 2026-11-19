@@ -97,8 +97,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "940e455721b8b333f9d9dca0a22019df0871b824"
-branch = "fix/mph-visor-gapfill-20261119"
+pin = "088eb870f6f78bbea6fff3558baeb8c37f6cd9e5"
+branch = "fix/remove-automatic-quality-20261119"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

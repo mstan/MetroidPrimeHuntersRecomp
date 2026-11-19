@@ -89,8 +89,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "555df21ce87b41eda583f441b30c88f71c563e21"
-branch = "integration/nds-five-services-20261115"
+pin = "31ebe20ae5ce80b5bc581033cc00018c8f166eff"
+branch = "fix/remove-automatic-quality-20261119"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

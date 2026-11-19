@@ -18,25 +18,28 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
-The Windows **v0.8.0-alpha** update uses bottom-left picture-in-picture by default. Its enhanced offline
-profile uses native geometry, ARM9 observation services and native ARM7 services,
-with the retained qualified math and geometry-submission HLE. The Automatic quality controls and
-dependency notices introduced in v0.7.15 remain included.
+**v0.8.1-alpha** (Windows and Linux) fixes the remaining issue #44 reports:
+
+- Graphics no longer drop to low quality on room changes. Automatic Quality
+  was removed, so your selected quality always applies.
+- Windows: shot, damage and other sound effects play again.
+- Windows: the morph ball looks correct again.
+- The widescreen visor filler stays steady while you aim.
+
+**Wireless & online play** is now on by default and runs on the same enhanced
+engine as offline play. An explicit Off choice from an earlier version is kept.
+The Reference engine stays included as a portable fallback.
 
 Settings > Display offers picture-in-picture in any corner, with the bottom
-screen inset at 90% opacity over the main top screen. Bottom left is the first PiP choice; existing saved corner choices are preserved, and
-screen swapping is unavailable for this title. Stacked and separate windows
-remain available, and the selected layout is saved.
-
-**v0.7.15-alpha** adds a Graphics control for Automatic quality and a display
-of effective 3D quality. Turning it Off restores the selected resolution and
-supersampling, with the choice retained across current-build loads and restarts.
+screen inset at 90% opacity over the main top screen. Bottom left is the first
+PiP choice; existing saved corner choices are preserved, and screen swapping is
+unavailable for this title. Stacked and separate windows remain available, and
+the selected layout is saved.
 
 Fresh profiles keep adaptive Fit to screen, and explicit saved choices remain
-unchanged. Windows retains its native OpenGL/HLE profile and Linux its faithful
-portable profile. Source/build information and dependency notices are packaged.
+unchanged. Source/build information and dependency notices are packaged.
 
-Details: [v0.7.15-alpha](docs/RELEASE-0.7.15-alpha.md).
+Details: [v0.8.1-alpha](docs/RELEASE-0.8.1-alpha.md).
 
 ## Gameplay Preview
 
@@ -330,4 +333,4 @@ license text and making the corresponding source available.
   <a href="https://discord.gg/Ad9BwSzctP"><img src=".github/raid-discord.png" alt="Join the Retro AI Development (R.A.I.D.) Discord" width="200"></a>
 </p>
 
-Wireless multiplayer and Nintendo WFC remain available through **Mods ? Wireless & online play**. Enhanced builds start offline; enabling connectivity uses the included Reference engine. The separate Reference launcher uses the same ROM selection, saves, firmware and settings. Restart the game after changing connectivity.
+Wireless multiplayer and Nintendo WFC remain available through **Mods ? Wireless & online play**. It is on by default for new profiles and runs on the enhanced engine itself; only the ARM7 wireless driver stays original while connected. An explicit Off choice is kept. The separate Reference launcher (the portable faithful engine) remains included and uses the same ROM selection, saves, firmware and settings. Restart the game after changing connectivity.

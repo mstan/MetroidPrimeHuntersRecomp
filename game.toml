@@ -40,6 +40,14 @@ adaptive_hud_gap_fill = true
 # framework's conservative 64-pixel default. Preserve source X=64..191 as one
 # centered unit so text and bars never cross an anchor seam.
 adaptive_hud_center_width = 128
+# Fill each invented gap with one flat colour per row taken from the outer
+# helmet panel body (native X=62 left, X=193 right), not from the bevel lines
+# at the seam. MPH sways the visor (BG1, HOFS 0) and helmet layers (BG2/BG3,
+# HOFS 128) by up to 8 px while aiming; sampling at those rest scrolls keeps
+# the filler static instead of changing colour as other art slides past the
+# seam. BG0 is the 3D layer (-1 = live).
+adaptive_hud_gap_source = [62, 193]
+adaptive_hud_gap_scroll_x = [-1, 0, 128, 128]
 # Low-polygon tutorial/cinematic prompt frames can expose unaudited projection
 # edges in the widened 3D surface. Center those simple frames while preserving
 # adaptive widescreen during normal gameplay.
@@ -89,8 +97,8 @@ size = 0x00028464
 
 [framework]
 path = "../ndsrecomp"
-pin = "555df21ce87b41eda583f441b30c88f71c563e21"
-branch = "integration/nds-five-services-20261115"
+pin = "e8f9b0bfb2c654f95f15821fdf5e26e99f11d4cb"
+branch = "main"
 
 [reference.mphread]
 url = "https://github.com/NoneGiven/MphRead.git"

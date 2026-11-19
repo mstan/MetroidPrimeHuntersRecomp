@@ -55,8 +55,11 @@ constexpr bool kNativePerformance = true;
 #else
 constexpr bool kNativePerformance = false;
 #endif
-const char* runner_execution_model_arg(bool online_play = false) {
-    return kNativePerformance && !online_play ? "performance" : "faithful";
+// Connectivity does not change the engine: an enhanced build plays online on
+// the same native profile. The runner itself keeps the original ARM7 wireless
+// driver whenever --network/--wfc is on (framework nds_service_profile_select).
+const char* runner_execution_model_arg() {
+    return kNativePerformance ? "performance" : "faithful";
 }
 
 #ifdef _WIN32
@@ -66,7 +69,7 @@ const char* runner_execution_model_arg(bool online_play = false) {
 struct ScopedNativeEnv {
     struct Previous {std::wstring name,value;bool present;};
     std::vector<Previous> previous;
-    explicit ScopedNativeEnv(bool enabled = true) {
+    explicit ScopedNativeEnv(bool enabled) {
         if(!kNativePerformance || !enabled)return;
         for(const auto& setting:std::initializer_list<std::pair<const wchar_t*,const wchar_t*>>{
             {L"NDS_ARM9_DIRECT_READS",L"1"},{L"NDS_ARM9_BATCH_WRITES",L"1"},
@@ -95,7 +98,10 @@ constexpr bool kNativeGlPreview = false;
 #endif
 
 struct ModState {
-    bool online_play = !kNativePerformance;
+    // Wireless & online play defaults ON in every build (owner decision
+    // 2026-11-19, beads-lqa.64). Only an explicit player choice is persisted,
+    // so an explicit Off survives while untouched profiles follow the default.
+    bool online_play = true;
     bool online_play_has_choice = false;
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
@@ -118,7 +124,6 @@ struct ModState {
     int fullscreen = 0;
     bool linear_filter = false;
     int supersampling = 1;
-    bool automatic_quality = true;
     int antialiasing = 0;
     int volume = 100;
     int player_src = 2;
@@ -209,23 +214,32 @@ struct ModState {
     std::string last_error;
 };
 
-bool use_native_runner(const ModState& mods) {
-    return kNativePerformance && !mods.online_play;
-}
-const char* runner_filename_arg(const ModState& mods) {
-    return kNativePerformance && !use_native_runner(mods)
-        ? "nds_runner_lle.exe" : NDS_RUNNER_FILENAME;
+// Each launcher starts exactly the engine it was built for, online or not.
+const char* runner_filename_arg() {
+    return NDS_RUNNER_FILENAME;
 }
 
-const char* runner_files_error(const std::filesystem::path& directory,
-                              const ModState& mods) {
-    if (!std::filesystem::is_regular_file(directory / runner_filename_arg(mods))) {
-        if (std::strcmp(runner_filename_arg(mods), "nds_runner_lle.exe") == 0)
-            return "The Reference engine is missing. Build the reference executable "
-                   "for this checkout or re-extract the complete release ZIP.";
+// Everything the Wireless & online play choice contributes to a launch. The
+// engine, execution model and native host profile are the build's own and do
+// not depend on connectivity; only the runner's network switches do.
+struct RunnerLaunchProfile {
+    const char* runner;
+    const char* execution_model;
+    bool native_host_profile;
+    const char* network;
+    const char* wfc;
+    const char* wfc_provider;
+};
+RunnerLaunchProfile runner_launch_profile(const ModState& mods) {
+    return {runner_filename_arg(), runner_execution_model_arg(), kNativePerformance,
+            mods.online_play ? "on" : "off", mods.online_play ? "on" : "off",
+            "wiimmfi"};
+}
+
+const char* runner_files_error(const std::filesystem::path& directory) {
+    if (!std::filesystem::is_regular_file(directory / runner_filename_arg()))
         return "The game engine is missing. Build this checkout or re-extract "
                "the complete release ZIP.";
-    }
     if (!std::filesystem::is_regular_file(directory / "game.toml"))
         return "The game configuration is missing. Re-extract the complete release ZIP.";
     return nullptr;
@@ -743,10 +757,8 @@ void load_mod_state(ModState& state) {
             else if (value == "false" || value == "0")
                 state.linear_filter = false;
         } else if (key == "automatic_quality") {
-            if (value == "true" || value == "1")
-                state.automatic_quality = true;
-            else if (value == "false" || value == "0")
-                state.automatic_quality = false;
+            // Retired: Automatic Quality was removed. A value saved by an
+            // older launcher is ignored and dropped on the next save.
         } else if (key == "supersampling") {
             char* end = nullptr;
             const long parsed = std::strtol(value.c_str(), &end, 10);
@@ -892,7 +904,6 @@ bool save_mod_state(ModState& state) {
              << "linear_filter="
              << (state.linear_filter ? "true" : "false") << '\n'
              << "supersampling=" << state.supersampling << '\n'
-             << "automatic_quality=" << (state.automatic_quality ? "true" : "false") << '\n'
              << "antialiasing=" << state.antialiasing << '\n'
              << "volume=" << state.volume << '\n'
              << "player_src=" << state.player_src << '\n'
@@ -966,11 +977,12 @@ int mod_feature_get(void* context, int index,
         copy_text(output->name, "Wireless & online play");
         copy_text(output->author, "ndsrecomp");
         copy_text(output->description,
-            "Enables wireless multiplayer and Nintendo WFC through Wiimmfi using "
-            "the Reference engine. Turn off for faster offline play. Restart "
-            "the game after changing this setting.");
+            "Enables wireless multiplayer and Nintendo WFC through Wiimmfi. "
+            "On by default; turn off to keep the game fully offline. The "
+            "game engine is the same either way. Restart the game after "
+            "changing this setting.");
         copy_text(output->group, "Connectivity");
-        copy_text(output->status, state->online_play ? "Enabled - Reference engine" : "Offline");
+        copy_text(output->status, state->online_play ? "Enabled" : "Offline");
         output->enabled = state->online_play;
     } else if (index == 0) {
         copy_text(output->id, "widescreen");
@@ -1926,11 +1938,11 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         data_dir = std::filesystem::absolute(env);
 #endif
 
-    const std::filesystem::path runner = game_dir /
-        runner_filename_arg(mods);
+    const RunnerLaunchProfile profile = runner_launch_profile(mods);
+    const std::filesystem::path runner = game_dir / profile.runner;
     const std::filesystem::path config = game_dir / "game.toml";
 
-    if (const char* error = runner_files_error(game_dir, mods)) {
+    if (const char* error = runner_files_error(game_dir)) {
 #ifdef _WIN32
         MessageBoxW(nullptr, widen(error).c_str(),
             L"Metroid Prime Hunters Recomp", MB_OK | MB_ICONERROR);
@@ -2023,14 +2035,14 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
         // while entering the title deterministically.
         L" --startup-mode automatic --boot direct";
 
-    append_arg(command, L"--network", mods.online_play ? L"on" : L"off");
-    append_arg(command, L"--wfc", mods.online_play ? L"on" : L"off");
-    append_arg(command, L"--wfc-provider", L"wiimmfi");
+    append_arg(command, L"--network", widen(profile.network));
+    append_arg(command, L"--wfc", widen(profile.wfc));
+    append_arg(command, L"--wfc-provider", widen(profile.wfc_provider));
 
     append_arg(command, L"--firmware-state-path", firmware_state.wstring());
     append_arg(command, L"--pip-corner", widen(mph_pip_corner_arg(display_layout)));
     append_arg(command, L"--pip-main-screen", widen(nds_launcher_pip_main_arg(display_layout,kPipCapabilities)));
-    append_arg(command, L"--execution-model", widen(runner_execution_model_arg(mods.online_play)));
+    append_arg(command, L"--execution-model", widen(profile.execution_model));
     append_arg(command, L"--diagnostics",
                mods.diagnostics ? L"on" : L"off");
     append_arg(command, L"--diagnostics-dir", diagnostics_dir.wstring());
@@ -2052,7 +2064,7 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
     append_live_overlay_args(command, game_dir);
 
     ScopedRendererEnv renderer_env(runner_renderer_policy_arg(mods));
-    ScopedNativeEnv native_env(!mods.online_play);
+    ScopedNativeEnv native_env(profile.native_host_profile);
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
     PROCESS_INFORMATION process{};
@@ -2114,9 +2126,9 @@ bool launch_runner(const std::filesystem::path& game_dir, const char* rom,
                std::to_string(mods.pad_aim_sensitivity));
     append_arg(args, "--startup-mode", "automatic");
     append_arg(args, "--boot", "direct");
-    append_arg(args, "--network", mods.online_play ? "on" : "off");
-    append_arg(args, "--wfc", mods.online_play ? "on" : "off");
-    append_arg(args, "--wfc-provider", "wiimmfi");
+    append_arg(args, "--network", profile.network);
+    append_arg(args, "--wfc", profile.wfc);
+    append_arg(args, "--wfc-provider", profile.wfc_provider);
     append_arg(args, "--firmware-state-path", firmware_state.string());
     append_arg(args, "--diagnostics", mods.diagnostics ? "on" : "off");
     append_arg(args, "--diagnostics-dir", diagnostics_dir.string());
@@ -2181,7 +2193,6 @@ void apply_saved_launcher_settings(
     settings->fullscreen = state.fullscreen;
     settings->linear_filter = state.linear_filter ? 1 : 0;
     settings->supersampling = state.supersampling;
-    settings->automatic_quality = state.automatic_quality ? 1 : 0;
     settings->antialiasing = state.antialiasing;
     settings->renderer =
         renderer_type_to_settings_index(state.renderer_type.c_str());
@@ -2201,7 +2212,6 @@ void capture_launcher_settings(
     state->fullscreen = settings.fullscreen;
     state->linear_filter = settings.linear_filter != 0;
     state->supersampling = settings.supersampling;
-    state->automatic_quality = settings.automatic_quality != 0;
     state->antialiasing = settings.antialiasing;
     state->renderer_type = settings_index_to_renderer_type(settings.renderer);
     state->volume = settings.volume;
@@ -2228,7 +2238,6 @@ int main(int argc, char** argv) {
     settings.player_src[0] = 2;
     settings.display_layout = 1;
     settings.supersampling = 1;
-    settings.automatic_quality = 1;
     settings.antialiasing = 0;
     settings.renderer = renderer_type_to_settings_index(kDefaultRendererType);
     std::copy(kNdsDefaultKeys.begin(), kNdsDefaultKeys.end(), settings.player_key_bind[0]);
@@ -2304,7 +2313,6 @@ int main(int argc, char** argv) {
     game.num_known_sha1 = std::size(sha1);
     game.widescreen_supported = 0;
     game.has_renderer = 1;
-    game.has_automatic_quality = 1;
     game.renderer_labels = renderer_labels;
     game.num_renderers = std::size(renderer_labels);
     game.lock_device = 0;

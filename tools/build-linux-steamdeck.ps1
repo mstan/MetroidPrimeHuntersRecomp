@@ -10,7 +10,7 @@ Usage:
     tools\build-linux-steamdeck.ps1 -Version 0.4.4
 #>
 param(
-  [string]$Version = '0.7.14',
+  [string]$Version = '0.8.1',
   [int]$Jobs = 0,
   [string]$Image = 'mph-linux-steamdeck-builder:ubuntu22.04',
   [string]$Out = 'release-linux-steamdeck',

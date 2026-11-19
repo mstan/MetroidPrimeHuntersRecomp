@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.8.0',
+  [string]$Version = '0.8.1',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,

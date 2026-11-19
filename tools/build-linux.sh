@@ -112,6 +112,7 @@ if [ "$PACKAGE_EXISTING" != 1 ]; then
   echo "[3/4] configure runner"
   cmake -S "$FRAMEWORK_ROOT/runner" -B "$RUNNER_BUILD" -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Release \
+    -DNDS_RECOMP_UI_ROOT="$RECOMP_UI_ROOT" \
     -DNDS_SDL_BACKEND="$SDL_BACKEND" \
     -DNDS_MPH_MATH_IMPLEMENTATION="$MATH_IMPLEMENTATION" \
     -DNDS_BOOTSTRAP_FIRMWARE=ON \

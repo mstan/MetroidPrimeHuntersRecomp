@@ -121,6 +121,7 @@ try {
   $runnerArgs = @(
     '-G', $Generator, '-S', "$frameworkRoot\runner", '-B', $runnerBuild,
     '-DCMAKE_BUILD_TYPE=Release',
+    "-DNDS_RECOMP_UI_ROOT=$RecompUiRoot",
     "-DNDS_SDL_BACKEND=$SdlBackend",
     "-DNDS_MPH_MATH_IMPLEMENTATION=$MathImplementation",
     "-DNDS_MPH_SUBMIT_IMPLEMENTATION=$SubmitImplementation",

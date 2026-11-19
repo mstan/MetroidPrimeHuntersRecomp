@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -58,6 +59,27 @@ def _runner_help_mentions(runner: Path, token: str) -> bool:
 
 def _is_unknown_command_error(exc: RuntimeError) -> bool:
     return "unknown cmd" in str(exc).lower()
+
+
+# The enhanced launcher's fixed native ARM9 host profile (ScopedNativeEnv in
+# launcher/recomp-ui/launcher_main.cpp). Play mode also runs without the
+# serve-mode deep-trace payloads, which would otherwise mask native services.
+ENHANCED_LAUNCH_ENV = {
+    "NDS_ARM9_DIRECT_READS": "1",
+    "NDS_ARM9_BATCH_WRITES": "1",
+    "NDS_ARM9_LONG_BLOCKS": "0",
+    "NDS_ARM9_DATA_HANDOFFS": "0",
+    "NDS_ARM9_GX_BATCH": "0",
+    "NDS_ARM9_EVENT_WINDOWS": "0",
+    "NDS_DEEP_TRACE": "0",
+}
+
+
+def runner_environment(execution_model: str) -> dict[str, str]:
+    env = dict(os.environ)
+    if execution_model == "performance":
+        env.update(ENHANCED_LAUNCH_ENV)
+    return env
 
 
 def save_checkpoint(
@@ -263,6 +285,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         args.wfc_provider,
         "--instance-index",
         str(args.instance_index),
+        "--execution-model",
+        args.execution_model,
     ]
     if args.save_path:
         command.extend(["--save-path", str(args.save_path.resolve())])
@@ -290,6 +314,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         process = subprocess.Popen(
             command,
             cwd=runner.parent,
+            env=runner_environment(args.execution_model),
             stdout=stdout,
             stderr=stderr,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
@@ -494,6 +519,12 @@ def main() -> int:
         default="slirp",
     )
     parser.add_argument("--wfc-provider", default="wiimmfi")
+    parser.add_argument(
+        "--execution-model",
+        choices=("faithful", "performance"),
+        default="faithful",
+        help="performance probes the enhanced engine exactly as the launcher starts it",
+    )
     parser.add_argument("--filter", action="append", default=list(DEFAULT_FILTERS))
     parser.add_argument(
         "--connection-timeout",

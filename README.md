@@ -18,7 +18,7 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
-**v0.8.1-alpha** (Windows and Linux) fixes the remaining issue #44 reports:
+**v0.8.2** (Windows and Linux) fixes the remaining issue #44 reports:
 
 - Graphics no longer drop to low quality on room changes. Automatic Quality
   was removed, so your selected quality always applies.
@@ -39,7 +39,7 @@ the selected layout is saved.
 Fresh profiles keep adaptive Fit to screen, and explicit saved choices remain
 unchanged. Source/build information and dependency notices are packaged.
 
-Details: [v0.8.1-alpha](docs/RELEASE-0.8.1-alpha.md).
+Details: [v0.8.2](docs/RELEASE-0.8.2.md).
 
 ## Gameplay Preview
 

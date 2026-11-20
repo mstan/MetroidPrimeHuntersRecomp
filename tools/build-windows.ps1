@@ -10,7 +10,7 @@ Usage:
     tools\build-windows.ps1 -Version 0.1.0
 #>
 param(
-  [string]$Version = '0.8.1',
+  [string]$Version = '0.8.2',
   [string]$CMake = 'C:\msys64\mingw64\bin\cmake.exe',
   [string]$Generator = 'Ninja',
   [int]$Jobs = 12,
@@ -143,7 +143,7 @@ try {
     '-DNDS_GX_COMMAND_CACHE=ON',
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
     "-DNDS_ACCELERATED_RENDERER=$AcceleratedRenderer",
-    "-DNDS_TITLE_VERSION=v$Version-alpha",
+    "-DNDS_TITLE_VERSION=v$Version",
     "-DNDS_LEAN_DIAGNOSTICS=$LeanDiagnostics",
     "-DNDS_CAPTURE_VIEW_REUSE=$CaptureViewReuse",
     '-DNDS_BOOTSTRAP_FIRMWARE=ON',

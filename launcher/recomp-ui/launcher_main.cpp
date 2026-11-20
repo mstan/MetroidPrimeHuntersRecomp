@@ -98,11 +98,6 @@ constexpr bool kNativeGlPreview = false;
 #endif
 
 struct ModState {
-    // Wireless & online play defaults ON in every build (owner decision
-    // 2026-11-19, beads-lqa.64). Only an explicit player choice is persisted,
-    // so an explicit Off survives while untouched profiles follow the default.
-    bool online_play = true;
-    bool online_play_has_choice = false;
     bool adaptive_widescreen = true;
     std::string widescreen_mode = "adaptive";
     // Owner-selected HD default. internal_resolution
@@ -219,9 +214,10 @@ const char* runner_filename_arg() {
     return NDS_RUNNER_FILENAME;
 }
 
-// Everything the Wireless & online play choice contributes to a launch. The
-// engine, execution model and native host profile are the build's own and do
-// not depend on connectivity; only the runner's network switches do.
+// Wireless and Nintendo WFC (Wiimmfi) are always on; they are not a player
+// option (owner decision 2026-11-19, beads-lqa.66). A broken connection is a
+// bug to fix, not something to switch off. The engine, execution model and
+// native host profile are the build's own.
 struct RunnerLaunchProfile {
     const char* runner;
     const char* execution_model;
@@ -230,10 +226,9 @@ struct RunnerLaunchProfile {
     const char* wfc;
     const char* wfc_provider;
 };
-RunnerLaunchProfile runner_launch_profile(const ModState& mods) {
+RunnerLaunchProfile runner_launch_profile(const ModState&) {
     return {runner_filename_arg(), runner_execution_model_arg(), kNativePerformance,
-            mods.online_play ? "on" : "off", mods.online_play ? "on" : "off",
-            "wiimmfi"};
+            "on", "on", "wiimmfi"};
 }
 
 const char* runner_files_error(const std::filesystem::path& directory) {
@@ -703,8 +698,9 @@ void load_mod_state(ModState& state) {
             if (end && *end == '\0' && parsed >= 0)
                 settings_version = static_cast<int>(parsed);
         } else if (key == "wireless_online_play") {
-            state.online_play = value == "true";
-            state.online_play_has_choice = true;
+            // Retired: online play is always on. A value saved by an older
+            // launcher (including an explicit Off) is ignored and dropped on
+            // the next save.
         } else if (key == "adaptive_widescreen") {
             state.adaptive_widescreen = value != "false";
         } else if (key == "widescreen_mode") {
@@ -884,8 +880,6 @@ bool save_mod_state(ModState& state) {
             return false;
         }
         file << "settings_version=13\n";
-        if (state.online_play_has_choice)
-            file << "wireless_online_play=" << (state.online_play ? "true" : "false") << '\n';
         file << "adaptive_widescreen="
              << (state.adaptive_widescreen ? "true" : "false") << '\n'
              << "widescreen_mode=" << widescreen_choice(state).value << '\n'
@@ -961,7 +955,7 @@ bool save_mod_state(ModState& state) {
 // card (GameInfo.has_player_name + the NDS profile's "identity" panel),
 // directly under the controller card.
 int mod_feature_count(void*) {
-    return 6;
+    return 5;
 }
 
 int mod_feature_get(void* context, int index,
@@ -969,22 +963,7 @@ int mod_feature_get(void* context, int index,
     if (!context || !output || index < 0 || index >= mod_feature_count(context)) return 0;
     const auto* state = static_cast<const ModState*>(context);
     std::memset(output, 0, sizeof(*output));
-    if (index == 5) {
-        copy_text(output->id, "wireless-online-play");
-        copy_text(output->package_id, "mph-connectivity");
-        copy_text(output->package_version, "0.1.0");
-        copy_text(output->package_name, "Connectivity");
-        copy_text(output->name, "Wireless & online play");
-        copy_text(output->author, "ndsrecomp");
-        copy_text(output->description,
-            "Enables wireless multiplayer and Nintendo WFC through Wiimmfi. "
-            "On by default; turn off to keep the game fully offline. The "
-            "game engine is the same either way. Restart the game after "
-            "changing this setting.");
-        copy_text(output->group, "Connectivity");
-        copy_text(output->status, state->online_play ? "Enabled" : "Offline");
-        output->enabled = state->online_play;
-    } else if (index == 0) {
+    if (index == 0) {
         copy_text(output->id, "widescreen");
         copy_text(output->package_id, "mph-widescreen");
         copy_text(output->package_version, "0.1.0");
@@ -1091,12 +1070,6 @@ int mod_feature_enable(void* context, const char* package_id,
                        const char* feature_id, int enabled) {
     if (!context || !package_id || !feature_id) return 0;
     auto* state = static_cast<ModState*>(context);
-    if (std::strcmp(package_id, "mph-connectivity") == 0 &&
-        std::strcmp(feature_id, "wireless-online-play") == 0) {
-        state->online_play = enabled != 0;
-        state->online_play_has_choice = true;
-        return 1;
-    }
     if (is_widescreen_feature(package_id, feature_id)) {
         state->adaptive_widescreen = enabled != 0;
         if (state->adaptive_widescreen &&

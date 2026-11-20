@@ -142,10 +142,11 @@ int main() {
     if (!require(provider.feature_count != nullptr, "feature_count callback"))
         return 3;
     // Gameplay mods plus diagnostics; the online identity is a dashboard
-    // card, not a mod. Index 1 stays prime controls so the assertions below
-    // are unaffected by HD rendering being added at index 2.
+    // card, not a mod, and connectivity is always on (no switch). Index 1
+    // stays prime controls so the assertions below are unaffected by HD
+    // rendering being added at index 2.
     const int feature_count = provider.feature_count(provider.ctx);
-    if (!require(feature_count == 6, "feature_count == 6")) return 4;
+    if (!require(feature_count == 5, "feature_count == 5")) return 4;
 
     RecompLauncherCModFeature feature{};
     if (!require(provider.feature_get(provider.ctx, 0, &feature),
@@ -1279,11 +1280,9 @@ int main() {
 #endif
 
     {
-        // beads-lqa.64: Wireless & online play is ON for fresh profiles in
-        // every build, and online play runs on the build's own engine.
+        // beads-lqa.66: Wireless and online play are always on. They are not a
+        // player option, and launches use the build's own engine.
         ModState connectivity;
-        if (!require(connectivity.online_play && !connectivity.online_play_has_choice,
-                     "fresh profiles default to wireless and online play")) return 180;
         const char* const own_model = kNativePerformance ? "performance" : "faithful";
         const RunnerLaunchProfile online = runner_launch_profile(connectivity);
         if (!require(std::strcmp(online.runner, NDS_RUNNER_FILENAME) == 0 &&
@@ -1292,85 +1291,55 @@ int main() {
                      std::strcmp(online.network, "on") == 0 &&
                      std::strcmp(online.wfc, "on") == 0 &&
                      std::strcmp(online.wfc_provider, "wiimmfi") == 0,
-                     "online launches the build's own engine with networking on")) return 181;
-        connectivity.online_play = false;
-        const RunnerLaunchProfile offline = runner_launch_profile(connectivity);
-        if (!require(std::strcmp(offline.runner, online.runner) == 0 &&
-                     std::strcmp(offline.execution_model, online.execution_model) == 0 &&
-                     offline.native_host_profile == online.native_host_profile &&
-                     std::strcmp(offline.network, "off") == 0 &&
-                     std::strcmp(offline.wfc, "off") == 0,
-                     "offline differs from online only in the network switches")) return 182;
+                     "every launch runs the build's own engine with networking on")) return 180;
         if (!require(std::strcmp(runner_filename_arg(), "nds_runner_lle.exe") != 0 ||
                      std::strcmp(NDS_RUNNER_FILENAME, "nds_runner_lle.exe") == 0,
                      "connectivity never selects the separately built Reference engine")) return 191;
-        connectivity.online_play = true;
         const auto directory = std::filesystem::temp_directory_path() / "mph-connectivity-test";
         // An earlier aborted run (or the other launcher variant) must not leak
         // engine stand-ins into this run's file checks.
         std::filesystem::remove_all(directory);
         {
-            ModState implicit_defaults;
-            implicit_defaults.settings_path = directory / "implicit.ini";
-            if (!require(save_mod_state(implicit_defaults), "implicit defaults save")) return 188;
-            std::ifstream implicit(implicit_defaults.settings_path);
-            const std::string saved((std::istreambuf_iterator<char>(implicit)), {});
-            if (!require(saved.find("wireless_online_play=") == std::string::npos,
-                         "an untouched profile does not persist the connectivity default")) return 189;
-            ModState next_launch;
-            next_launch.settings_path = implicit_defaults.settings_path;
-            load_mod_state(next_launch);
-            if (!require(next_launch.online_play && !next_launch.online_play_has_choice,
-                         "an untouched saved profile still follows the online default")) return 190;
-            implicit.close();
-            std::filesystem::remove(implicit_defaults.settings_path);
-        }
-        {
-            // A v0.7.16/v0.8.0 profile whose player explicitly chose Offline.
+            // A v0.7.16-v0.8.1 profile whose player explicitly chose Offline:
+            // the retired choice is ignored and dropped on the next save.
             std::filesystem::create_directories(directory);
             const auto legacy_path = directory / "legacy-offline.ini";
             std::ofstream(legacy_path) << "settings_version=13\nwireless_online_play=false\n";
             ModState upgraded;
             upgraded.settings_path = legacy_path;
             load_mod_state(upgraded);
-            if (!require(!upgraded.online_play && upgraded.online_play_has_choice &&
-                         std::strcmp(runner_launch_profile(upgraded).network, "off") == 0,
-                         "an explicit saved Offline choice survives the new default")) return 192;
-            if (!require(save_mod_state(upgraded), "explicit offline re-save")) return 193;
-            ModState reloaded;
-            reloaded.settings_path = legacy_path;
-            load_mod_state(reloaded);
-            if (!require(!reloaded.online_play && reloaded.online_play_has_choice,
-                         "re-saving keeps the explicit Offline choice")) return 194;
+            if (!require(std::strcmp(runner_launch_profile(upgraded).network, "on") == 0 &&
+                         std::strcmp(runner_launch_profile(upgraded).wfc, "on") == 0,
+                         "a saved Offline choice no longer disables networking")) return 192;
+            if (!require(save_mod_state(upgraded), "legacy profile re-save")) return 193;
+            std::ifstream reread(legacy_path);
+            const std::string saved((std::istreambuf_iterator<char>(reread)), {});
+            reread.close();
+            if (!require(saved.find("wireless_online_play") == std::string::npos,
+                         "the retired connectivity key is dropped on save")) return 194;
             std::filesystem::remove(legacy_path);
         }
         {
-            RecompLauncherCModFeature connectivity_feature{};
+            // The Mods page no longer offers a connectivity switch.
             ModState shown;
             auto shown_provider = make_mod_provider(&shown);
-            if (!require(shown_provider.feature_get(shown_provider.ctx, 5, &connectivity_feature) &&
-                         std::strcmp(connectivity_feature.id, "wireless-online-play") == 0 &&
-                         connectivity_feature.enabled &&
-                         std::strcmp(connectivity_feature.status, "Enabled") == 0 &&
-                         !std::strstr(connectivity_feature.description, "Reference"),
-                         "Mods page shows connectivity enabled without an engine switch")) return 195;
-            shown.online_play = false;
-            if (!require(shown_provider.feature_get(shown_provider.ctx, 5, &connectivity_feature) &&
-                         !connectivity_feature.enabled &&
-                         std::strcmp(connectivity_feature.status, "Offline") == 0,
-                         "Mods page shows an Offline choice")) return 196;
+            const int count = shown_provider.feature_count(shown_provider.ctx);
+            bool found = false;
+            for (int i = 0; i < count; ++i) {
+                RecompLauncherCModFeature feature{};
+                if (!require(shown_provider.feature_get(shown_provider.ctx, i, &feature),
+                             "every listed mod feature is readable")) return 195;
+                if (std::strcmp(feature.id, "wireless-online-play") == 0 ||
+                    std::strcmp(feature.package_id, "mph-connectivity") == 0)
+                    found = true;
+            }
+            RecompLauncherCModFeature past_end{};
+            if (!require(!found && !shown_provider.feature_get(shown_provider.ctx, count, &past_end),
+                         "Mods page has no Wireless & online play switch")) return 196;
+            if (!require(!shown_provider.feature_enable(shown_provider.ctx, "mph-connectivity",
+                                                        "wireless-online-play", 0),
+                         "the retired connectivity feature cannot be toggled")) return 183;
         }
-        connectivity.settings_path = directory / "mods.ini";
-        auto connectivity_provider = make_mod_provider(&connectivity);
-        connectivity_provider.feature_enable(connectivity_provider.ctx, "mph-connectivity", "wireless-online-play", 1);
-        if (!require(save_mod_state(connectivity), "online choice saves")) return 183;
-        ModState restored; restored.settings_path = connectivity.settings_path;
-        load_mod_state(restored);
-        if (!require(restored.online_play && restored.online_play_has_choice, "explicit online choice survives restart")) return 184;
-        connectivity_provider.feature_enable(connectivity_provider.ctx, "mph-connectivity", "wireless-online-play", 0);
-        if (!require(save_mod_state(connectivity), "offline choice saves")) return 185;
-        load_mod_state(restored);
-        if (!require(!restored.online_play && restored.online_play_has_choice, "explicit offline choice survives restart")) return 186;
         const auto engines = directory / "engines";
         std::filesystem::create_directories(engines);
         std::ofstream(engines / "game.toml").put('x');
@@ -1378,7 +1347,6 @@ int main() {
         if (!require(missing && std::strstr(missing, "game engine is missing"),
                      "a missing build engine reports a friendly error")) return 197;
         std::ofstream(engines / NDS_RUNNER_FILENAME).put('x');
-        connectivity.online_play = true;
         const bool reference_launcher =
             std::strcmp(NDS_RUNNER_FILENAME, "nds_runner_lle.exe") == 0;
         if (!require((reference_launcher ||
@@ -1388,7 +1356,6 @@ int main() {
         std::filesystem::remove(engines / NDS_RUNNER_FILENAME);
         std::filesystem::remove(engines / "game.toml");
         std::filesystem::remove(engines);
-        std::filesystem::remove(connectivity.settings_path);
         std::filesystem::remove(directory);
     }
     return 0;

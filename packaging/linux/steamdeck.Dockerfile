@@ -1,3 +1,8 @@
+# Base recipe for the Linux release TOOLCHAIN image. Release builds do not run
+# this file: they use steamdeck-ccache.Dockerfile, a thin ccache layer FROM the
+# already-built image of this recipe pinned by digest. Rebuilding this file
+# resolves ubuntu:22.04 and apt packages afresh, i.e. a new compiler; see
+# docs/LINUX-RELEASE-BUILD.md before doing so.
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive

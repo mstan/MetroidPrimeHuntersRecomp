@@ -12,7 +12,7 @@ Usage:
 param(
   [string]$Version = '0.8.1',
   [int]$Jobs = 0,
-  [string]$Image = 'mph-linux-steamdeck-builder:ubuntu22.04',
+  [string]$Image = 'mph-linux-release14-ccache:ubuntu22.04',
   [string]$Out = 'release-linux-steamdeck',
   [string]$NdsrecompRoot = 'ndsrecomp',
   [string]$RecompUiRoot = 'third_party\recomp-ui',
@@ -22,7 +22,10 @@ param(
   [switch]$AllowNoShardCache,
   [switch]$SkipOverlayToolchain,
   [switch]$NoPackage,
-  [switch]$SkipImageBuild
+  [switch]$SkipImageBuild,
+  [string]$CompilerCacheDir = '',
+  [string]$CompilerCacheMaxSize = '40G',
+  [switch]$NoCompilerCache
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,15 +63,9 @@ function Resolve-HostPath([string]$Path) {
 
 $frameworkRoot = Resolve-HostPath $NdsrecompRoot
 $recompUiRoot = Resolve-HostPath $RecompUiRoot
-$dockerfile = Join-Path $root 'packaging\linux\steamdeck.Dockerfile'
 
 if (-not (Test-Path -LiteralPath (Join-Path $root 'Metroid Prime Hunters.nds'))) {
   throw "Verified ROM missing from repo root: $(Join-Path $root 'Metroid Prime Hunters.nds')"
-}
-
-if (-not $SkipImageBuild) {
-  & docker build -t $Image -f $dockerfile (Split-Path -Parent $dockerfile)
-  if ($LASTEXITCODE -ne 0) { throw 'Docker image build failed.' }
 }
 
 if ($Jobs -le 0) {
@@ -96,16 +93,19 @@ if ($SkipOverlayToolchain) {
   $buildArgs += '--skip-overlay-toolchain'
 }
 
-$dockerArgs = @(
-  'run', '--rm',
-  '-v', "${root}:/work/mph",
-  '-v', "${frameworkRoot}:/work/ndsrecomp",
-  '-v', "${recompUiRoot}:/work/recomp-ui",
-  '-w', '/work/mph',
-  '-e', 'NDSRECOMP_ROOT=/work/ndsrecomp',
-  '-e', 'RECOMP_UI_ROOT=/work/recomp-ui',
-  $Image
-) + $buildArgs
-
-& docker @dockerArgs
+# The image (pinned release toolchain + ccache), the /work mounts, the
+# persistent compiler cache and the framework git build-id mounts are defined
+# once in run-linux-release-container.ps1.
+$containerArgs = @{
+  Command = $buildArgs
+  RepoRoot = $root
+  NdsrecompRoot = $frameworkRoot
+  RecompUiRoot = $recompUiRoot
+  Image = $Image
+  SkipImageBuild = $SkipImageBuild
+  CompilerCacheDir = $CompilerCacheDir
+  CompilerCacheMaxSize = $CompilerCacheMaxSize
+  NoCompilerCache = $NoCompilerCache
+}
+& (Join-Path $PSScriptRoot 'run-linux-release-container.ps1') @containerArgs
 if ($LASTEXITCODE -ne 0) { throw 'Containerized Linux build failed.' }

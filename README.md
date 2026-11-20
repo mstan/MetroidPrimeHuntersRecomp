@@ -1,6 +1,6 @@
 # MetroidPrimeHuntersRecomp
 
-> **Public alpha - bugs are expected.** This is an early Metroid Prime Hunters
+> **Public beta - bugs are expected.** This is an early Metroid Prime Hunters
 > recompilation release built on [ndsrecomp](https://github.com/mstan/ndsrecomp).
 > It is not a finished port. Expect rough edges, crashes, hangs, rendering or
 > audio issues, input quirks, networking failures, and possible desyncs. Testing,
@@ -18,7 +18,7 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
-**v0.8.2** (Windows and Linux) fixes the remaining issue #44 reports:
+**v0.8.2-beta** (Windows and Linux) fixes the remaining issue #44 reports:
 
 - Graphics no longer drop to low quality on room changes. Automatic Quality
   was removed, so your selected quality always applies.
@@ -39,7 +39,7 @@ the selected layout is saved.
 Fresh profiles keep adaptive Fit to screen, and explicit saved choices remain
 unchanged. Source/build information and dependency notices are packaged.
 
-Details: [v0.8.2](docs/RELEASE-0.8.2.md).
+Details: [v0.8.2-beta](docs/RELEASE-0.8.2.md).
 
 ## Gameplay Preview
 
@@ -73,7 +73,7 @@ HD defaults to 4x internal resolution with 8-sample SSAA. Native resolution
 and AA Off remain available under Mods / HD Rendering. Texture upscaling is unavailable with
 this native GL preview and its control is hidden. Extract the preview into a
 fresh directory; it contains no ROM, retail BIOS/firmware, saves or private
-captures. Existing save files should be backed up before testing an alpha.
+captures. Existing save files should be backed up before testing a beta.
 
 HD Rendering also offers experimental 6x, 8x and 12x scales. At 16:9, 12x
 produces a 3D raster above 3840x2160 while keeping HUD layers at native DS
@@ -86,7 +86,7 @@ Current shared UI: `a8e6d5e6e673fa34db9104cc10c574c54c68082b`.
 This is the first release line in the ndsrecomp ecosystem and it is still very
 early. Campaign entry, widescreen output, Prime-style controls, gamepad support,
 and Wiimmfi lobby connectivity have all seen active bring-up, but this should
-still be treated as an alpha test build rather than a polished game release.
+still be treated as a beta test build rather than a polished game release.
 
 New in v0.6.10: the Linear filter launcher setting now saves between sessions,
 Prime Controls leaves D-pad left/right available for normal menu navigation by
@@ -144,14 +144,14 @@ more GPU time and memory.
 
 Windows:
 
-1. Download and fully extract the `v0.7.13-alpha` Windows ZIP.
+1. Download and fully extract the `v0.8.2-beta` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.7.6-alpha` AppImage.
+1. Download the `v0.8.2-beta` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
@@ -195,7 +195,7 @@ If your ROM does not match, the launcher/runner should reject it.
 
 ## Known Limits
 
-- This is an alpha. Bugs, crashes, hangs, graphical issues, audio issues, and
+- This is a beta. Bugs, crashes, hangs, graphical issues, audio issues, and
   gameplay problems are expected.
 - Gameplay coverage is incomplete. Do not assume the campaign is fully
   validated from start to finish.

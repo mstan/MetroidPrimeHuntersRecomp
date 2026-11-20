@@ -16,6 +16,8 @@ ROM_SHA1="90164d1ac127ee5f9815ea4ae7de798c7b5fc629"
 RUNNER_NAME="nds_runner"
 LAUNCHER_NAME="mph-recomp-ui"
 VERSION="0.8.2"
+# Release channel suffix for the in-game title version (empty for none).
+CHANNEL="${MPH_RELEASE_CHANNEL-beta}"
 JOBS="$(nproc 2>/dev/null || echo 4)"
 DO_PACKAGE=1
 BUILD_FLAVOR="release"
@@ -116,7 +118,7 @@ if [ "$PACKAGE_EXISTING" != 1 ]; then
     -DNDS_SDL_BACKEND="$SDL_BACKEND" \
     -DNDS_MPH_MATH_IMPLEMENTATION="$MATH_IMPLEMENTATION" \
     -DNDS_BOOTSTRAP_FIRMWARE=ON \
-    -DNDS_TITLE_VERSION="v$VERSION" \
+    -DNDS_TITLE_VERSION="v$VERSION${CHANNEL:+-$CHANNEL}" \
     -DNDS_TITLE_BANK_DIR="$TITLE_BANK_DIR" \
     -DNDS_TITLE_ROM_SHA1="$ROM_SHA1"
   echo "      build runner"

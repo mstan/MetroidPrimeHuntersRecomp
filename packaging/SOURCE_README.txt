@@ -1,8 +1,8 @@
-Metroid Prime Hunters Recomp v0.8.2 - source and build notes
+Metroid Prime Hunters Recomp v0.8.2-beta - source and build notes
 ================================================================
 
 Title source: https://github.com/mstan/MetroidPrimeHuntersRecomp
-Matching release ref: v0.8.2.
+Matching release ref: v0.8.2-beta.
 
 Public source revisions:
   Engine: https://github.com/RetroPortingToolKit/ndsrecomp

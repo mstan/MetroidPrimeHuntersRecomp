@@ -1,6 +1,6 @@
-# Metroid Prime Hunters Recomp v0.8.2
+# Metroid Prime Hunters Recomp v0.8.2-beta
 
-Windows and Linux release. It contains the
+Windows and Linux beta release. It contains the
 [issue #44](https://github.com/mstan/MetroidPrimeHuntersRecomp/issues/44)
 fixes first published as v0.8.1-alpha, with the same game engine.
 
@@ -27,6 +27,7 @@ The sound and morph ball problems affected only the Windows enhanced engine.
 
 ## Notes
 
+- This is a beta: bugs, crashes and rough edges are still expected.
 - Provide your own supported (USA, revision 0) ROM.
 - No ROM, BIOS, firmware, saves or private captures are included.
 - Execution snapshots (savestates) remain build-specific.

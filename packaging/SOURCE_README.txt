@@ -37,7 +37,7 @@ title tools and engine bios/ instructions. ROMs, BIOS/firmware dumps, saves,
 private captures and generated title C are not distributed. Omit
 NDS_PREBUILT_BANK_ARCHIVE when compiling your own generated banks.
 
-Enhanced offline runner profile:
+Enhanced runner profile:
   CMAKE_BUILD_TYPE=Release; NDS_SDL_BACKEND=SDL3
   NDS_ACCELERATED_RENDERER=OPENGL; NDS_ENABLE_COMPUTE_RENDERER=ON
   NDS_3D_GEOMETRY=NATIVE; NDS_ARM9_OBSERVATION_SERVICE=ON
@@ -56,10 +56,11 @@ OFF. The enhanced launcher uses the default runner filename and native flags ON.
 Use -SkipPackage when building artifacts separately; then pass both enhanced
 and Reference runner/launcher directories to tools/make_release.ps1.
 
-Wireless & online play is available in Mods. Enhanced profiles default offline;
-enabling connectivity selects the included Reference engine. Both engines
-share ROM selection, firmware, cartridge saves and launcher preferences.
-Graphics retain adaptive Fit to screen and the selected quality controls.
+Wireless & online play is always on; it is not a setting. Each launcher runs
+its own engine online and offline (the enhanced engine keeps only the original
+ARM7 wireless driver while connected). Both engines share ROM selection,
+firmware, cartridge saves and launcher preferences. Graphics retain adaptive
+Fit to screen and the selected graphics quality.
 Save states are build-specific; native in-game save progress is preserved.
 Online interoperability remains experimental.
 

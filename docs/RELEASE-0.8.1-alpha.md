@@ -25,10 +25,9 @@ the Linux build uses the portable profile and was not affected.
 
 ## Online play
 
-- **Wireless & online play is now on by default** and uses the same enhanced
-  engine as offline play. The separate Reference engine is no longer needed
-  for online play.
-- If you previously turned the option off, that choice is kept.
+- **Wireless & online play is always on** and uses the same enhanced engine as
+  offline play. It is no longer a setting, so an earlier Off choice no longer
+  applies. The separate Reference engine is no longer needed for online play.
 - The Reference engine is still included as a portable fallback.
 
 Online play remains experimental.

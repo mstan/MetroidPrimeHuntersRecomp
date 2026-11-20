@@ -26,9 +26,9 @@ ROM-derived source is distributed.
 - Windows: the morph ball looks correct again.
 - The widescreen visor filler stays steady while you aim.
 
-**Wireless & online play** is now on by default and runs on the same enhanced
-engine as offline play. An explicit Off choice from an earlier version is kept.
-The Reference engine stays included as a portable fallback.
+**Wireless & online play** is always on and runs on the same enhanced engine
+as offline play. It is no longer a setting. The Reference engine stays included
+as a portable fallback.
 
 Settings > Display offers picture-in-picture in any corner, with the bottom
 screen inset at 90% opacity over the main top screen. Bottom left is the first
@@ -333,4 +333,4 @@ license text and making the corresponding source available.
   <a href="https://discord.gg/Ad9BwSzctP"><img src=".github/raid-discord.png" alt="Join the Retro AI Development (R.A.I.D.) Discord" width="200"></a>
 </p>
 
-Wireless multiplayer and Nintendo WFC remain available through **Mods ? Wireless & online play**. It is on by default for new profiles and runs on the enhanced engine itself; only the ARM7 wireless driver stays original while connected. An explicit Off choice is kept. The separate Reference launcher (the portable faithful engine) remains included and uses the same ROM selection, saves, firmware and settings. Restart the game after changing connectivity.
+Wireless multiplayer and Nintendo WFC are always on and run on the enhanced engine itself; only the ARM7 wireless driver stays original. There is no setting to turn them off. The separate Reference launcher (the portable faithful engine) remains included and uses the same ROM selection, saves, firmware and settings.

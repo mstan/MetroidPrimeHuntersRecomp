@@ -165,10 +165,15 @@ test -f "$LAUNCHER_BIN" || {
 # which is how v0.4.12/v0.4.13/v0.5.0 shipped without 63 of them.
 bash "$REPO/tools/verify_bank_inventory.sh" "$BIN" --repo "$REPO"
 
-LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-LINUXDEPLOY_SHA=421ca71d5c69ea97c6309276232990d43df1dcece0edfaa26bbf926ff96ed12e
-APPIMAGETOOL_URL=https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-APPIMAGETOOL_SHA=a6d71e2b6cd66f8e8d16c37ad164658985e0cf5fcaa950c90a482890cb9d13e0
+# Packaging tools are pinned to fixed release tags, never "continuous": those
+# assets are rebuilt in place, so a pinned hash on them breaks every few months.
+# The AppImage runtime is pinned too, so appimagetool never fetches one itself.
+LINUXDEPLOY_URL=https://github.com/linuxdeploy/linuxdeploy/releases/download/1-alpha-20251107-1/linuxdeploy-x86_64.AppImage
+LINUXDEPLOY_SHA=c20cd71e3a4e3b80c3483cef793cda3f4e990aca14014d23c544ca3ce1270b4d
+APPIMAGETOOL_URL=https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+APPIMAGETOOL_SHA=ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0
+APPIMAGE_RUNTIME_URL=https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64
+APPIMAGE_RUNTIME_SHA=2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d
 
 TOOLS_DIR="$RUNNER_BUILD/appimage-tools"
 mkdir -p "$TOOLS_DIR" "$OUT"
@@ -183,8 +188,10 @@ fetch_tool() {
 }
 LINUXDEPLOY_BIN="$TOOLS_DIR/linuxdeploy-x86_64.AppImage"
 APPIMAGETOOL_BIN="$TOOLS_DIR/appimagetool-x86_64.AppImage"
+APPIMAGE_RUNTIME_FILE="$TOOLS_DIR/runtime-x86_64"
 fetch_tool "$LINUXDEPLOY_URL" "$LINUXDEPLOY_SHA" "$LINUXDEPLOY_BIN"
 fetch_tool "$APPIMAGETOOL_URL" "$APPIMAGETOOL_SHA" "$APPIMAGETOOL_BIN"
+fetch_tool "$APPIMAGE_RUNTIME_URL" "$APPIMAGE_RUNTIME_SHA" "$APPIMAGE_RUNTIME_FILE"
 
 WORK="$(mktemp -d)"
 trap 'chmod -R u+w "$WORK" 2>/dev/null || true; rm -rf "$WORK"' EXIT
@@ -450,7 +457,7 @@ bash "$REPO/tools/verify_bank_inventory.sh" "$APPDIR/usr/bin/$RUNNER_NAME" \
 
 APP="$OUT/$APP_NAME-linux-v$VERSION-x86_64.AppImage"
 rm -f "$APP"
-ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run "$APPDIR" "$APP" >/dev/null
+ARCH=x86_64 "$APPIMAGETOOL_BIN" --appimage-extract-and-run --runtime-file "$APPIMAGE_RUNTIME_FILE" "$APPDIR" "$APP" >/dev/null
 chmod +x "$APP"
 # --allow-no-shard-cache permits an absent cache; it does not forbid a valid
 # cache from being staged. Validate the package we actually produced.

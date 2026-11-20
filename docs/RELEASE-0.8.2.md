@@ -1,4 +1,4 @@
-# Metroid Prime Hunters Recomp v0.8.2-beta
+# Metroid Prime Hunters Recomp v0.8.2
 
 Windows and Linux beta release. It contains the
 [issue #44](https://github.com/mstan/MetroidPrimeHuntersRecomp/issues/44)

@@ -18,7 +18,7 @@ ROM-derived source is distributed.
 
 ## Current desktop update
 
-**v0.8.2-beta** (Windows and Linux) fixes the remaining issue #44 reports:
+**v0.8.2** (Windows and Linux) fixes the remaining issue #44 reports:
 
 - Graphics no longer drop to low quality on room changes. Automatic Quality
   was removed, so your selected quality always applies.
@@ -39,7 +39,7 @@ the selected layout is saved.
 Fresh profiles keep adaptive Fit to screen, and explicit saved choices remain
 unchanged. Source/build information and dependency notices are packaged.
 
-Details: [v0.8.2-beta](docs/RELEASE-0.8.2.md).
+Details: [v0.8.2](docs/RELEASE-0.8.2.md).
 
 ## Gameplay Preview
 
@@ -144,14 +144,14 @@ more GPU time and memory.
 
 Windows:
 
-1. Download and fully extract the `v0.8.2-beta` Windows ZIP.
+1. Download and fully extract the `v0.8.2` Windows ZIP.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to
    `MetroidPrimeHuntersRecomp.exe`.
 3. Run `MetroidPrimeHuntersRecomp.exe` and press Play.
 
 Linux:
 
-1. Download the `v0.8.2-beta` AppImage.
+1. Download the `v0.8.2` AppImage.
 2. Put your own Metroid Prime Hunters USA revision-0 `.nds` ROM next to the
    AppImage.
 3. Run the AppImage.
